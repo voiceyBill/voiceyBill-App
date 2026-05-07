@@ -1,50 +1,30 @@
 import { apiClient } from '../../store/api-client';
 
-// Report Types
+export type ReportStatus = 'SENT' | 'PENDING' | 'FAILED' | 'NO_ACTIVITY';
+
 export interface Report {
   _id: string;
   userId: string;
-  type: string;
-  startDate: string;
-  endDate: string;
-  generatedAt: string;
-  fileUrl?: string;
-  status: 'pending' | 'completed' | 'failed';
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ReportSetting {
-  _id: string;
-  userId: string;
-  frequency: 'daily' | 'weekly' | 'monthly' | 'none';
-  reportType: string;
-  emailDelivery: boolean;
-  isActive: boolean;
-  lastSent?: string;
-  nextScheduled?: string;
+  period: string;
+  sentDate: string;
+  status: ReportStatus;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface GetAllReportResponse {
   message: string;
-  data: {
-    reports: Report[];
-    pagination: {
-      currentPage: number;
-      totalPages: number;
-      totalReports: number;
-      pageSize: number;
-    };
+  reports: Report[];
+  pagination: {
+    pageSize: number;
+    pageNumber: number;
+    totalCount: number;
+    totalPages: number;
   };
 }
 
 export interface UpdateReportSettingParams {
-  frequency: 'daily' | 'weekly' | 'monthly' | 'none';
-  reportType: string;
-  emailDelivery: boolean;
-  isActive: boolean;
+  isEnabled: boolean;
 }
 
 export const reportApi = apiClient.injectEndpoints({
@@ -54,7 +34,7 @@ export const reportApi = apiClient.injectEndpoints({
       { pageNumber?: number; pageSize?: number }
     >({
       query: (params) => {
-        const { pageNumber = 1, pageSize = 20 } = params;
+        const { pageNumber = 1, pageSize = 10 } = params;
         return {
           url: '/report/all',
           method: 'GET',
@@ -72,27 +52,10 @@ export const reportApi = apiClient.injectEndpoints({
       }),
       invalidatesTags: ['reports'],
     }),
-
-    downloadReport: builder.mutation<{ fileUrl: string }, string>({
-      query: (reportId) => ({
-        url: `/report/download/${reportId}`,
-        method: 'GET',
-      }),
-    }),
-
-    deleteReport: builder.mutation<void, string>({
-      query: (reportId) => ({
-        url: `/report/delete/${reportId}`,
-        method: 'DELETE',
-      }),
-      invalidatesTags: ['reports'],
-    }),
   }),
 });
 
 export const {
   useGetAllReportsQuery,
   useUpdateReportSettingMutation,
-  useDownloadReportMutation,
-  useDeleteReportMutation,
 } = reportApi;

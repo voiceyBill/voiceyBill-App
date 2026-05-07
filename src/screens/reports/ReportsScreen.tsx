@@ -1,61 +1,56 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  Modal,
+  Switch,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Download, Trash2, Calendar, FileText, Mail } from 'lucide-react-native';
+import { Calendar, FileText, Mail, X, CheckCircle, Clock, AlertCircle, MinusCircle } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme/colors';
-import { useGetAllReportsQuery, useDownloadReportMutation, useDeleteReportMutation } from '../../features/report/reportAPI';
+import {
+  useGetAllReportsQuery,
+  useUpdateReportSettingMutation,
+  ReportStatus,
+} from '../../features/report/reportAPI';
+import { useTypedSelector } from '../../store/hooks';
 import { format } from 'date-fns';
 
 export default function ReportsScreen() {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const user = useTypedSelector((s) => s.auth.user);
+
   const [page, setPage] = useState(1);
   const pageSize = 10;
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [isSavingSchedule, setIsSavingSchedule] = useState(false);
 
-  const { data, isLoading, isFetching, refetch } = useGetAllReportsQuery({
-    pageNumber: page,
-    pageSize,
-  });
+  const { data, isLoading, isFetching, refetch } = useGetAllReportsQuery({ pageNumber: page, pageSize });
+  const [updateReportSetting] = useUpdateReportSettingMutation();
 
-  const [downloadReport] = useDownloadReportMutation();
-  const [deleteReport] = useDeleteReportMutation();
+  const reports = data?.reports || [];
+  const pagination = data?.pagination;
 
-  const reports = data?.data?.reports || [];
-  const pagination = data?.data?.pagination;
-
-  const handleDownload = async (reportId: string, type: string) => {
+  const handleSaveSchedule = async () => {
+    setIsSavingSchedule(true);
     try {
-      const result = await downloadReport(reportId).unwrap();
-      if (result.fileUrl) {
-        Alert.alert('Success', 'Report downloaded successfully');
-        // In a real app, you'd open the URL or download the file
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to download report');
+      await updateReportSetting({ isEnabled: scheduleEnabled }).unwrap();
+      setShowScheduleModal(false);
+      Alert.alert('Saved', 'Report schedule updated successfully');
+    } catch {
+      Alert.alert('Error', 'Failed to update report schedule');
+    } finally {
+      setIsSavingSchedule(false);
     }
-  };
-
-  const handleDelete = (reportId: string) => {
-    Alert.alert(
-      'Delete Report',
-      'Are you sure you want to delete this report?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteReport(reportId).unwrap();
-              Alert.alert('Success', 'Report deleted successfully');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete report');
-            }
-          },
-        },
-      ]
-    );
   };
 
   const formatDate = (dateString: string) => {
@@ -66,21 +61,19 @@ export default function ReportsScreen() {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusConfig = (status: ReportStatus) => {
     switch (status) {
-      case 'completed':
-        return '#10b981';
-      case 'pending':
-        return '#f59e0b';
-      case 'failed':
-        return '#ef4444';
+      case 'SENT':
+        return { color: themeColors.incomeText, bgColor: themeColors.incomeBg, icon: CheckCircle, label: 'Sent' };
+      case 'PENDING':
+        return { color: themeColors.mutedForeground, bgColor: themeColors.muted, icon: Clock, label: 'Pending' };
+      case 'FAILED':
+        return { color: themeColors.destructive, bgColor: themeColors.expenseBg, icon: AlertCircle, label: 'Failed' };
+      case 'NO_ACTIVITY':
+        return { color: themeColors.mutedForeground, bgColor: themeColors.muted, icon: MinusCircle, label: 'No Activity' };
       default:
-        return themeColors.mutedForeground;
+        return { color: themeColors.mutedForeground, bgColor: themeColors.muted, icon: Clock, label: status };
     }
-  };
-
-  const getStatusLabel = (status: string) => {
-    return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
   const styles = createStyles(themeColors);
@@ -89,333 +82,382 @@ export default function ReportsScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         contentContainerStyle={{ paddingBottom: spacing.xl }}
-        refreshControl={
-          <RefreshControl refreshing={isFetching} onRefresh={refetch} />
-        }
+        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} />}
       >
         {/* Header */}
         <View style={styles.navbar}>
-          <View>
-            <Text style={styles.navbarTitle}>Report History</Text>
-            <Text style={styles.navbarSubtitle}>
-              View and manage your financial reports
-            </Text>
+          <View style={styles.navbarTop}>
+            <View>
+              <Text style={styles.navbarTitle}>Report History</Text>
+              <Text style={styles.navbarSubtitle}>View and manage your financial reports</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.scheduleButton}
+              onPress={() => setShowScheduleModal(true)}
+            >
+              <Calendar size={16} color={themeColors.navbarForeground} />
+              <Text style={styles.scheduleButtonText}>Report Settings</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.content}>
-          <View style={styles.card}>
-            {/* Loading State */}
-            {isLoading && (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={themeColors.primary} />
-                <Text style={styles.loadingText}>Loading reports...</Text>
-              </View>
-            )}
+          {/* Loading */}
+          {isLoading && (
+            <View style={styles.centerState}>
+              <ActivityIndicator size="large" color={themeColors.primary} />
+              <Text style={[styles.stateText, { color: themeColors.mutedForeground }]}>Loading reports...</Text>
+            </View>
+          )}
 
-            {/* Empty State */}
-            {!isLoading && reports.length === 0 && (
-              <View style={styles.emptyState}>
-                <FileText size={64} color={themeColors.mutedForeground} />
-                <Text style={styles.emptyTitle}>No Reports Yet</Text>
-                <Text style={styles.emptyText}>
-                  Your generated financial reports will appear here.
+          {/* Empty state */}
+          {!isLoading && reports.length === 0 && (
+            <View style={styles.emptyState}>
+              <View style={[styles.emptyIconWrap, { backgroundColor: themeColors.muted }]}>
+                <FileText size={32} color={themeColors.mutedForeground} strokeWidth={1.5} />
+              </View>
+              <Text style={[styles.emptyTitle, { color: themeColors.foreground }]}>No Reports Yet</Text>
+              <Text style={[styles.emptyText, { color: themeColors.mutedForeground }]}>
+                Your monthly financial reports will appear here once generated.
+              </Text>
+              <TouchableOpacity
+                style={[styles.scheduleHintBtn, { borderColor: themeColors.border }]}
+                onPress={() => setShowScheduleModal(true)}
+              >
+                <Mail size={14} color={themeColors.mutedForeground} />
+                <Text style={[styles.scheduleHintText, { color: themeColors.mutedForeground }]}>
+                  Configure report schedule
                 </Text>
-              </View>
-            )}
+              </TouchableOpacity>
+            </View>
+          )}
 
-            {/* Reports List */}
-            {!isLoading && reports.length > 0 && (
-              <View style={styles.reportsList}>
-                {reports.map((report) => (
-                  <View key={report._id} style={styles.reportItem}>
-                    <View style={styles.reportHeader}>
+          {/* Reports list */}
+          {!isLoading && reports.length > 0 && (
+            <View style={styles.list}>
+              {reports.map((report) => {
+                const status = getStatusConfig(report.status);
+                const StatusIcon = status.icon;
+                return (
+                  <View
+                    key={report._id}
+                    style={[styles.reportCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+                  >
+                    <View style={styles.reportTop}>
+                      <View style={[styles.reportIconWrap, { backgroundColor: themeColors.muted }]}>
+                        <FileText size={20} color={themeColors.foreground} strokeWidth={1.5} />
+                      </View>
                       <View style={styles.reportInfo}>
-                        <View style={styles.reportIconContainer}>
-                          <FileText size={20} color={themeColors.primary} />
-                        </View>
-                        <View style={styles.reportDetails}>
-                          <Text style={styles.reportType}>
-                            {report.type || 'Financial Report'}
-                          </Text>
-                          <View style={styles.reportMeta}>
-                            <Calendar size={14} color={themeColors.mutedForeground} />
-                            <Text style={styles.reportDate}>
-                              {formatDate(report.startDate)} - {formatDate(report.endDate)}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                      <View
-                        style={[
-                          styles.statusBadge,
-                          { backgroundColor: getStatusColor(report.status) + '20' },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.statusText,
-                            { color: getStatusColor(report.status) },
-                          ]}
-                        >
-                          {getStatusLabel(report.status)}
+                        <Text style={[styles.reportTitle, { color: themeColors.foreground }]}>
+                          {report.period || 'Financial Report'}
                         </Text>
+                        <View style={styles.dateRow}>
+                          <Calendar size={12} color={themeColors.mutedForeground} />
+                          <Text style={[styles.reportDate, { color: themeColors.mutedForeground }]}>
+                            {report.sentDate ? `Sent ${formatDate(report.sentDate)}` : formatDate(report.createdAt)}
+                          </Text>
+                        </View>
                       </View>
-                    </View>
-
-                    <View style={styles.reportFooter}>
-                      <Text style={styles.generatedText}>
-                        Generated: {formatDate(report.generatedAt)}
-                      </Text>
-                      <View style={styles.reportActions}>
-                        {report.status === 'completed' && (
-                          <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={() => handleDownload(report._id, report.type)}
-                          >
-                            <Download size={18} color={themeColors.primary} />
-                          </TouchableOpacity>
-                        )}
-                        <TouchableOpacity
-                          style={styles.actionButton}
-                          onPress={() => handleDelete(report._id)}
-                        >
-                          <Trash2 size={18} color={themeColors.destructive} />
-                        </TouchableOpacity>
+                      <View style={[styles.statusBadge, { backgroundColor: status.bgColor }]}>
+                        <StatusIcon size={12} color={status.color} strokeWidth={2} />
+                        <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
                       </View>
                     </View>
                   </View>
-                ))}
-              </View>
-            )}
+                );
+              })}
+            </View>
+          )}
 
-            {/* Pagination */}
-            {pagination && pagination.totalPages > 1 && (
-              <View style={styles.pagination}>
-                <TouchableOpacity
-                  style={[
-                    styles.paginationButton,
-                    page === 1 && styles.paginationButtonDisabled,
-                  ]}
-                  onPress={() => setPage(page - 1)}
-                  disabled={page === 1}
-                >
-                  <Text
-                    style={[
-                      styles.paginationButtonText,
-                      page === 1 && styles.paginationButtonTextDisabled,
-                    ]}
-                  >
-                    Previous
-                  </Text>
-                </TouchableOpacity>
-                <Text style={styles.paginationInfo}>
-                  Page {pagination.currentPage} of {pagination.totalPages}
+          {/* Pagination */}
+          {pagination && pagination.totalPages > 1 && (
+            <View style={[styles.pagination, { borderTopColor: themeColors.border }]}>
+              <TouchableOpacity
+                style={[
+                  styles.pageBtn,
+                  { borderColor: themeColors.border, backgroundColor: themeColors.card },
+                  page === 1 && styles.pageBtnDisabled,
+                ]}
+                onPress={() => setPage(page - 1)}
+                disabled={page === 1}
+              >
+                <Text style={[styles.pageBtnText, { color: page === 1 ? themeColors.mutedForeground : themeColors.foreground }]}>
+                  Previous
                 </Text>
-                <TouchableOpacity
-                  style={[
-                    styles.paginationButton,
-                    page === pagination.totalPages && styles.paginationButtonDisabled,
-                  ]}
-                  onPress={() => setPage(page + 1)}
-                  disabled={page === pagination.totalPages}
-                >
-                  <Text
-                    style={[
-                      styles.paginationButtonText,
-                      page === pagination.totalPages &&
-                        styles.paginationButtonTextDisabled,
-                    ]}
-                  >
-                    Next
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
+              </TouchableOpacity>
+              <Text style={[styles.pageInfo, { color: themeColors.mutedForeground }]}>
+                {pagination.pageNumber} / {pagination.totalPages}
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.pageBtn,
+                  { borderColor: themeColors.border, backgroundColor: themeColors.card },
+                  page === pagination.totalPages && styles.pageBtnDisabled,
+                ]}
+                onPress={() => setPage(page + 1)}
+                disabled={page === pagination.totalPages}
+              >
+                <Text style={[styles.pageBtnText, { color: page === pagination.totalPages ? themeColors.mutedForeground : themeColors.foreground }]}>
+                  Next
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </ScrollView>
+
+      {/* Report Settings Modal */}
+      <Modal
+        visible={showScheduleModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowScheduleModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: themeColors.border }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modalTitle, { color: themeColors.foreground }]}>Report Settings</Text>
+                <Text style={[styles.modalSubtitle, { color: themeColors.mutedForeground }]}>
+                  Enable or disable monthly financial report emails
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowScheduleModal(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <X size={20} color={themeColors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.modalContent}>
+              {/* Enable toggle */}
+              <View style={[styles.settingRow, { borderColor: themeColors.border }]}>
+                <View style={styles.settingRowLeft}>
+                  <Text style={[styles.settingLabel, { color: themeColors.foreground }]}>Monthly Reports</Text>
+                  <Text style={[styles.settingDesc, { color: themeColors.mutedForeground }]}>
+                    {scheduleEnabled ? 'Reports activated' : 'Reports deactivated'}
+                  </Text>
+                </View>
+                <Switch
+                  value={scheduleEnabled}
+                  onValueChange={setScheduleEnabled}
+                  trackColor={{ false: themeColors.muted, true: themeColors.primary }}
+                  thumbColor={themeColors.primaryForeground}
+                />
+              </View>
+
+              {/* Form fields */}
+              <View style={{ position: 'relative' }}>
+                <View style={styles.formField}>
+                  <Text style={[styles.fieldLabel, { color: themeColors.foreground }]}>Email</Text>
+                  <View style={[styles.fieldInput, { borderColor: themeColors.border, backgroundColor: themeColors.muted }]}>
+                    <Mail size={14} color={themeColors.mutedForeground} />
+                    <Text style={[styles.fieldValue, { color: themeColors.mutedForeground }]}>
+                      {user?.email || '—'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.formField}>
+                  <Text style={[styles.fieldLabel, { color: themeColors.foreground }]}>Repeat On</Text>
+                  <View style={[styles.fieldInput, { borderColor: themeColors.border, backgroundColor: themeColors.muted }]}>
+                    <Text style={[styles.fieldValue, { color: themeColors.mutedForeground }]}>Monthly</Text>
+                  </View>
+                </View>
+
+                {!scheduleEnabled && (
+                  <View style={styles.disabledOverlay} pointerEvents="none" />
+                )}
+              </View>
+
+              {/* Summary */}
+              <View style={[styles.summaryBox, { backgroundColor: themeColors.muted }]}>
+                <Text style={[styles.summaryTitle, { color: themeColors.foreground }]}>Schedule Summary</Text>
+                <Text style={[styles.summaryText, { color: themeColors.mutedForeground }]}>
+                  {scheduleEnabled
+                    ? 'Report will be sent once a month on the 1st day of the next month'
+                    : 'Reports are currently deactivated'}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.saveBtn, { backgroundColor: themeColors.primary }, isSavingSchedule && { opacity: 0.7 }]}
+                onPress={handleSaveSchedule}
+                disabled={isSavingSchedule}
+              >
+                {isSavingSchedule ? (
+                  <ActivityIndicator color={themeColors.primaryForeground} />
+                ) : (
+                  <Text style={[styles.saveBtnText, { color: themeColors.primaryForeground }]}>Save changes</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const createStyles = (theme: typeof colors.light) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.background,
-    },
+    container: { flex: 1, backgroundColor: theme.background },
     navbar: {
       backgroundColor: theme.navbar,
-      padding: spacing.lg,
+      paddingHorizontal: spacing.lg,
       paddingTop: spacing.xl + 20,
+      paddingBottom: spacing.xl,
     },
-    navbarTitle: {
-      fontSize: fontSize['2xl'],
-      fontWeight: fontWeight.bold,
-      color: theme.navbarForeground,
-    },
-    navbarSubtitle: {
-      fontSize: fontSize.sm,
-      color: theme.navbarForeground,
-      opacity: 0.9,
-      marginTop: spacing.xs,
-    },
-    content: {
-      padding: spacing.lg,
-    },
-    card: {
-      backgroundColor: theme.card,
-      borderRadius: borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.border,
-      padding: spacing.lg,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    loadingContainer: {
-      padding: spacing.xl * 2,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    loadingText: {
-      marginTop: spacing.md,
-      fontSize: fontSize.md,
-      color: theme.mutedForeground,
-    },
-    emptyState: {
-      padding: spacing.xl * 2,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    emptyTitle: {
-      fontSize: fontSize.xl,
-      fontWeight: fontWeight.bold,
-      color: theme.foreground,
-      marginTop: spacing.lg,
-      marginBottom: spacing.sm,
-    },
-    emptyText: {
-      fontSize: fontSize.md,
-      color: theme.mutedForeground,
-      textAlign: 'center',
-      lineHeight: 22,
-    },
-    reportsList: {
-      gap: spacing.md,
-    },
-    reportItem: {
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: borderRadius.md,
-      padding: spacing.md,
-      backgroundColor: theme.background,
-    },
-    reportHeader: {
+    navbarTop: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      marginBottom: spacing.md,
     },
-    reportInfo: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      flex: 1,
-    },
-    reportIconContainer: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: theme.primary + '20',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: spacing.md,
-    },
-    reportDetails: {
-      flex: 1,
-    },
-    reportType: {
-      fontSize: fontSize.md,
-      fontWeight: fontWeight.semibold,
-      color: theme.foreground,
-      marginBottom: spacing.xs,
-    },
-    reportMeta: {
+    navbarTitle: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: theme.navbarForeground },
+    navbarSubtitle: { fontSize: fontSize.sm, color: theme.navbarForeground, opacity: 0.8, marginTop: spacing.xs },
+    scheduleButton: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.xs,
-    },
-    reportDate: {
-      fontSize: fontSize.sm,
-      color: theme.mutedForeground,
-    },
-    statusBadge: {
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.xs / 2,
-      borderRadius: borderRadius.sm,
-    },
-    statusText: {
-      fontSize: fontSize.xs,
-      fontWeight: fontWeight.semibold,
-      textTransform: 'uppercase',
-    },
-    reportFooter: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingTop: spacing.md,
-      borderTopWidth: 1,
-      borderTopColor: theme.border,
-    },
-    generatedText: {
-      fontSize: fontSize.xs,
-      color: theme.mutedForeground,
-    },
-    reportActions: {
-      flexDirection: 'row',
-      gap: spacing.sm,
-    },
-    actionButton: {
-      width: 36,
-      height: 36,
-      borderRadius: borderRadius.md,
-      backgroundColor: theme.muted,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    pagination: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginTop: spacing.lg,
-      paddingTop: spacing.lg,
-      borderTopWidth: 1,
-      borderTopColor: theme.border,
-    },
-    paginationButton: {
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
       borderRadius: borderRadius.md,
       borderWidth: 1,
-      borderColor: theme.border,
-      backgroundColor: theme.background,
+      borderColor: 'rgba(255,255,255,0.25)',
+      backgroundColor: 'rgba(255,255,255,0.1)',
     },
-    paginationButtonDisabled: {
-      opacity: 0.5,
+    scheduleButtonText: { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: theme.navbarForeground },
+    content: { padding: spacing.lg },
+    centerState: { paddingVertical: spacing.xxxl, alignItems: 'center', gap: spacing.md },
+    stateText: { fontSize: fontSize.md },
+    emptyState: { paddingVertical: spacing.xxxl, alignItems: 'center', gap: spacing.md },
+    emptyIconWrap: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
+    emptyTitle: { fontSize: fontSize.xl, fontWeight: fontWeight.bold },
+    emptyText: { fontSize: fontSize.sm, textAlign: 'center', lineHeight: 22, paddingHorizontal: spacing.xl },
+    scheduleHintBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      marginTop: spacing.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.md,
+      borderWidth: 1,
     },
-    paginationButtonText: {
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.medium,
-      color: theme.foreground,
+    scheduleHintText: { fontSize: fontSize.sm },
+    list: { gap: spacing.md },
+    reportCard: {
+      borderRadius: borderRadius.lg,
+      borderWidth: 1,
+      overflow: 'hidden',
     },
-    paginationButtonTextDisabled: {
-      color: theme.mutedForeground,
+    reportTop: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      padding: spacing.md,
+      gap: spacing.md,
     },
-    paginationInfo: {
-      fontSize: fontSize.sm,
-      color: theme.mutedForeground,
+    reportIconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: borderRadius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
     },
+    reportInfo: { flex: 1 },
+    reportTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, marginBottom: spacing.xs },
+    dateRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+    reportDate: { fontSize: fontSize.xs },
+    statusBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 4,
+      borderRadius: borderRadius.sm,
+      flexShrink: 0,
+    },
+    statusText: { fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+    pagination: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: spacing.xl,
+      paddingTop: spacing.lg,
+      borderTopWidth: 1,
+    },
+    pageBtn: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.md,
+      borderWidth: 1,
+    },
+    pageBtnDisabled: { opacity: 0.4 },
+    pageBtnText: { fontSize: fontSize.sm, fontWeight: fontWeight.medium },
+    pageInfo: { fontSize: fontSize.sm },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'flex-end',
+    },
+    modalSheet: {
+      borderTopLeftRadius: borderRadius['2xl'],
+      borderTopRightRadius: borderRadius['2xl'],
+      borderWidth: 1,
+      borderBottomWidth: 0,
+      maxHeight: '85%',
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: spacing.lg,
+      borderBottomWidth: 1,
+    },
+    modalTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold },
+    modalSubtitle: { fontSize: fontSize.sm, marginTop: 2 },
+    modalContent: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxxl },
+    settingRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: spacing.md,
+      borderRadius: borderRadius.lg,
+      borderWidth: 1,
+    },
+    settingRowLeft: { flex: 1, gap: 4 },
+    settingLabel: { fontSize: fontSize.base, fontWeight: fontWeight.medium },
+    settingDesc: { fontSize: fontSize.sm },
+    formField: { gap: spacing.xs },
+    fieldLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.medium },
+    fieldInput: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      borderWidth: 1,
+      borderRadius: borderRadius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+    },
+    fieldValue: { fontSize: fontSize.md, flex: 1 },
+    disabledOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(255,255,255,0.5)',
+      borderRadius: borderRadius.md,
+    },
+    summaryBox: {
+      padding: spacing.md,
+      borderRadius: borderRadius.lg,
+      gap: spacing.xs,
+    },
+    summaryTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+    summaryText: { fontSize: fontSize.sm, lineHeight: 20 },
+    saveBtn: {
+      padding: spacing.md,
+      borderRadius: borderRadius.md,
+      alignItems: 'center',
+    },
+    saveBtnText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold },
   });

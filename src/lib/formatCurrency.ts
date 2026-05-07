@@ -9,7 +9,7 @@ export const formatCurrency = (
   } = {}
 ): string => {
   const {
-    currency = 'PKR',
+    currency = 'USD',
     decimalPlaces = 2,
     compact = false,
     showSign = false,

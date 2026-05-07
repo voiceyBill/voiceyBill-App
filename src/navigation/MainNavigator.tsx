@@ -13,7 +13,7 @@ import SettingsNavigator from './SettingsNavigator';
 
 export type MainTabParamList = {
   Overview: undefined;
-  Transactions: { openVoiceMode?: boolean } | undefined;
+  Transactions: { openVoiceMode?: number } | undefined;
   Voice: undefined;
   Reports: undefined;
   Settings: undefined;
@@ -67,8 +67,7 @@ export default function MainNavigator() {
         listeners={({ navigation }) => ({
           tabPress: (e) => {
             e.preventDefault();
-            // Use navigate with params that trigger voice mode
-            navigation.navigate('Transactions', { openVoiceMode: true });
+            navigation.navigate('Transactions', { openVoiceMode: Date.now() });
           },
         })}
       />

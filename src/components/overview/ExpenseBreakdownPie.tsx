@@ -9,7 +9,15 @@ import { formatCurrency } from '../../lib/formatCurrency';
 
 const { width } = Dimensions.get('window');
 
-export default function ExpenseBreakdownPie({ breakdown, total }: { breakdown: ExpenseBreakdown[]; total: number }) {
+export default function ExpenseBreakdownPie({
+  breakdown,
+  total,
+  periodLabel,
+}: {
+  breakdown: ExpenseBreakdown[];
+  total: number;
+  periodLabel?: string;
+}) {
   const { activeTheme } = useTheme();
   const theme = colors[activeTheme];
 
@@ -24,25 +32,10 @@ export default function ExpenseBreakdownPie({ breakdown, total }: { breakdown: E
   const size = Math.min(svgSize, Math.max(200, Math.min(300, chartMaxWidth)));
   const scale = size / svgSize;
 
-  // Colors matching web's chart colors (light & dark mode)
+  // Chart colors from theme — grayscale spectrum matching web design system
   const palette = useMemo(() => {
-    if (activeTheme === 'dark') {
-      return [
-        '#6366F1', // chart-1 dark (indigo)
-        '#4ADE80', // chart-2 dark (green - primary)
-        '#FACC15', // chart-3 dark (yellow)
-        '#C084FC', // chart-4 dark (purple)
-        '#FB923C', // chart-5 dark (orange)
-      ];
-    }
-    return [
-      '#FF6B35', // chart-1 light (orange-red)
-      '#22D3EE', // chart-2 light (cyan)
-      '#4F46E5', // chart-3 light (indigo)
-      '#FDE047', // chart-4 light (yellow)
-      '#FACC15', // chart-5 light (amber)
-    ];
-  }, [activeTheme]);
+    return [theme.chart1, theme.chart2, theme.chart3, theme.chart4, theme.chart5];
+  }, [theme]);
 
   // Build arcs - filter out zero values to show ALL non-zero categories
   const segments = useMemo(() => {
@@ -80,8 +73,17 @@ export default function ExpenseBreakdownPie({ breakdown, total }: { breakdown: E
   }, [breakdown]);
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}> 
+    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+      {/* Card header — matches web CardHeader */}
+      <View style={[styles.cardHeader, { borderBottomColor: theme.border }]}>
+        <Text style={[styles.cardTitle, { color: theme.foreground }]}>Expenses Breakdown</Text>
+        <Text style={[styles.cardSubtitle, { color: theme.mutedForeground }]}>
+          Total expenses {periodLabel || 'for this period'}
+        </Text>
+      </View>
+
       {/* Donut or Empty */}
+      <View style={{ padding: spacing.lg }}>
       {showEmpty ? (
         <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xl }}>
           <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: activeTheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', alignItems: 'center', justifyContent: 'center' }}>
@@ -135,7 +137,7 @@ export default function ExpenseBreakdownPie({ breakdown, total }: { breakdown: E
                 pointerEvents="none"
               >
                 <Text style={[styles.centerValue, { color: theme.foreground }]}>
-                  ₨{total.toLocaleString()}
+                  {formatCurrency(total, { compact: true })}
                 </Text>
                 <Text style={[styles.centerLabel, { color: theme.mutedForeground }]}>Total Spent</Text>
               </View>
@@ -171,6 +173,7 @@ export default function ExpenseBreakdownPie({ breakdown, total }: { breakdown: E
           </View>
         </>
       )}
+      </View>
     </View>
   );
 }
@@ -179,7 +182,20 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    padding: spacing.lg,
+    overflow: 'hidden',
+  },
+  cardHeader: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+  },
+  cardTitle: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.bold,
+    marginBottom: 2,
+  },
+  cardSubtitle: {
+    fontSize: fontSize.xs,
   },
   centerOverlay: {
     justifyContent: 'center',

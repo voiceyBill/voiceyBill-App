@@ -10,6 +10,8 @@ import {
   PURGE,
   REGISTER,
 } from 'redux-persist';
+import { setupListeners } from '@reduxjs/toolkit/query';
+import { AppState } from 'react-native';
 import { apiClient } from './api-client';
 import authReducer from '../features/auth/authSlice';
 
@@ -44,6 +46,19 @@ export const store = configureStore({
 });
 
 export const persistor = persistStore(store);
+
+// Wire up RTK Query's focus/reconnect refetching using React Native's AppState.
+// This makes refetchOnFocus work when the app returns to the foreground.
+setupListeners(store.dispatch, (dispatch, { onFocus, onFocusLost }) => {
+  const subscription = AppState.addEventListener('change', (nextState) => {
+    if (nextState === 'active') {
+      onFocus();
+    } else {
+      onFocusLost();
+    }
+  });
+  return () => subscription.remove();
+});
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

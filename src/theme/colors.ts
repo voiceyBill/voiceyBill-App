@@ -1,154 +1,174 @@
 // Theme colors matching web client design system
-// Based on shadcn/ui theme with OKLCH color space
+// Aligned with web index.css — black/white/gray minimal palette
 export const colors = {
-  // Light theme - matches web :root variables
+  // ── Light theme ─────────────────────────────────────────
   light: {
-    // Primary green color - main brand color
-    primary: '#4ade80', // oklch(0.723 0.219 149.579)
-    primaryForeground: '#f0fdf4', // oklch(0.982 0.018 155.826)
-    
-    // Secondary neutral colors
-    secondary: '#f1f5f9', // oklch(0.967 0.001 286.375)
-    secondaryForeground: '#1e293b', // oklch(0.21 0.006 285.885)
-    
-    // Background colors
-    background: '#f6f7f9', // Main background - var(--bg-color)
-    foreground: '#0f172a', // oklch(0.141 0.005 285.823)
-    
-    // Card colors
-    card: '#ffffff', // oklch(1 0 0)
-    cardForeground: '#0f172a', // oklch(0.141 0.005 285.823)
-    
-    // Muted colors for less emphasis
-    muted: '#f1f5f9', // oklch(0.967 0.001 286.375)
-    mutedForeground: '#64748b', // oklch(0.552 0.016 285.938)
-    
-    // Accent color for highlights
-    accent: '#f1f5f9', // oklch(0.967 0.001 286.375)
-    accentForeground: '#1e293b', // oklch(0.21 0.006 285.885)
-    
-    // Border and input colors
-    border: '#e2e8f0', // oklch(0.92 0.004 286.32)
-    input: '#e2e8f0', // oklch(0.92 0.004 286.32)
-    ring: '#4ade80', // oklch(0.723 0.219 149.579)
-    
-    // Destructive/Error colors
-    destructive: '#ef4444', // oklch(0.577 0.245 27.325)
+    // Primary — near-black (web oklch(0.141 0.005 285.823))
+    primary: '#171717',
+    primaryForeground: '#ffffff',
+
+    // Backgrounds
+    background: '#ffffff',
+    foreground: '#171717',
+
+    // Cards
+    card: '#ffffff',
+    cardForeground: '#171717',
+
+    // Secondary / surface-alt (web rgb(243, 244, 247))
+    secondary: '#f3f4f7',
+    secondaryForeground: '#171717',
+
+    // Muted
+    muted: '#f3f4f7',
+    mutedForeground: '#717171',
+
+    // Accent (neutral hover state)
+    accent: '#f3f4f7',
+    accentForeground: '#171717',
+
+    // Borders & inputs (web rgba(23,23,23,0.2))
+    border: 'rgba(23, 23, 23, 0.15)',
+    input: 'rgba(23, 23, 23, 0.15)',
+    ring: '#171717',
+
+    // Destructive — kept for safety-critical actions only
+    destructive: '#8b3c3c',
     destructiveForeground: '#ffffff',
-    
-    // Chart colors matching web
-    chart1: '#fb923c', // oklch(0.646 0.222 41.116) - Orange
-    chart2: '#06b6d4', // oklch(0.6 0.118 184.704) - Cyan
-    chart3: '#3b82f6', // oklch(0.398 0.07 227.392) - Blue
-    chart4: '#84cc16', // oklch(0.828 0.189 84.429) - Lime
-    chart5: '#eab308', // oklch(0.769 0.188 70.08) - Yellow
-    
-    // Sidebar colors
-    sidebar: '#fcfcfc', // oklch(0.985 0 0)
-    sidebarForeground: '#0f172a', // oklch(0.141 0.005 285.823)
-    sidebarPrimary: '#4ade80', // oklch(0.723 0.219 149.579)
-    sidebarPrimaryForeground: '#f0fdf4', // oklch(0.982 0.018 155.826)
-    sidebarAccent: '#f1f5f9', // oklch(0.967 0.001 286.375)
-    sidebarAccentForeground: '#1e293b', // oklch(0.21 0.006 285.885)
-    sidebarBorder: '#e2e8f0', // oklch(0.92 0.004 286.32)
-    
-    // Navbar colors (custom for mobile)
-    navbar: '#1a1e2a',
+
+    // Chart — 5-shade grayscale spectrum for data viz
+    chart1: '#171717',
+    chart2: '#4a4a4a',
+    chart3: '#7a7a7a',
+    chart4: '#a8a8a8',
+    chart5: '#cecece',
+
+    // Sidebar
+    sidebar: '#f3f4f7',
+    sidebarForeground: '#171717',
+    sidebarPrimary: '#171717',
+    sidebarPrimaryForeground: '#ffffff',
+    sidebarAccent: '#e8e9ec',
+    sidebarAccentForeground: '#171717',
+    sidebarBorder: 'rgba(23, 23, 23, 0.15)',
+
+    // Navbar — always dark (matches web --secondary-dark-color rgb(23,23,23))
+    navbar: '#171717',
     navbarForeground: '#ffffff',
+
+    // Semantic transaction colors — matches web brand-green / destructive
+    incomeText: '#166114',
+    expenseText: '#8b3c3c',
+    incomeBg: 'rgba(22, 97, 20, 0.08)',
+    expenseBg: 'rgba(139, 60, 60, 0.08)',
+
+    // Brand green (matches web --brand-green)
+    brandGreen: '#166114',
+    brandGreenLight: '#9fff59',
   },
-  
-  // Dark theme - matches web .dark variables
+
+  // ── Dark theme ──────────────────────────────────────────
   dark: {
-    // Primary green color - adjusted for dark mode
-    primary: '#4ade80', // oklch(0.696 0.17 162.48)
-    primaryForeground: '#052e16', // oklch(0.393 0.095 152.535)
-    
-    // Secondary neutral colors
-    secondary: '#1e293b', // oklch(0.274 0.006 286.033)
-    secondaryForeground: '#f8fafc', // oklch(0.985 0 0)
-    
-    // Background colors
-    background: '#0f172a', // oklch(0.141 0.005 285.823)
-    foreground: '#f8fafc', // oklch(0.985 0 0)
-    
-    // Card colors
-    card: '#1e293b', // oklch(0.21 0.006 285.885)
-    cardForeground: '#f8fafc', // oklch(0.985 0 0)
-    
-    // Muted colors
-    muted: '#1e293b', // oklch(0.274 0.006 286.033)
-    mutedForeground: '#94a3b8', // oklch(0.705 0.015 286.067)
-    
-    // Accent color
-    accent: '#1e293b', // oklch(0.274 0.006 286.033)
-    accentForeground: '#f8fafc', // oklch(0.985 0 0)
-    
-    // Border and input colors with opacity
-    border: 'rgba(255, 255, 255, 0.1)', // oklch(1 0 0 / 10%)
-    input: 'rgba(255, 255, 255, 0.15)', // oklch(1 0 0 / 15%)
-    ring: '#4ade80', // oklch(0.527 0.154 150.069)
-    
-    // Destructive/Error colors
-    destructive: '#dc2626', // oklch(0.704 0.191 22.216)
+    // Primary — near-white (web oklch(0.985 0 0))
+    primary: '#f9f9f9',
+    primaryForeground: '#171717',
+
+    // Backgrounds (web oklch(0.141 0.005 285.823) ≈ #171717)
+    background: '#171717',
+    foreground: '#f9f9f9',
+
+    // Cards — slightly elevated (web surface-alt dark rgb(42,42,42))
+    card: '#2a2a2a',
+    cardForeground: '#f9f9f9',
+
+    // Secondary / surface-alt
+    secondary: '#2a2a2a',
+    secondaryForeground: '#f9f9f9',
+
+    // Muted
+    muted: '#2a2a2a',
+    mutedForeground: '#888888',
+
+    // Accent
+    accent: '#2a2a2a',
+    accentForeground: '#f9f9f9',
+
+    // Borders & inputs (web rgba(255,255,255,0.12))
+    border: 'rgba(255, 255, 255, 0.12)',
+    input: 'rgba(255, 255, 255, 0.15)',
+    ring: '#f9f9f9',
+
+    // Destructive
+    destructive: '#dc2626',
     destructiveForeground: '#ffffff',
-    
-    // Chart colors for dark mode
-    chart1: '#a855f7', // oklch(0.488 0.243 264.376) - Purple
-    chart2: '#4ade80', // oklch(0.696 0.17 162.48) - Green
-    chart3: '#eab308', // oklch(0.769 0.188 70.08) - Yellow
-    chart4: '#c026d3', // oklch(0.627 0.265 303.9) - Magenta
-    chart5: '#f97316', // oklch(0.645 0.246 16.439) - Orange
-    
-    // Sidebar colors
-    sidebar: '#1e293b', // oklch(0.21 0.006 285.885)
-    sidebarForeground: '#f8fafc', // oklch(0.985 0 0)
-    sidebarPrimary: '#4ade80', // oklch(0.696 0.17 162.48)
-    sidebarPrimaryForeground: '#052e16', // oklch(0.393 0.095 152.535)
-    sidebarAccent: '#1e293b', // oklch(0.274 0.006 286.033)
-    sidebarAccentForeground: '#f8fafc', // oklch(0.985 0 0)
-    sidebarBorder: 'rgba(255, 255, 255, 0.1)', // oklch(1 0 0 / 10%)
-    
-    // Navbar colors
-    navbar: '#1a1e2a',
+
+    // Chart — grayscale spectrum, dark-to-light
+    chart1: '#f0f0f0',
+    chart2: '#b8b8b8',
+    chart3: '#808080',
+    chart4: '#484848',
+    chart5: '#343434',
+
+    // Sidebar
+    sidebar: '#2a2a2a',
+    sidebarForeground: '#f9f9f9',
+    sidebarPrimary: '#f9f9f9',
+    sidebarPrimaryForeground: '#171717',
+    sidebarAccent: '#333333',
+    sidebarAccentForeground: '#f9f9f9',
+    sidebarBorder: 'rgba(255, 255, 255, 0.12)',
+
+    // Navbar — always dark
+    navbar: '#171717',
     navbarForeground: '#ffffff',
+
+    // Semantic transaction colors — matches web brand-green-light / destructive dark
+    incomeText: '#9fff59',
+    expenseText: '#dc2626',
+    incomeBg: 'rgba(159, 255, 89, 0.12)',
+    expenseBg: 'rgba(220, 38, 38, 0.12)',
+
+    // Brand green (lighter variant for dark bg)
+    brandGreen: '#9fff59',
+    brandGreenLight: '#9fff59',
   },
 };
 
-// Spacing system matching web design (using multiples of 4)
+// Spacing system — 4px base unit
 export const spacing = {
-  xs: 4,    // 0.25rem
-  sm: 8,    // 0.5rem
-  md: 16,   // 1rem
-  lg: 24,   // 1.5rem
-  xl: 32,   // 2rem
-  xxl: 48,  // 3rem
-  xxxl: 64, // 4rem
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
+  xxxl: 64,
 };
 
-// Border radius matching web --radius variable (0.5rem = 8px)
+// Border radius — base 8px matching web --radius: 0.5rem
 export const borderRadius = {
   none: 0,
-  sm: 4,   // calc(var(--radius) - 4px)
-  md: 6,   // calc(var(--radius) - 2px)
-  lg: 8,   // var(--radius)
-  xl: 12,  // calc(var(--radius) + 4px)
+  sm: 4,
+  md: 6,
+  lg: 8,
+  xl: 12,
+  '2xl': 16,
   full: 9999,
 };
 
-// Typography system matching web design
+// Typography
 export const fontSize = {
-  xs: 12,   // 0.75rem
-  sm: 14,   // 0.875rem
-  base: 16, // 1rem
-  md: 16,   // 1rem
-  lg: 18,   // 1.125rem
-  xl: 20,   // 1.25rem
-  '2xl': 24,  // 1.5rem
-  '3xl': 30,  // 1.875rem
-  '4xl': 36,  // 2.25rem
+  xs: 12,
+  sm: 14,
+  base: 16,
+  md: 16,
+  lg: 18,
+  xl: 20,
+  '2xl': 24,
+  '3xl': 30,
+  '4xl': 36,
 };
 
-// Font weights
 export const fontWeight = {
   normal: '400' as const,
   medium: '500' as const,
@@ -157,7 +177,6 @@ export const fontWeight = {
   extrabold: '800' as const,
 };
 
-// Line heights
 export const lineHeight = {
   none: 1,
   tight: 1.25,
@@ -167,7 +186,7 @@ export const lineHeight = {
   loose: 2,
 };
 
-// Shadows matching web design
+// Platform-aware shadows
 export const shadows = {
   sm: {
     shadowColor: '#000',
@@ -206,7 +225,6 @@ export const shadows = {
   },
 };
 
-// Maximum width constraint matching web
 export const maxWidth = {
-  container: 1248, // 78rem = 1248px
+  container: 1248,
 };

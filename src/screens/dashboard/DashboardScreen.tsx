@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import {
@@ -47,7 +47,7 @@ export default function DashboardScreen() {
             <View style={styles.headerActions}>
               <DateRangePicker value={preset} onChange={setPreset} />
               <TouchableOpacity style={styles.addButton} onPress={() => setShowForm(true)}>
-                <Plus size={18} color="#ffffff" />
+                <Plus size={18} color={theme.primaryForeground} />
                 <Text style={styles.addButtonText}>Add Transaction</Text>
               </TouchableOpacity>
             </View>
@@ -105,13 +105,10 @@ export default function DashboardScreen() {
 
           {/* Expenses Breakdown */}
           <View style={{ marginTop: spacing.lg }}>
-            <View style={styles.sectionHeader}> 
-              <Text style={styles.sectionTitle}>Expenses Breakdown</Text>
-              <Text style={styles.sectionSubtitle}>Total expenses for {summary?.preset?.label || 'Past 30 Days'}</Text>
-            </View>
             <ExpenseBreakdownPie
               breakdown={pieQuery.data?.data?.breakdown || []}
               total={pieQuery.data?.data?.totalSpent || 0}
+              periodLabel={summary?.preset?.label}
             />
           </View>
 
@@ -137,9 +134,9 @@ const createStyles = (theme: typeof colors.light) =>
     scrollContainer: {
       flexGrow: 1,
     },
-    // Dark header section - always dark like web
+    // Dark header section - always dark like web navbar
     darkHeaderSection: {
-      backgroundColor: '#1a1e2a', // Always dark, matching web exactly
+      backgroundColor: theme.navbar,
       paddingBottom: spacing.xl,
     },
     navbar: {
@@ -150,11 +147,11 @@ const createStyles = (theme: typeof colors.light) =>
     greeting: {
       fontSize: fontSize['2xl'],
       fontWeight: fontWeight.extrabold,
-      color: '#FFFFFF', // Always white text on dark background
+      color: theme.navbarForeground,
     },
     subtitle: {
       fontSize: fontSize.sm,
-      color: 'rgba(255, 255, 255, 0.6)', // Always white with 60% opacity
+      color: 'rgba(255, 255, 255, 0.6)',
       marginTop: spacing.xs,
     },
     headerActions: {
@@ -171,12 +168,12 @@ const createStyles = (theme: typeof colors.light) =>
       paddingHorizontal: spacing.md,
       height: 40,
       borderRadius: borderRadius.md,
-      backgroundColor: '#4ade80', // Always green primary
+      backgroundColor: theme.primary,
     },
     addButtonText: {
       fontSize: fontSize.sm,
       fontWeight: fontWeight.semibold,
-      color: '#ffffff', // White text on green button
+      color: theme.primaryForeground,
     },
     // Stats section - inside dark header
     statsSection: {
@@ -187,7 +184,7 @@ const createStyles = (theme: typeof colors.light) =>
     // Content section - uses theme background
     contentSection: {
       backgroundColor: theme.background,
-      padding: spacing.md,
+      padding: spacing.lg,
       paddingBottom: spacing.xxl,
     },
     row: {
@@ -199,19 +196,6 @@ const createStyles = (theme: typeof colors.light) =>
     },
     colRight: {
       width: '100%',
-    },
-    sectionHeader: {
-      marginBottom: spacing.sm,
-    },
-    sectionTitle: {
-      fontSize: fontSize.lg,
-      fontWeight: fontWeight.bold,
-      color: theme.foreground,
-    },
-    sectionSubtitle: {
-      fontSize: fontSize.sm,
-      color: theme.mutedForeground,
-      marginTop: spacing.xs,
     },
     countRow: {
       flexDirection: 'row',

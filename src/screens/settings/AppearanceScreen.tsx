@@ -7,10 +7,7 @@ import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme
 export default function AppearanceScreen() {
   const { theme, setTheme, activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
-
-  const handleThemeChange = (newTheme: 'light' | 'dark' | 'system') => {
-    setTheme(newTheme);
-  };
+  const [selectedTheme, setSelectedTheme] = React.useState<'light' | 'dark' | 'system'>(theme);
 
   const styles = createStyles(themeColors);
 
@@ -19,19 +16,11 @@ export default function AppearanceScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }}>
         <View style={styles.navbar}>
           <Text style={styles.navbarTitle}>Settings</Text>
-          <Text style={styles.navbarSubtitle}>
-            Manage your account settings and set e-mail preferences.
-          </Text>
+          <Text style={styles.navbarSubtitle}>Manage your account settings and set e-mail preferences.</Text>
         </View>
 
         <View style={styles.content}>
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Appearance</Text>
-            <Text style={styles.cardSubtitle}>
-              Customize the appearance of the app. Automatically switch between day and night themes.
-            </Text>
-            <View style={styles.divider} />
-
             <Text style={styles.sectionLabel}>Theme</Text>
             <Text style={styles.sectionDescription}>
               Select the theme for the dashboard.
@@ -45,9 +34,9 @@ export default function AppearanceScreen() {
                 <TouchableOpacity
                   style={[
                     styles.themeCard,
-                    theme === 'light' && styles.themeCardActive,
+                    selectedTheme === 'light' && styles.themeCardActive,
                   ]}
-                  onPress={() => handleThemeChange('light')}
+                  onPress={() => setSelectedTheme('light')}
                   activeOpacity={0.7}
                 >
                   <View style={styles.themePreview}>
@@ -66,7 +55,7 @@ export default function AppearanceScreen() {
                       </View>
                     </View>
                   </View>
-                  <Text style={[styles.themeLabel, theme === 'light' && styles.themeLabelActive]}>
+                  <Text style={[styles.themeLabel, selectedTheme === 'light' && styles.themeLabelActive]}>
                     Light
                   </Text>
                 </TouchableOpacity>
@@ -75,9 +64,9 @@ export default function AppearanceScreen() {
                 <TouchableOpacity
                   style={[
                     styles.themeCard,
-                    theme === 'dark' && styles.themeCardActive,
+                    selectedTheme === 'dark' && styles.themeCardActive,
                   ]}
-                  onPress={() => handleThemeChange('dark')}
+                  onPress={() => setSelectedTheme('dark')}
                   activeOpacity={0.7}
                 >
                   <View style={styles.themePreview}>
@@ -96,7 +85,7 @@ export default function AppearanceScreen() {
                       </View>
                     </View>
                   </View>
-                  <Text style={[styles.themeLabel, theme === 'dark' && styles.themeLabelActive]}>
+                  <Text style={[styles.themeLabel, selectedTheme === 'dark' && styles.themeLabelActive]}>
                     Dark
                   </Text>
                 </TouchableOpacity>
@@ -108,9 +97,9 @@ export default function AppearanceScreen() {
                 <TouchableOpacity
                   style={[
                     styles.themeCard,
-                    theme === 'system' && styles.themeCardActive,
+                    selectedTheme === 'system' && styles.themeCardActive,
                   ]}
-                  onPress={() => handleThemeChange('system')}
+                  onPress={() => setSelectedTheme('system')}
                   activeOpacity={0.7}
                 >
                   <View style={styles.themePreview}>
@@ -134,12 +123,23 @@ export default function AppearanceScreen() {
                       </View>
                     </View>
                   </View>
-                  <Text style={[styles.themeLabel, theme === 'system' && styles.themeLabelActive]}>
+                  <Text style={[styles.themeLabel, selectedTheme === 'system' && styles.themeLabelActive]}>
                     System
                   </Text>
                 </TouchableOpacity>
               </View>
             </View>
+
+
+            <TouchableOpacity
+              style={[styles.updateButton, { backgroundColor: themeColors.primary }]}
+              onPress={() => setTheme(selectedTheme)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.updateButtonText, { color: themeColors.primaryForeground }]}>
+                Update preferences
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -157,6 +157,7 @@ const createStyles = (theme: typeof colors.light) =>
       backgroundColor: theme.navbar,
       padding: spacing.lg,
       paddingTop: spacing.xl + 20,
+      paddingBottom: spacing.xl,
     },
     navbarTitle: {
       fontSize: fontSize['2xl'],
@@ -183,21 +184,6 @@ const createStyles = (theme: typeof colors.light) =>
       shadowOpacity: 0.05,
       shadowRadius: 8,
       elevation: 2,
-    },
-    cardTitle: {
-      fontSize: fontSize.lg,
-      fontWeight: fontWeight.semibold,
-      color: theme.foreground,
-    },
-    cardSubtitle: {
-      fontSize: fontSize.sm,
-      color: theme.mutedForeground,
-      marginTop: spacing.xs,
-    },
-    divider: {
-      height: 1,
-      backgroundColor: theme.border,
-      marginVertical: spacing.lg,
     },
     sectionLabel: {
       fontSize: fontSize.sm,
@@ -288,9 +274,9 @@ const createStyles = (theme: typeof colors.light) =>
       borderRadius: 8,
       backgroundColor: '#ecedef',
     },
-    // Dark Theme Preview
+    // Dark Theme Preview — matches actual dark theme (#171717 bg, #2a2a2a card)
     darkPreview: {
-      backgroundColor: '#0f172a',
+      backgroundColor: '#171717',
       borderRadius: borderRadius.md,
       padding: spacing.sm,
       gap: spacing.sm,
@@ -298,46 +284,36 @@ const createStyles = (theme: typeof colors.light) =>
       borderColor: 'rgba(255, 255, 255, 0.1)',
     },
     darkPreviewHeader: {
-      backgroundColor: '#1e293b',
+      backgroundColor: '#2a2a2a',
       borderRadius: borderRadius.sm,
       padding: spacing.sm,
       gap: spacing.xs,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.3,
-      shadowRadius: 2,
-      elevation: 2,
     },
     darkPreviewItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: '#1e293b',
+      backgroundColor: '#2a2a2a',
       borderRadius: borderRadius.sm,
       padding: spacing.sm,
       gap: spacing.sm,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.3,
-      shadowRadius: 2,
-      elevation: 2,
     },
     darkBar1: {
       height: 6,
       width: 40,
       borderRadius: 3,
-      backgroundColor: '#64748b',
+      backgroundColor: '#888888',
     },
     darkBar2: {
       height: 6,
       width: 50,
       borderRadius: 3,
-      backgroundColor: '#64748b',
+      backgroundColor: '#888888',
     },
     darkCircle: {
       width: 16,
       height: 16,
       borderRadius: 8,
-      backgroundColor: '#64748b',
+      backgroundColor: '#888888',
     },
     // System Theme Preview (Split view)
     systemPreview: {
@@ -346,7 +322,7 @@ const createStyles = (theme: typeof colors.light) =>
       overflow: 'hidden',
       height: 100,
       borderWidth: 1,
-      borderColor: 'rgba(100, 116, 139, 0.2)',
+      borderColor: 'rgba(0, 0, 0, 0.1)',
     },
     systemPreviewLeft: {
       flex: 1,
@@ -357,7 +333,7 @@ const createStyles = (theme: typeof colors.light) =>
     },
     systemPreviewRight: {
       flex: 1,
-      backgroundColor: '#0f172a',
+      backgroundColor: '#171717',
       padding: spacing.xs,
       gap: spacing.xs,
       justifyContent: 'center',

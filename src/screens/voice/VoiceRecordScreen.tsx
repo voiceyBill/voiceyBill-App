@@ -1,15 +1,12 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View } from 'react-native';
+import { useTheme } from '../../context/ThemeContext';
+import { colors } from '../../theme/colors';
 
-// This is a placeholder screen - user never actually sees it
-// The Voice tab redirects to Transactions with voice mode via tab listener
+// This screen is never rendered — the Voice tab listener always
+// intercepts tabPress and redirects to Transactions with openVoiceMode.
 export default function VoiceRecordScreen() {
-  return <View style={styles.container} />;
+  const { activeTheme } = useTheme();
+  const theme = colors[activeTheme];
+  return <View style={{ flex: 1, backgroundColor: theme.background }} />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
-});

@@ -8,33 +8,15 @@ import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from './src/store/store';
 import { ThemeProvider } from './src/context/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
-import { ActivityIndicator, View } from 'react-native';
-
-function PersistLoader() {
-  const [timedOut, setTimedOut] = React.useState(false);
-
-  React.useEffect(() => {
-    const t = setTimeout(() => setTimedOut(true), 3000);
-    return () => clearTimeout(t);
-  }, []);
-
-  if (timedOut) return null;
-
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <ActivityIndicator size="large" />
-    </View>
-  );
-}
+import SplashScreen from './src/components/SplashScreen';
 
 export default function App() {
+  const [splashDone, setSplashDone] = React.useState(false);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Provider store={store}>
-        <PersistGate
-          loading={<PersistLoader />}
-          persistor={persistor}
-        >
+        <PersistGate loading={null} persistor={persistor}>
           <SafeAreaProvider>
             <ThemeProvider>
               <StatusBar style="auto" />
@@ -42,6 +24,10 @@ export default function App() {
             </ThemeProvider>
           </SafeAreaProvider>
         </PersistGate>
+
+        {!splashDone && (
+          <SplashScreen onComplete={() => setSplashDone(true)} />
+        )}
       </Provider>
     </GestureHandlerRootView>
   );

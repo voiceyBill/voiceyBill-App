@@ -32,7 +32,7 @@ const getCardStatus = (
     if (value === 0) {
       return {
         label: 'No Savings Record',
-        color: '#9CA3AF',
+        color: 'rgba(255,255,255,0.4)',
         icon: 'down',
       };
     }
@@ -41,7 +41,7 @@ const getCardStatus = (
     if (value < 10) {
       return {
         label: 'Low Savings',
-        color: '#F87171',
+        color: 'rgba(255,255,255,0.5)',
         icon: 'down',
         description: `Only ${value.toFixed(1)}% saved`,
       };
@@ -50,7 +50,7 @@ const getCardStatus = (
     if (value < 20) {
       return {
         label: 'Moderate',
-        color: '#FBBF24',
+        color: 'rgba(255,255,255,0.6)',
         icon: 'down',
         description: `${expenseRatio?.toFixed(0)}% spent`,
       };
@@ -60,7 +60,7 @@ const getCardStatus = (
     if (expenseRatio && expenseRatio > 75) {
       return {
         label: 'High Spend',
-        color: '#F87171',
+        color: 'rgba(255,255,255,0.5)',
         icon: 'down',
         description: `${expenseRatio.toFixed(0)}% spent`,
       };
@@ -69,7 +69,7 @@ const getCardStatus = (
     if (expenseRatio && expenseRatio > 60) {
       return {
         label: 'Warning: High Spend',
-        color: '#FB923C',
+        color: 'rgba(255,255,255,0.6)',
         icon: 'down',
         description: `${expenseRatio.toFixed(0)}% spent`,
       };
@@ -77,7 +77,7 @@ const getCardStatus = (
 
     return {
       label: 'Good Savings',
-      color: '#4ADE80',
+      color: 'rgba(255,255,255,0.85)',
       icon: 'up',
     };
   }
@@ -92,7 +92,7 @@ const getCardStatus = (
 
     return {
       label: `No ${typeLabel}`,
-      color: '#9CA3AF',
+      color: 'rgba(255,255,255,0.4)',
       icon: 'down',
       description: '',
     };
@@ -102,7 +102,7 @@ const getCardStatus = (
   if (cardType === 'balance' && value < 0) {
     return {
       label: 'Overdrawn',
-      color: '#F87171',
+      color: 'rgba(255,255,255,0.5)',
       icon: 'down',
       description: 'Balance is negative',
     };
@@ -164,7 +164,7 @@ export default function StatsCard({
       : null;
 
   // Determine value color
-  const valueColor = cardType === 'balance' && value < 0 ? '#F87171' : '#FFFFFF';
+  const valueColor = cardType === 'balance' && value < 0 ? 'rgba(255,255,255,0.5)' : '#FFFFFF';
   
   // Format display value
   const isPercentageValue = cardType === 'savings';
@@ -177,7 +177,7 @@ export default function StatsCard({
 
   return (
     <View style={[styles.card, { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderColor: 'transparent' }]}>
-      <Text style={[styles.title, { color: '#D1D5DB' }]}>{title}</Text>
+      <Text style={[styles.title, { color: 'rgba(255,255,255,0.6)' }]}>{title}</Text>
       
       <Text style={[styles.value, { color: valueColor }]}>{displayValue}</Text>
 
@@ -193,7 +193,7 @@ export default function StatsCard({
               {status.label}
             </Text>
             {status.description && (
-              <Text style={[styles.descriptionText, { color: '#9CA3AF' }]}>
+              <Text style={[styles.descriptionText, { color: 'rgba(255,255,255,0.4)' }]}>
                 • {status.description}
               </Text>
             )}
@@ -209,12 +209,12 @@ export default function StatsCard({
               {status.label}
             </Text>
             {!status.description && (
-              <Text style={[styles.descriptionText, { color: '#9CA3AF' }]}>
+              <Text style={[styles.descriptionText, { color: 'rgba(255,255,255,0.4)' }]}>
                 • {dateRangeLabel}
               </Text>
             )}
             {status.description && (
-              <Text style={[styles.descriptionText, { color: '#9CA3AF' }]}>
+              <Text style={[styles.descriptionText, { color: 'rgba(255,255,255,0.4)' }]}>
                 • {status.description}
               </Text>
             )}
@@ -224,11 +224,11 @@ export default function StatsCard({
             {percentageChange !== 0 && (
               <>
                 {trendDirection === 'positive' ? (
-                  <TrendingUp size={12} color="#10B981" strokeWidth={2} />
+                  <TrendingUp size={12} color="rgba(255,255,255,0.85)" strokeWidth={2} />
                 ) : (
-                  <TrendingDown size={12} color="#EF4444" strokeWidth={2} />
+                  <TrendingDown size={12} color="rgba(255,255,255,0.5)" strokeWidth={2} />
                 )}
-                <Text style={[styles.trendText, { color: trendDirection === 'positive' ? '#10B981' : '#EF4444' }]}>
+                <Text style={[styles.trendText, { color: trendDirection === 'positive' ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.5)' }]}>
                   {formatPercentage(percentageChange, {
                     showSign: true,
                     isExpense: cardType === 'expenses',
@@ -239,13 +239,13 @@ export default function StatsCard({
             )}
             {percentageChange === 0 && (
               <>
-                <TrendingDown size={12} color="#9CA3AF" strokeWidth={2} />
-                <Text style={[styles.trendText, { color: '#9CA3AF' }]}>
+                <TrendingDown size={12} color="rgba(255,255,255,0.4)" strokeWidth={2} />
+                <Text style={[styles.trendText, { color: 'rgba(255,255,255,0.4)' }]}>
                   0.0%
                 </Text>
               </>
             )}
-            <Text style={[styles.descriptionText, { color: '#9CA3AF' }]}>
+            <Text style={[styles.descriptionText, { color: 'rgba(255,255,255,0.4)' }]}>
               • {dateRangeLabel}
             </Text>
           </View>

@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { LineChart } from 'react-native-chart-kit';
+import Svg, { Defs, LinearGradient, Stop, Path, Line, Text as SvgText, G } from 'react-native-svg';
 import { TrendingUp, TrendingDown, FileX } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../../theme/colors';
 import { ChartDataPoint } from '../../features/analytics/analyticsAPI';
+import { formatCurrency } from '../../lib/formatCurrency';
+import { format } from 'date-fns';
 
-const { width } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type Props = {
   data: ChartDataPoint[];
@@ -15,125 +17,239 @@ type Props = {
   periodLabel?: string;
 };
 
-export default function TransactionOverviewChart({ 
-  data, 
-  totalIncomeCount = 0, 
-  totalExpenseCount = 0, 
-  periodLabel = 'Past 30 Days' 
+const CHART_H = 220;
+const MT = 16;  // margin top
+const MR = 12;  // margin right
+const MB = 36;  // margin bottom (x-axis labels)
+const ML = 68;  // margin left (y-axis labels)
+const PLOT_H = CHART_H - MT - MB;
+
+function smoothPath(pts: { x: number; y: number }[], close: boolean, closeY: number): string {
+  if (!pts.length) return '';
+  let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+  for (let i = 1; i < pts.length; i++) {
+    const p = pts[i - 1];
+    const c = pts[i];
+    const cpX = ((p.x + c.x) / 2).toFixed(1);
+    d += ` C ${cpX} ${p.y.toFixed(1)} ${cpX} ${c.y.toFixed(1)} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`;
+  }
+  if (close) {
+    d += ` L ${pts[pts.length - 1].x.toFixed(1)} ${closeY}`;
+    d += ` L ${pts[0].x.toFixed(1)} ${closeY} Z`;
+  }
+  return d;
+}
+
+function niceMax(val: number): number {
+  if (val <= 0) return 100;
+  const exp = Math.pow(10, Math.floor(Math.log10(val)));
+  return Math.ceil(val / exp) * exp * 1.2;
+}
+
+export default function TransactionOverviewChart({
+  data,
+  totalIncomeCount = 0,
+  totalExpenseCount = 0,
+  periodLabel = 'Past 30 Days',
 }: Props) {
   const { activeTheme } = useTheme();
   const theme = colors[activeTheme];
 
-  const labels = data.map((d) => new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
-  const income = data.map((d) => d.income || 0);
-  const expenses = data.map((d) => d.expenses || 0);
-  const hasData = (data?.length || 0) > 0 && (income.some((v) => v > 0) || expenses.some((v) => v > 0));
+  // Total card width = screen minus outer padding (spacing.lg on each side in DashboardScreen)
+  const cardWidth = SCREEN_WIDTH - spacing.lg * 2;
+  const plotW = cardWidth - ML - MR;
+  const closeY = MT + PLOT_H;
+
+  const incomeVals = data.map((d) => d.income || 0);
+  const expenseVals = data.map((d) => d.expenses || 0);
+  const hasData = data.length > 1 && (incomeVals.some((v) => v > 0) || expenseVals.some((v) => v > 0));
+
+  const maxVal = useMemo(() => niceMax(Math.max(...incomeVals, ...expenseVals, 1)), [incomeVals, expenseVals]);
+
+  const sx = (i: number) => ML + (i / Math.max(data.length - 1, 1)) * plotW;
+  const sy = (v: number) => MT + PLOT_H - (v / maxVal) * PLOT_H;
+
+  const incomePts = incomeVals.map((v, i) => ({ x: sx(i), y: sy(v) }));
+  const expensePts = expenseVals.map((v, i) => ({ x: sx(i), y: sy(v) }));
+
+  // Y-axis: 4 grid levels
+  const yLevels = [0, 0.25, 0.5, 0.75, 1].map((f) => ({
+    val: maxVal * f,
+    y: sy(maxVal * f),
+  }));
+
+  // X-axis: up to 5 evenly spaced labels
+  const xIndices = useMemo(() => {
+    if (data.length <= 5) return data.map((_, i) => i);
+    const step = Math.ceil((data.length - 1) / 4);
+    const idxs: number[] = [];
+    for (let i = 0; i < data.length; i += step) idxs.push(i);
+    if (idxs[idxs.length - 1] !== data.length - 1) idxs.push(data.length - 1);
+    return idxs;
+  }, [data.length]);
+
+  const gridColor = activeTheme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
+  const axisLabelColor = theme.mutedForeground;
+  const incomeColor = theme.brandGreen;
+  const expenseColor = theme.destructive;
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}> 
-      {/* Header Section - matching web layout */}
-      <View style={styles.header}>
-        {/* Title Section */}
-        <View style={styles.titleSection}>
+    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+      {/* Card header — title left, counts right (matching web layout) */}
+      <View style={[styles.header, { borderBottomColor: theme.border }]}>
+        <View style={styles.titleCol}>
           <Text style={[styles.title, { color: theme.foreground }]}>Transaction Overview</Text>
           <Text style={[styles.subtitle, { color: theme.mutedForeground }]}>
             Showing total transactions {periodLabel}
           </Text>
         </View>
-
-        {/* Stats Section - matching web's two-column layout */}
-        <View style={styles.statsSection}>
-          {/* Income Count */}
-          <View style={[styles.statBox, { borderRightWidth: 1, borderRightColor: theme.border }]}>
-            <Text style={[styles.statLabel, { color: theme.mutedForeground }]}>
-              No of Income
-            </Text>
-            <View style={styles.statValueRow}>
-              <TrendingUp size={12} color={theme.primary} strokeWidth={2} />
-              <Text style={[styles.statValue, { color: theme.foreground }]}>
-                {totalIncomeCount}
-              </Text>
+        <View style={styles.countsRow}>
+          <View style={[styles.countBox, { borderLeftColor: theme.border }]}>
+            <Text style={[styles.countLabel, { color: theme.mutedForeground }]}>Income</Text>
+            <View style={styles.countValueRow}>
+              <TrendingUp size={13} color={incomeColor} strokeWidth={2} />
+              <Text style={[styles.countValue, { color: theme.foreground }]}>{totalIncomeCount}</Text>
             </View>
           </View>
-
-          {/* Expenses Count */}
-          <View style={styles.statBox}>
-            <Text style={[styles.statLabel, { color: theme.mutedForeground }]}>
-              No of Expenses
-            </Text>
-            <View style={styles.statValueRow}>
-              <TrendingDown size={12} color={theme.destructive} strokeWidth={2} />
-              <Text style={[styles.statValue, { color: theme.foreground }]}>
-                {totalExpenseCount}
-              </Text>
+          <View style={[styles.countBox, { borderLeftColor: theme.border }]}>
+            <Text style={[styles.countLabel, { color: theme.mutedForeground }]}>Expenses</Text>
+            <View style={styles.countValueRow}>
+              <TrendingDown size={13} color={expenseColor} strokeWidth={2} />
+              <Text style={[styles.countValue, { color: theme.foreground }]}>{totalExpenseCount}</Text>
             </View>
           </View>
         </View>
       </View>
 
-      {/* Divider */}
-      <View style={[styles.divider, { backgroundColor: theme.border }]} />
-
-      {/* Chart or Empty State */}
-      {hasData ? (
-        <>
-          <LineChart
-            data={{
-              labels,
-              datasets: [
-                { data: expenses, color: () => theme.destructive, strokeWidth: 2 },
-                { data: income, color: () => theme.primary, strokeWidth: 2 },
-              ],
-            }}
-            width={width - spacing.lg * 4}
-            height={240}
-            withShadow={false}
-            withDots
-            transparent={false}
-            chartConfig={{
-              backgroundGradientFrom: theme.card,
-              backgroundGradientTo: theme.card,
-              color: () => theme.foreground,
-              labelColor: () => theme.mutedForeground,
-              decimalPlaces: 0,
-              propsForDots: {
-                r: '3',
-              },
-              propsForBackgroundLines: { 
-                strokeDasharray: '3 3', 
-                stroke: activeTheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-              },
-              propsForLabels: { fontSize: 10 },
-            }}
-            bezier
-            style={{ marginTop: spacing.sm, marginLeft: -spacing.md }}
-          />
-          
-          {/* Legend */}
-          <View style={styles.legendRow}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: theme.primary }]} />
-              <Text style={[styles.legendText, { color: theme.foreground }]}>Income</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: theme.destructive }]} />
-              <Text style={[styles.legendText, { color: theme.foreground }]}>Expenses</Text>
-            </View>
-          </View>
-        </>
-      ) : (
+      {/* Chart area */}
+      {!hasData ? (
         <View style={styles.emptyState}>
-          <View style={[styles.emptyIconWrap, { 
-            backgroundColor: activeTheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' 
-          }]}>
-            <FileX size={28} color={theme.mutedForeground} strokeWidth={1.5} />
+          <View style={[styles.emptyIconWrap, { backgroundColor: theme.muted }]}>
+            <FileX size={26} color={theme.mutedForeground} strokeWidth={1.5} />
           </View>
-          <Text style={[styles.emptyTitle, { color: theme.foreground }]}>
-            No transaction data
+          <Text style={[styles.emptyTitle, { color: theme.foreground }]}>No transaction data</Text>
+          <Text style={[styles.emptyDesc, { color: theme.mutedForeground }]}>
+            No transactions recorded for this period.
           </Text>
-          <Text style={[styles.emptyDescription, { color: theme.mutedForeground }]}>
-            There are no transactions recorded for this period.
-          </Text>
+        </View>
+      ) : (
+        <View style={styles.chartWrap}>
+          <Svg width={cardWidth} height={CHART_H}>
+            <Defs>
+              <LinearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0%" stopColor={incomeColor} stopOpacity={activeTheme === 'dark' ? 0.25 : 0.15} />
+                <Stop offset="100%" stopColor={incomeColor} stopOpacity={0.02} />
+              </LinearGradient>
+              <LinearGradient id="expenseGrad" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0%" stopColor={expenseColor} stopOpacity={0.25} />
+                <Stop offset="100%" stopColor={expenseColor} stopOpacity={0.02} />
+              </LinearGradient>
+            </Defs>
+
+            {/* Horizontal grid lines + Y labels */}
+            {yLevels.map(({ val, y }) => (
+              <G key={`grid-${val}`}>
+                <Line
+                  x1={ML}
+                  y1={y}
+                  x2={ML + plotW}
+                  y2={y}
+                  stroke={gridColor}
+                  strokeWidth={1}
+                  strokeDasharray={val === 0 ? undefined : '4 4'}
+                />
+                <SvgText
+                  x={ML - 6}
+                  y={y + 4}
+                  textAnchor="end"
+                  fontSize={9}
+                  fill={axisLabelColor}
+                >
+                  {formatCurrency(val, { compact: true })}
+                </SvgText>
+              </G>
+            ))}
+
+            {/* Expense area fill */}
+            <Path d={smoothPath(expensePts, true, closeY)} fill="url(#expenseGrad)" />
+            {/* Income area fill */}
+            <Path d={smoothPath(incomePts, true, closeY)} fill="url(#incomeGrad)" />
+
+            {/* Expense line */}
+            <Path
+              d={smoothPath(expensePts, false, closeY)}
+              fill="none"
+              stroke={expenseColor}
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {/* Income line */}
+            <Path
+              d={smoothPath(incomePts, false, closeY)}
+              fill="none"
+              stroke={incomeColor}
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+
+            {/* Income dots */}
+            {incomePts.map((pt, i) => (
+              <G key={`idot-${i}`}>
+                <Path
+                  d={`M ${pt.x} ${pt.y} m -3.5 0 a 3.5 3.5 0 1 0 7 0 a 3.5 3.5 0 1 0 -7 0`}
+                  fill={theme.card}
+                  stroke={incomeColor}
+                  strokeWidth={1.5}
+                />
+              </G>
+            ))}
+            {/* Expense dots */}
+            {expensePts.map((pt, i) => (
+              <G key={`edot-${i}`}>
+                <Path
+                  d={`M ${pt.x} ${pt.y} m -3.5 0 a 3.5 3.5 0 1 0 7 0 a 3.5 3.5 0 1 0 -7 0`}
+                  fill={theme.card}
+                  stroke={expenseColor}
+                  strokeWidth={1.5}
+                />
+              </G>
+            ))}
+
+            {/* X-axis labels */}
+            {xIndices.map((idx) => {
+              const d = data[idx];
+              if (!d) return null;
+              const label = (() => {
+                try { return format(new Date(d.date), 'MMM d'); } catch { return ''; }
+              })();
+              return (
+                <SvgText
+                  key={`xlabel-${idx}`}
+                  x={sx(idx)}
+                  y={closeY + 18}
+                  textAnchor="middle"
+                  fontSize={9}
+                  fill={axisLabelColor}
+                >
+                  {label}
+                </SvgText>
+              );
+            })}
+          </Svg>
+
+          {/* Legend */}
+          <View style={[styles.legend, { borderTopColor: theme.border }]}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendLine, { backgroundColor: incomeColor }]} />
+              <Text style={[styles.legendLabel, { color: theme.mutedForeground }]}>Income</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendLine, { backgroundColor: expenseColor }]} />
+              <Text style={[styles.legendLabel, { color: theme.mutedForeground }]}>Expenses</Text>
+            </View>
+          </View>
         </View>
       )}
     </View>
@@ -144,98 +260,94 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    padding: 0,
     overflow: 'hidden',
   },
-  // Header section with title and stats
   header: {
-    flexDirection: 'column',
-  },
-  titleSection: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
-  },
-  title: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-  },
-  subtitle: {
-    fontSize: fontSize.sm,
-    marginTop: 4,
-  },
-  // Stats section matching web's layout
-  statsSection: {
     flexDirection: 'row',
+    alignItems: 'stretch',
+    borderBottomWidth: 1,
   },
-  statBox: {
+  titleCol: {
     flex: 1,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    alignItems: 'center',
     justifyContent: 'center',
   },
-  statLabel: {
+  title: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.bold,
+  },
+  subtitle: {
     fontSize: fontSize.xs,
-    textAlign: 'center',
+    marginTop: 2,
+  },
+  countsRow: {
+    flexDirection: 'row',
+  },
+  countBox: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderLeftWidth: 1,
+    minWidth: 80,
+  },
+  countLabel: {
+    fontSize: 10,
     marginBottom: 4,
   },
-  statValueRow: {
+  countValueRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
-  statValue: {
-    fontSize: 24,
-    fontWeight: fontWeight.semibold,
+  countValue: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
   },
-  // Divider between header and chart
-  divider: {
-    height: 1,
+  chartWrap: {
+    paddingTop: spacing.sm,
   },
-  // Legend
-  legendRow: {
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
+  legend: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: spacing.lg,
+    gap: spacing.xl,
+    paddingVertical: spacing.md,
+    borderTopWidth: 1,
+    marginTop: 4,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.xs,
   },
-  legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  legendLine: {
+    width: 24,
+    height: 2,
+    borderRadius: 1,
   },
-  legendText: {
-    fontSize: fontSize.sm,
+  legendLabel: {
+    fontSize: fontSize.xs,
     fontWeight: fontWeight.medium,
   },
-  // Empty state
   emptyState: {
     alignItems: 'center',
-    justifyContent: 'center',
     paddingVertical: spacing.xxl,
     paddingHorizontal: spacing.lg,
+    gap: spacing.md,
   },
   emptyIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
   },
   emptyTitle: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
-    marginBottom: spacing.xs,
+    fontWeight: fontWeight.semibold,
   },
-  emptyDescription: {
+  emptyDesc: {
     fontSize: fontSize.sm,
     textAlign: 'center',
   },

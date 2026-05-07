@@ -1,73 +1,101 @@
-# Automatic labeling rules for PRs based on changed files
-
 mobile:
-  - src/**
-  - app.json
-  - babel.config.js
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/**'
+          - 'app.json'
+          - 'babel.config.js'
 
 android:
-  - src/**
-  - 'app.json'
-  - '*.android.ts'
-  - '*.android.tsx'
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/**'
+          - 'app.json'
+          - '*.android.ts'
+          - '*.android.tsx'
 
 ios:
-  - src/**
-  - 'app.json'
-  - '*.ios.ts'
-  - '*.ios.tsx'
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/**'
+          - 'app.json'
+          - '*.ios.ts'
+          - '*.ios.tsx'
 
 ui:
-  - src/components/**
-  - src/screens/**
-  - src/theme/**
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/components/**'
+          - 'src/screens/**'
+          - 'src/theme/**'
 
 feature:
-  - src/features/**
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/features/**'
 
-'state-management':
-  - src/store/**
-  - src/context/**
+state-management:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/store/**'
+          - 'src/context/**'
 
 navigation:
-  - src/navigation/**
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/navigation/**'
 
 audio:
-  - src/features/voice/**
-  - src/lib/audioTranscode.ts
-  - src/lib/transcode.ts
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/features/voice/**'
+          - 'src/lib/audioTranscode.ts'
+          - 'src/lib/transcode.ts'
 
-'api-integration':
-  - src/store/api-client.ts
-  - src/features/*/services/**
+api-integration:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/store/api-client.ts'
+          - 'src/features/*/services/**'
 
 accessibility:
-  - src/components/**
-  - src/screens/**
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/components/**'
+          - 'src/screens/**'
 
 dependencies:
-  - package.json
-  - package-lock.json
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'package.json'
+          - 'package-lock.json'
 
 config:
-  - app.json
-  - tsconfig.json
-  - babel.config.js
-  - metro.config.js
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'app.json'
+          - 'tsconfig.json'
+          - 'babel.config.js'
+          - 'metro.config.js'
 
 ci/cd:
-  - .github/workflows/**
-  - .github/**
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/workflows/**'
+          - '.github/**'
 
 docs:
-  - '*.md'
-  - docs/**
-  - 'README.md'
-  - 'CONTRIBUTING.md'
+  - changed-files:
+      - any-glob-to-any-file:
+          - '*.md'
+          - 'docs/**'
+          - 'README.md'
+          - 'CONTRIBUTING.md'
 
 testing:
-  - '**/*.test.ts'
-  - '**/*.test.tsx'
-  - '**/*.spec.ts'
-  - '**/*.spec.tsx'
-  - 'jest.config.js'
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.test.ts'
+          - '**/*.test.tsx'
+          - '**/*.spec.ts'
+          - '**/*.spec.tsx'
+          - 'jest.config.js'

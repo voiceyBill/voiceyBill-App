@@ -36,14 +36,9 @@ import {
   Upload,
   ArrowUpRight,
   ArrowDownRight,
-  Calendar,
-  Tag,
   MoreVertical,
   Trash2,
-  Edit3,
-  Copy,
   X,
-  RefreshCw,
   CircleDot,
 } from 'lucide-react-native';
 
@@ -76,26 +71,20 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   const [showFreqModal, setShowFreqModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
-  const processedVoiceMode = React.useRef(false);
+  const lastVoiceModeTs = React.useRef(0);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search.trim()), 400);
     return () => clearTimeout(t);
   }, [search]);
 
-  // Handle voice mode from navigation
+  // Handle voice mode from navigation — param is a timestamp so it changes every press
   useEffect(() => {
-    if (route?.params?.openVoiceMode && !processedVoiceMode.current) {
-      processedVoiceMode.current = true;
+    const ts = route?.params?.openVoiceMode;
+    if (ts && ts !== lastVoiceModeTs.current) {
+      lastVoiceModeTs.current = ts;
       setInitialMode('VOICE');
       setShowFormSheet(true);
-      
-      // Reset the ref when form closes
-      const timeout = setTimeout(() => {
-        processedVoiceMode.current = false;
-      }, 500);
-      
-      return () => clearTimeout(timeout);
     }
   }, [route?.params?.openVoiceMode]);
 
@@ -258,11 +247,21 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
     recurringFilter !== 'ALL',
   ].filter(Boolean).length;
 
+  const formatPaymentMethod = (method: string) =>
+    method.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
   // Render transaction card
   const renderTransactionCard = ({ item }: { item: Transaction }) => {
     const isIncome = item.type === TRANSACTION_TYPE.INCOME;
     const selected = selectedIds.has(item._id);
     const isRecurring = item.isRecurring;
+    const accentColor = isIncome ? themeColors.incomeText : themeColors.expenseText;
+    const iconBg = isIncome ? themeColors.incomeBg : themeColors.expenseBg;
+
+    const metaLine1Parts = [item.category, format(new Date(item.date), 'MMM d, yyyy')];
+    const metaLine2Parts: string[] = [];
+    if (item.paymentMethod) metaLine2Parts.push(formatPaymentMethod(item.paymentMethod));
+    if (isRecurring) metaLine2Parts.push(item.recurringFrequency || 'Recurring');
 
     return (
       <TouchableOpacity
@@ -274,35 +273,23 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
           {
             backgroundColor: themeColors.card,
             borderColor: selected ? themeColors.primary : themeColors.border,
-            borderWidth: selected ? 2 : 1,
           },
         ]}
       >
-        {/* Selection indicator */}
-        {selected && (
-          <View style={[styles.selectedBadge, { backgroundColor: themeColors.primary }]}>
-            <Text style={[styles.selectedBadgeText, { color: themeColors.primaryForeground }]}>✓</Text>
-          </View>
-        )}
+        {/* Left accent bar */}
+        <View style={[styles.accentBar, { backgroundColor: selected ? themeColors.primary : accentColor }]} />
 
-        {/* Main content */}
+        {/* Card body */}
         <View style={styles.cardContent}>
           {/* Left: Icon + Info */}
           <View style={styles.cardLeft}>
-            <View
-              style={[
-                styles.iconCircle,
-                {
-                  backgroundColor: isIncome
-                    ? 'rgba(74, 222, 128, 0.1)'
-                    : 'rgba(248, 113, 113, 0.1)',
-                },
-              ]}
-            >
-              {isIncome ? (
-                <ArrowUpRight size={20} color="#4ade80" />
+            <View style={[styles.iconCircle, { backgroundColor: selected ? themeColors.primary : iconBg }]}>
+              {selected ? (
+                <Text style={[styles.selectedCheckText, { color: themeColors.primaryForeground }]}>✓</Text>
+              ) : isIncome ? (
+                <ArrowUpRight size={20} color={accentColor} strokeWidth={2.5} />
               ) : (
-                <ArrowDownRight size={20} color="#f87171" />
+                <ArrowDownRight size={20} color={accentColor} strokeWidth={2.5} />
               )}
             </View>
 
@@ -310,39 +297,20 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
               <Text style={[styles.cardTitle, { color: themeColors.foreground }]} numberOfLines={1}>
                 {item.title}
               </Text>
-              <View style={styles.metaRow}>
-                <Tag size={12} color={themeColors.mutedForeground} />
-                <Text style={[styles.metaText, { color: themeColors.mutedForeground }]}>
-                  {item.category}
+              <Text style={[styles.metaText, { color: themeColors.mutedForeground }]} numberOfLines={1}>
+                {metaLine1Parts.join(' · ')}
+              </Text>
+              {metaLine2Parts.length > 0 && (
+                <Text style={[styles.metaText, { color: themeColors.mutedForeground }]} numberOfLines={1}>
+                  {metaLine2Parts.join(' · ')}
                 </Text>
-              </View>
-              <View style={styles.metaRow}>
-                <Calendar size={12} color={themeColors.mutedForeground} />
-                <Text style={[styles.metaText, { color: themeColors.mutedForeground }]}>
-                  {format(new Date(item.date), 'MMM dd, yyyy')}
-                </Text>
-              </View>
-              {isRecurring && (
-                <View style={styles.metaRow}>
-                  <RefreshCw size={12} color={themeColors.mutedForeground} />
-                  <Text style={[styles.metaText, { color: themeColors.mutedForeground }]}>
-                    {item.recurringFrequency || 'Recurring'}
-                  </Text>
-                </View>
               )}
             </View>
           </View>
 
           {/* Right: Amount + Actions */}
           <View style={styles.cardRight}>
-            <Text
-              style={[
-                styles.cardAmount,
-                {
-                  color: isIncome ? '#4ade80' : themeColors.destructive,
-                },
-              ]}
-            >
+            <Text style={[styles.cardAmount, { color: accentColor }]}>
               {formatCurrency(item.amount, { showSign: true, isExpense: !isIncome })}
             </Text>
             <TouchableOpacity
@@ -380,7 +348,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
               onPress={handleAddNew}
               style={[styles.addButton, { backgroundColor: themeColors.primary }]}
             >
-              <Plus size={18} color="#ffffff" />
+              <Plus size={18} color={themeColors.primaryForeground} />
               <Text style={styles.addButtonText}>Add Transaction</Text>
             </TouchableOpacity>
           </View>
@@ -598,7 +566,7 @@ const createStyles = (theme: typeof colors.light) =>
       backgroundColor: theme.background,
     },
     darkHeaderSection: {
-      backgroundColor: '#1a1e2a',
+      backgroundColor: theme.navbar,
       paddingBottom: spacing.lg,
     },
     navbar: {
@@ -609,11 +577,11 @@ const createStyles = (theme: typeof colors.light) =>
     navbarTitle: {
       fontSize: fontSize['2xl'],
       fontWeight: fontWeight.bold,
-      color: '#ffffff',
+      color: theme.navbarForeground,
     },
     navbarSubtitle: {
       fontSize: fontSize.sm,
-      color: '#ffffff',
+      color: theme.navbarForeground,
       opacity: 0.8,
       marginTop: spacing.xs,
     },
@@ -635,7 +603,7 @@ const createStyles = (theme: typeof colors.light) =>
       borderColor: 'rgba(255, 255, 255, 0.2)',
     },
     importButtonText: {
-      color: '#ffffff',
+      color: theme.navbarForeground,
       fontSize: fontSize.sm,
       fontWeight: fontWeight.medium,
     },
@@ -649,12 +617,13 @@ const createStyles = (theme: typeof colors.light) =>
       borderRadius: borderRadius.md,
     },
     addButtonText: {
-      color: '#ffffff',
+      color: theme.primaryForeground,
       fontSize: fontSize.sm,
       fontWeight: fontWeight.semibold,
     },
     searchContainer: {
       paddingHorizontal: spacing.lg,
+      paddingTop: spacing.lg,
       paddingBottom: spacing.sm,
     },
     searchBox: {
@@ -751,34 +720,36 @@ const createStyles = (theme: typeof colors.light) =>
     },
     transactionCard: {
       borderRadius: borderRadius.lg,
-      padding: spacing.md,
       marginBottom: spacing.sm,
-      position: 'relative',
+      borderWidth: 1,
+      overflow: 'hidden',
+      flexDirection: 'row',
+      alignItems: 'stretch',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.04,
+      shadowRadius: 4,
+      elevation: 1,
     },
-    selectedBadge: {
-      position: 'absolute',
-      top: spacing.xs,
-      right: spacing.xs,
-      width: 20,
-      height: 20,
-      borderRadius: 10,
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 10,
+    accentBar: {
+      width: 3,
     },
-    selectedBadgeText: {
-      fontSize: 12,
+    selectedCheckText: {
+      fontSize: 15,
       fontWeight: fontWeight.bold,
     },
     cardContent: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
     },
     cardLeft: {
       flex: 1,
       flexDirection: 'row',
-      alignItems: 'flex-start',
+      alignItems: 'center',
       gap: spacing.sm,
     },
     iconCircle: {
@@ -787,10 +758,12 @@ const createStyles = (theme: typeof colors.light) =>
       borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
+      flexShrink: 0,
     },
     infoColumn: {
       flex: 1,
-      gap: spacing.xs,
+      gap: 3,
+      minWidth: 0,
     },
     cardTitle: {
       fontSize: fontSize.md,
@@ -807,6 +780,8 @@ const createStyles = (theme: typeof colors.light) =>
     cardRight: {
       alignItems: 'flex-end',
       gap: spacing.xs,
+      marginLeft: spacing.sm,
+      flexShrink: 0,
     },
     cardAmount: {
       fontSize: fontSize.lg,
