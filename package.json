@@ -29,6 +29,7 @@
     "expo-image-picker": "~17.0.8",
     "expo-secure-store": "~15.0.7",
     "expo-status-bar": "~3.0.8",
+    "expo-updates": "^0.28.18",
     "lamejs": "^1.2.1",
     "lucide-react-native": "^0.544.0",
     "react": "19.1.0",

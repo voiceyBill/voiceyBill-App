@@ -2,10 +2,19 @@
   "expo": {
     "name": "VoiceyBill",
     "slug": "voiceybill-mobile",
+    "owner": "voiceybill",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/e779c721-0d69-4e42-ad10-7ba02417d751",
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD"
+    },
     "splash": {
       "backgroundColor": "#ffffff",
       "resizeMode": "contain"
@@ -25,7 +34,10 @@
     },
     "android": {
       "package": "com.voiceybill.app",
-      "permissions": ["RECORD_AUDIO"],
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
       "usesCleartextTraffic": true
     },
     "plugins": [
@@ -38,7 +50,13 @@
       [
         "expo-av",
         {}
-      ]
-    ]
+      ],
+      "expo-updates"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e779c721-0d69-4e42-ad10-7ba02417d751"
+      }
+    }
   }
 }
