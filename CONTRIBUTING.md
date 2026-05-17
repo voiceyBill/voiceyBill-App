@@ -8,6 +8,9 @@ Thanks for your interest in contributing.
 - Focus pull requests on one clear change.
 - Open an issue before starting major features.
 - Do not include secrets or production credentials in any commit.
+- Use the issue templates for every new issue. Blank issues are disabled.
+- Use the PR template for every pull request. PRs without the template completed are not considered ready for review.
+- Include screenshots, screen recordings, or GIFs for any UI, navigation, or animation changes.
 
 ## Development setup
 
@@ -65,11 +68,17 @@ npm run lint --if-present
 
 ## Issue reporting
 
-- Use the bug template for defects.
-- Use the feature template for enhancements.
+- Use the bug template for defects. Attach screenshots, console logs, and screen recordings when relevant.
+- Use the feature template for enhancements. Include mockups, references, or videos when the request is visual.
 - Use the question template for usage help.
+- If you paste links to images or videos, make sure they are accessible to maintainers.
 
 ## Security policy
 
 - Do not open public issues for security vulnerabilities.
 - Use GitHub Security Advisories for responsible disclosure.
+
+## Helpful setup reminders
+
+- Mobile development is done with Expo tooling on your machine, not in Docker.
+- Use your local backend URL in the app environment file when testing end-to-end changes.

@@ -69,7 +69,19 @@ body:
     id: context
     attributes:
       label: Additional context
-      description: Links, screenshots, mockups, or examples.
+      description: Links, screenshots, mockups, videos, or examples.
+      placeholder: |
+        - Screenshot or design mockup
+        - Short screen recording
+        - Reference issue or discussion
+        - External examples
+
+  - type: textarea
+    id: media
+    attributes:
+      label: Images or videos
+      description: Attach visual references directly in GitHub or paste links here.
+      placeholder: Link to screenshots, a GIF, or a video walkthrough.
 
   - type: checkboxes
     id: checks

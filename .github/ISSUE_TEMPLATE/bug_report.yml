@@ -72,7 +72,19 @@ body:
     id: logs
     attributes:
       label: Logs, stack traces, and screenshots
-      description: Paste complete errors and include screenshots if available.
+      description: Paste complete errors. Attach screenshots or screen recordings directly in GitHub or paste external links here.
+      placeholder: |
+        - Screenshot links or uploads
+        - Screen recording link
+        - Console or Metro logs
+        - Any stack traces
+
+  - type: textarea
+    id: reproduction_media
+    attributes:
+      label: Images or videos
+      description: If the bug is visual, attach images or screen recordings here or in the issue body.
+      placeholder: Link to a screenshot, GIF, or video showing the issue.
 
   - type: checkboxes
     id: checks

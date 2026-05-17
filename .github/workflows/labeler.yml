@@ -11,6 +11,7 @@ permissions:
 jobs:
   label:
     name: Apply path labels
+    if: ${{ github.event.pull_request.head.repo.fork == false }}
     runs-on: ubuntu-latest
     steps:
       - name: Ensure labels exist
