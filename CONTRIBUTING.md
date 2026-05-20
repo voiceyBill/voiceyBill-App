@@ -7,6 +7,7 @@ Thanks for your interest in contributing.
 - Be respectful and constructive in all discussions.
 - Focus pull requests on one clear change.
 - Open an issue before starting major features.
+- Do not start working on any issue without commenting on it first and being assigned. PRs for unassigned issues will be closed.
 - Do not include secrets or production credentials in any commit.
 - Use the issue templates for every new issue. Blank issues are disabled.
 - Use the PR template for every pull request. PRs without the template completed are not considered ready for review.
@@ -80,6 +81,8 @@ When your issue matches one of the templates below, use it. GitHub shows the tem
 Templates are at [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/). If your issue does not fit any template, open a blank issue and describe it clearly. Do not leave required template fields empty.
 
 Keep one issue focused on one topic so it can be triaged quickly. Include a screenshot or recording for anything visual or hard to explain in text.
+
+Before picking up any open issue to work on, comment on the issue to express your interest and wait to be assigned. You can also reach out on Discord first. Do not open a pull request for an issue that has not been assigned to you.
 
 ## Security policy
 
