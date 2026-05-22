@@ -1,67 +1,114 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  Image,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { User, Palette, CreditCard, ChevronRight, LogOut } from 'lucide-react-native';
+import { User, Camera } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useTypedSelector, useAppDispatch } from '../../store/hooks';
-import { logout } from '../../features/auth/authSlice';
-import { apiClient } from '../../store/api-client';
+import { updateUser as updateUserStore } from '../../features/auth/authSlice';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme/colors';
-import { Alert } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { useUpdateUserMutation } from '../../features/user/userAPI';
 
-type Section = {
-  title: string;
-  items: MenuItem[];
-};
-
-type MenuItem = {
-  title: string;
-  subtitle: string;
-  screen: string;
-  icon: React.ElementType;
-};
-
-const sections: Section[] = [
-  {
-    title: 'Personal',
-    items: [
-      { title: 'Account', subtitle: 'Update profile and avatar', screen: 'Account', icon: User },
-    ],
-  },
-  {
-    title: 'Preferences',
-    items: [
-      { title: 'Appearance', subtitle: 'Theme and display settings', screen: 'Appearance', icon: Palette },
-    ],
-  },
-  {
-    title: 'Subscription',
-    items: [
-      { title: 'Billing', subtitle: 'Manage subscription and payments', screen: 'Billing', icon: CreditCard },
-    ],
-  },
-];
-
-export default function SettingsScreen() {
-  const navigation = useNavigation();
+export default function AccountScreen() {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const dispatch = useAppDispatch();
-  const user = useTypedSelector((s) => s.auth.user);
+  const user = useTypedSelector((state) => state.auth.user);
 
-  const handleLogout = () => {
-    Alert.alert('Log out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Log out',
-        style: 'destructive',
-        onPress: () => {
-          dispatch(logout());
-          dispatch(apiClient.util.resetApiState());
-        },
-      },
-    ]);
+  const originalName = user?.name || '';
+  const originalImage = user?.profilePicture || null;
+
+  const [name, setName] = useState(originalName);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(originalImage);
+  const [picked, setPicked] = useState<{ uri: string; name: string; type: string } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const [updateUser] = useUpdateUserMutation();
+
+  // ✅ FIX: dirty state check
+  const isDirty = useMemo(() => {
+    return name !== originalName || picked !== null;
+  }, [name, picked, originalName]);
+
+  const handleChooseFile = async () => {
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.9,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+
+    if (res.canceled || !res.assets?.length) return;
+
+    const asset = res.assets[0];
+
+    const file = {
+      uri: asset.uri,
+      name: asset.fileName || 'avatar.jpg',
+      type: asset.mimeType || 'image/jpeg',
+    };
+
+    setPicked(file);
+    setAvatarPreview(asset.uri);
+  };
+
+  const handleSave = async () => {
+    // ✅ FIX: stop API if nothing changed
+    if (!isDirty) {
+      Alert.alert('No changes', 'You have not updated anything');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+
+      const form = new FormData();
+      form.append('name', name);
+
+      if (picked) {
+        // @ts-ignore
+        form.append('profilePicture', {
+          uri: picked.uri,
+          name: picked.name,
+          type: picked.type,
+        });
+      }
+
+      const resp = await updateUser(form as any).unwrap();
+
+      const updated = (resp as any)?.data?.user || (resp as any)?.data || (resp as any);
+
+      if (updated) {
+        const profileUrl = updated.profilePicture || updated.avatar || null;
+
+        dispatch(
+          updateUserStore({
+            name: updated.name,
+            profilePicture: profileUrl || undefined,
+          })
+        );
+
+        setPicked(null);
+        setAvatarPreview(profileUrl);
+        setName(updated.name);
+      }
+
+      Alert.alert('Saved', 'Account updated successfully');
+    } catch {
+      Alert.alert('Update failed', 'Could not update your account');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const styles = createStyles(themeColors);
@@ -69,90 +116,94 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxxl }}>
-        {/* Header */}
+        
         <View style={styles.navbar}>
           <Text style={styles.navbarTitle}>Settings</Text>
-          <Text style={styles.navbarSubtitle}>Manage your account settings and set e-mail preferences.</Text>
+          <Text style={styles.navbarSubtitle}>
+            Manage your account settings and preferences.
+          </Text>
         </View>
-
-        {/* User card — taps into Account settings */}
-        {user && (
-          <TouchableOpacity
-            style={styles.userCard}
-            onPress={() => navigation.navigate('Account' as never)}
-            activeOpacity={0.7}
-          >
-            {user.profilePicture ? (
-              <Image source={{ uri: user.profilePicture }} style={styles.userAvatarImage} />
-            ) : (
-              <View style={[styles.userAvatar, { backgroundColor: themeColors.muted }]}>
-                <Text style={[styles.userInitial, { color: themeColors.foreground }]}>
-                  {user.name?.charAt(0)?.toUpperCase() || 'U'}
-                </Text>
-              </View>
-            )}
-            <View style={styles.userInfo}>
-              <Text style={[styles.userName, { color: themeColors.foreground }]}>{user.name}</Text>
-              <Text style={[styles.userEmail, { color: themeColors.mutedForeground }]}>{user.email}</Text>
-            </View>
-            <ChevronRight size={16} color={themeColors.mutedForeground} />
-          </TouchableOpacity>
-        )}
 
         <View style={styles.content}>
-          {sections.map((section) => (
-            <View key={section.title} style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: themeColors.mutedForeground }]}>
-                {section.title}
+          <View style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+
+            {/* Profile */}
+            <View style={styles.fieldGroup}>
+              <Text style={[styles.label, { color: themeColors.foreground }]}>
+                Profile Picture
               </Text>
-              <View style={[styles.sectionCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-                {section.items.map((item, index) => {
-                  const IconComponent = item.icon;
-                  const isLast = index === section.items.length - 1;
-                  return (
-                    <TouchableOpacity
-                      key={item.screen}
-                      style={[
-                        styles.menuItem,
-                        !isLast && { borderBottomWidth: 1, borderBottomColor: themeColors.border },
-                      ]}
-                      onPress={() => navigation.navigate(item.screen as never)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={[styles.menuIconWrap, { backgroundColor: themeColors.muted }]}>
-                        <IconComponent size={18} color={themeColors.foreground} strokeWidth={1.75} />
-                      </View>
-                      <View style={styles.menuText}>
-                        <Text style={[styles.menuTitle, { color: themeColors.foreground }]}>{item.title}</Text>
-                        <Text style={[styles.menuSubtitle, { color: themeColors.mutedForeground }]}>{item.subtitle}</Text>
-                      </View>
-                      <ChevronRight size={18} color={themeColors.mutedForeground} />
-                    </TouchableOpacity>
-                  );
-                })}
+
+              <View style={styles.avatarRow}>
+                <View style={styles.avatarWrap}>
+                  {avatarPreview ? (
+                    <Image source={{ uri: avatarPreview }} style={styles.avatarImage} />
+                  ) : (
+                    <View style={[styles.avatarPlaceholder, { backgroundColor: themeColors.muted }]}>
+                      <User size={32} color={themeColors.mutedForeground} />
+                    </View>
+                  )}
+
+                  <View style={[styles.cameraIcon, { backgroundColor: themeColors.primary }]}>
+                    <Camera size={12} color={themeColors.primaryForeground} />
+                  </View>
+                </View>
+
+                <View style={styles.avatarControls}>
+                  <TouchableOpacity
+                    style={[styles.changePhotoBtn, { borderColor: themeColors.border }]}
+                    onPress={handleChooseFile}
+                  >
+                    <Text style={[styles.changePhotoBtnText, { color: themeColors.foreground }]}>
+                      Change photo
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Text style={[styles.avatarHint, { color: themeColors.mutedForeground }]}>
+                    Recommended: 300x300 JPG/PNG
+                  </Text>
+                </View>
               </View>
             </View>
-          ))}
 
-          {/* Logout */}
-          <View style={styles.section}>
-            <View style={[styles.sectionCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-              <TouchableOpacity style={styles.menuItem} onPress={handleLogout} activeOpacity={0.7}>
-                <View style={[styles.menuIconWrap, { backgroundColor: themeColors.muted }]}>
-                  <LogOut size={18} color={themeColors.destructive} strokeWidth={1.75} />
-                </View>
-                <View style={styles.menuText}>
-                  <Text style={[styles.menuTitle, { color: themeColors.destructive }]}>Log out</Text>
-                  <Text style={[styles.menuSubtitle, { color: themeColors.mutedForeground }]}>Sign out of your account</Text>
-                </View>
-                <ChevronRight size={18} color={themeColors.mutedForeground} />
-              </TouchableOpacity>
+            <View style={[styles.divider, { backgroundColor: themeColors.border }]} />
+
+            {/* Name */}
+            <View style={styles.fieldGroup}>
+              <Text style={[styles.label, { color: themeColors.foreground }]}>
+                Name
+              </Text>
+
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                style={[styles.input, { borderColor: themeColors.border, color: themeColors.foreground }]}
+                placeholder="Enter name"
+                placeholderTextColor={themeColors.mutedForeground}
+              />
             </View>
-          </View>
 
-          {/* App version */}
-          <Text style={[styles.version, { color: themeColors.mutedForeground }]}>VoiceyBill · v1.0.0</Text>
+            {/* Button */}
+            <TouchableOpacity
+              style={[
+                styles.button,
+                { backgroundColor: themeColors.primary },
+                (!isDirty || isSaving) && { opacity: 0.5 },
+              ]}
+              onPress={handleSave}
+              disabled={!isDirty || isSaving}
+            >
+              {isSaving ? (
+                <ActivityIndicator color={themeColors.primaryForeground} />
+              ) : (
+                <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>
+                  Update account
+                </Text>
+              )}
+            </TouchableOpacity>
+
+          </View>
         </View>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -161,72 +212,40 @@ export default function SettingsScreen() {
 const createStyles = (theme: typeof colors.light) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
-    navbar: {
-      backgroundColor: theme.navbar,
-      padding: spacing.lg,
-      paddingTop: spacing.xl + 20,
-      paddingBottom: spacing.xl,
-    },
-    navbarTitle: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: theme.navbarForeground },
-    navbarSubtitle: { fontSize: fontSize.sm, color: theme.navbarForeground, opacity: 0.8, marginTop: spacing.xs },
-    userCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
-      marginHorizontal: spacing.lg,
-      marginTop: spacing.lg,
-      padding: spacing.md,
-      borderRadius: borderRadius.lg,
-      backgroundColor: theme.card,
-      borderWidth: 1,
-      borderColor: theme.border,
-    },
-    userAvatarImage: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      resizeMode: 'cover',
-    },
-    userAvatar: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      alignItems: 'center',
+    navbar: { padding: spacing.lg },
+    navbarTitle: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold },
+    navbarSubtitle: { fontSize: fontSize.sm, opacity: 0.7, marginTop: 4 },
+    content: { padding: spacing.lg },
+    card: { padding: spacing.lg, borderRadius: borderRadius.lg, borderWidth: 1 },
+
+    fieldGroup: { marginBottom: spacing.lg },
+    label: { marginBottom: 6, fontSize: fontSize.sm },
+
+    avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    avatarWrap: { position: 'relative' },
+    avatarImage: { width: 80, height: 80, borderRadius: 40 },
+    avatarPlaceholder: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center' },
+
+    cameraIcon: {
+      position: 'absolute',
+      bottom: 0,
+      right: 0,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
       justifyContent: 'center',
-    },
-    userInitial: { fontSize: fontSize.xl, fontWeight: fontWeight.bold },
-    userInfo: { flex: 1 },
-    userName: { fontSize: fontSize.md, fontWeight: fontWeight.semibold },
-    userEmail: { fontSize: fontSize.sm, marginTop: 2 },
-    content: { padding: spacing.lg, gap: spacing.lg },
-    section: { gap: spacing.sm },
-    sectionTitle: {
-      fontSize: fontSize.xs,
-      fontWeight: fontWeight.semibold,
-      textTransform: 'uppercase',
-      letterSpacing: 0.8,
-      paddingHorizontal: spacing.xs,
-    },
-    sectionCard: {
-      borderRadius: borderRadius.lg,
-      borderWidth: 1,
-      overflow: 'hidden',
-    },
-    menuItem: {
-      flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.md,
-      padding: spacing.md,
     },
-    menuIconWrap: {
-      width: 36,
-      height: 36,
-      borderRadius: borderRadius.md,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    menuText: { flex: 1 },
-    menuTitle: { fontSize: fontSize.md, fontWeight: fontWeight.medium },
-    menuSubtitle: { fontSize: fontSize.xs, marginTop: 2 },
-    version: { fontSize: fontSize.xs, textAlign: 'center', marginTop: spacing.md },
+
+    avatarControls: { flex: 1 },
+    changePhotoBtn: { borderWidth: 1, padding: 8, borderRadius: 6, alignSelf: 'flex-start' },
+    changePhotoBtnText: { fontSize: 12 },
+    avatarHint: { fontSize: 10, marginTop: 4 },
+
+    divider: { height: 1, marginVertical: 16 },
+
+    input: { borderWidth: 1, padding: 10, borderRadius: 8 },
+
+    button: { padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10 },
+    buttonText: { fontWeight: '600' },
   });
