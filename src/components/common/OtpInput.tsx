@@ -19,7 +19,24 @@ export default function OtpInput({ value, onChange, disabled }: OtpInputProps) {
   const digits = value.padEnd(OTP_LENGTH, '').split('').slice(0, OTP_LENGTH);
 
   const handleChange = (text: string, index: number) => {
-    const digit = text.replace(/[^0-9]/g, '').slice(-1);
+    const cleaned = text.replace(/[^0-9]/g, '');
+
+    // Multi-digit input = paste. Distribute starting at the current box and
+    // focus the box after the last filled one (or the final box).
+    if (cleaned.length > 1) {
+      const pasted = cleaned.slice(0, OTP_LENGTH - index);
+      const newDigits = [...digits];
+      for (let i = 0; i < pasted.length; i++) {
+        newDigits[index + i] = pasted[i];
+      }
+      const newValue = newDigits.join('').replace(/ /g, '');
+      onChange(newValue);
+      const focusIndex = Math.min(index + pasted.length, OTP_LENGTH - 1);
+      inputRefs.current[focusIndex]?.focus();
+      return;
+    }
+
+    const digit = cleaned.slice(-1);
     const newDigits = [...digits];
     newDigits[index] = digit;
     const newValue = newDigits.join('').replace(/ /g, '');
@@ -56,14 +73,16 @@ export default function OtpInput({ value, onChange, disabled }: OtpInputProps) {
           <TextInput
             ref={(ref) => { inputRefs.current[i] = ref; }}
             style={[styles.input, { color: themeColors.foreground }]}
-            value={digits[i] === ' ' ? '' : digits[i]}
+            value={digits[i] && digits[i] !== ' ' ? digits[i] : ''}
             onChangeText={(text) => handleChange(text, i)}
             onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, i)}
             keyboardType="number-pad"
-            maxLength={1}
+            maxLength={OTP_LENGTH}
             editable={!disabled}
             selectTextOnFocus
             caretHidden
+            textContentType="oneTimeCode"
+            autoComplete="sms-otp"
           />
         </TouchableOpacity>
       ))}
