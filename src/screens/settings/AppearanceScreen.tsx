@@ -132,11 +132,22 @@ export default function AppearanceScreen() {
 
 
             <TouchableOpacity
-              style={[styles.updateButton, { backgroundColor: themeColors.primary }]}
+              style={[
+                styles.updateButton,
+                {
+                  backgroundColor: selectedTheme === theme ? themeColors.mutedForeground : themeColors.primary,
+                },
+              ]}
               onPress={() => setTheme(selectedTheme)}
-              activeOpacity={0.8}
+              disabled={selectedTheme === theme}
+              activeOpacity={selectedTheme === theme ? 1 : 0.8}
             >
-              <Text style={[styles.updateButtonText, { color: themeColors.primaryForeground }]}>
+              <Text
+                style={[
+                  styles.updateButtonText,
+                  { color: themeColors.primaryForeground, opacity: selectedTheme === theme ? 0.6 : 1 },
+                ]}
+              >
                 Update preferences
               </Text>
             </TouchableOpacity>
