@@ -20,11 +20,18 @@
       "channel": "preview"
     },
     "production": {
-      "distribution": "internal",
+      "distribution": "store",
       "android": {
-        "buildType": "apk"
+        "buildType": "app-bundle"
       },
       "channel": "production"
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "track": "production"
+      }
     }
   }
 }

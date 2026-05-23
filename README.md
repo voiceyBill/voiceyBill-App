@@ -105,6 +105,53 @@ npm run ios
 npm run web
 ```
 
+## Google Play Release
+
+APK builds are fine for local testing and sideloading, but Google Play requires an Android App Bundle (`.aab`) for production uploads.
+
+1. Connect the Expo project to GitHub in the Expo dashboard:
+
+```text
+expo.dev -> voiceyBill project -> GitHub -> Connect GitHub
+```
+
+2. Make sure your Expo/EAS project is linked and you are signed in:
+
+```bash
+npx eas login
+npx eas whoami
+```
+
+3. Build and submit automatically from Expo when `main` gets a merge by using the workflow in `.eas/workflows/production-release.yml`.
+
+4. Build the Play Store package manually the first time if needed:
+
+```bash
+npx eas build -p android --profile production
+```
+
+5. Download the generated `.aab` from Expo/EAS.
+
+6. In Google Play Console, create or open your app and upload the bundle to a release track:
+- Internal testing for a quick private check
+- Closed testing for reviewers/beta users
+- Production when you are ready to go live
+
+7. Complete the Play Console checklist:
+- App name, icon, screenshots, feature graphic
+- Privacy policy URL
+- Content rating questionnaire
+- Data safety form
+- Store listing details
+
+8. Set up Google Play submission access for automation:
+- Create a Google service account in Google Play Console
+- Link it to the app with Play Console permissions
+- Keep the JSON key available in Expo/EAS submission settings or the workflow environment
+- Upload the app manually once before API-based submissions can work
+
+If you want a quick installable file for phones outside Play Store, keep using the `development` or `preview` profile, which still builds an APK.
+
 ## Configuration
 
 **Important:** The app's `.env` file uses your **machine's local IP**, not `localhost`:
