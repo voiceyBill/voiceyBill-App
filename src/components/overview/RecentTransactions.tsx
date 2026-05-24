@@ -1,12 +1,57 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
-import { ArrowUpRight, ArrowDownRight, ChevronRight } from 'lucide-react-native';
+import {
+  ArrowUpRight,
+  ArrowDownRight,
+  ChevronRight,
+  ShoppingBag,
+  Utensils,
+  Car,
+  Zap,
+  Film,
+  Tag,
+  Activity,
+  Plane,
+  Home,
+  TrendingUp,
+  Coins,
+  HelpCircle,
+  LucideIcon
+} from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../../theme/colors';
 import { useGetAllTransactionsQuery } from '../../features/transaction/transactionAPI';
 import { formatCurrency } from '../../lib/formatCurrency';
 import { format } from 'date-fns';
 import { useNavigation } from '@react-navigation/native';
+
+// Color mappings and icons for categories matching the Revolut / Stripe premium design
+const categoryConfig: Record<string, { icon: LucideIcon; color: string; bgColor: string }> = {
+  groceries: { icon: ShoppingBag, color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.08)' }, // Amber
+  dining: { icon: Utensils, color: '#8b5cf6', bgColor: 'rgba(139, 92, 246, 0.08)' }, // Violet
+  transportation: { icon: Car, color: '#3b82f6', bgColor: 'rgba(59, 130, 246, 0.08)' }, // Blue
+  utilities: { icon: Zap, color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.08)' }, // Emerald
+  entertainment: { icon: Film, color: '#a855f7', bgColor: 'rgba(168, 85, 247, 0.08)' }, // Purple
+  shopping: { icon: Tag, color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.08)' }, // Amber
+  healthcare: { icon: Activity, color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.08)' }, // Rose
+  travel: { icon: Plane, color: '#06b6d4', bgColor: 'rgba(6, 182, 212, 0.08)' }, // Cyan
+  housing: { icon: Home, color: '#64748b', bgColor: 'rgba(100, 116, 139, 0.08)' }, // Slate
+  income: { icon: TrendingUp, color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.08)' }, // Emerald
+  investments: { icon: Coins, color: '#14b8a6', bgColor: 'rgba(20, 184, 166, 0.08)' }, // Teal
+};
+
+const getCategoryConfig = (cat: string) => {
+  const lower = cat?.toLowerCase() || 'other';
+  if (lower.includes('food') || lower.includes('dining')) return categoryConfig.dining;
+  if (lower.includes('groceries') || lower.includes('shopping') || lower.includes('retail')) return categoryConfig.shopping;
+  if (lower.includes('transport') || lower.includes('car') || lower.includes('travel')) return categoryConfig.transportation;
+  if (lower.includes('bill') || lower.includes('utilities') || lower.includes('rent')) return categoryConfig.utilities;
+  if (lower.includes('health') || lower.includes('medical')) return categoryConfig.healthcare;
+  if (lower.includes('income')) return categoryConfig.income;
+  if (lower.includes('investment')) return categoryConfig.investments;
+  
+  return categoryConfig[lower] || { icon: HelpCircle, color: '#8e8e93', bgColor: 'rgba(142, 142, 147, 0.08)' };
+};
 
 export default function RecentTransactions() {
   const { activeTheme } = useTheme();
@@ -24,34 +69,31 @@ export default function RecentTransactions() {
 
   const renderTransactionCard = ({ item }: { item: any }) => {
     const isIncome = item.type === 'INCOME';
-    const IconComponent = isIncome ? ArrowUpRight : ArrowDownRight;
-    const accentColor = isIncome ? theme.incomeText : theme.expenseText;
-    const iconBg = isIncome ? theme.incomeBg : theme.expenseBg;
+    const config = getCategoryConfig(item.category);
+    const CategoryIcon = config.icon;
 
     const metaParts = [item.category, format(new Date(item.createdAt), 'MMM d, yyyy')].filter(Boolean);
     if (item.paymentMethod) metaParts.push(formatPaymentMethod(item.paymentMethod));
 
     return (
-      <View
+      <TouchableOpacity
         style={[
           styles.transactionCard,
           {
             backgroundColor: theme.card,
-            borderColor: theme.border,
           },
         ]}
+        activeOpacity={0.7}
+        onPress={() => (navigation as any).navigate('Transactions', { transactionId: item._id })}
       >
-        {/* Left accent bar */}
-        <View style={[styles.accentBar, { backgroundColor: accentColor }]} />
-
         {/* Card body */}
         <View style={styles.cardBody}>
-          {/* Icon */}
-          <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
-            <IconComponent size={18} color={accentColor} strokeWidth={2.5} />
+          {/* Category Icon Badge with glassmorphic pastel backing */}
+          <View style={[styles.iconCircle, { backgroundColor: config.bgColor }]}>
+            <CategoryIcon size={18} color={config.color} strokeWidth={2.2} />
           </View>
 
-          {/* Info */}
+          {/* Transaction title and metadata */}
           <View style={styles.cardInfo}>
             <Text style={[styles.transactionTitle, { color: theme.foreground }]} numberOfLines={1}>
               {item.title}
@@ -61,19 +103,34 @@ export default function RecentTransactions() {
             </Text>
           </View>
 
-          {/* Amount + badge */}
+          {/* Amount & Status Badge */}
           <View style={styles.cardRight}>
-            <Text style={[styles.amount, { color: accentColor }]}>
-              {formatCurrency(item.amount, { showSign: true, isExpense: !isIncome })}
+            <Text
+              style={[
+                styles.amount,
+                { color: isIncome ? theme.incomeText : theme.foreground },
+              ]}
+            >
+              {isIncome ? '+' : '-'}{formatCurrency(item.amount, { showSign: false })}
             </Text>
-            <View style={[styles.typeBadge, { backgroundColor: iconBg }]}>
-              <Text style={[styles.typeBadgeText, { color: accentColor }]}>
+            <View
+              style={[
+                styles.typeBadge,
+                { backgroundColor: isIncome ? theme.incomeBg : theme.secondary },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.typeBadgeText,
+                  { color: isIncome ? theme.incomeText : theme.mutedForeground },
+                ]}
+              >
                 {isIncome ? 'Income' : 'Expense'}
               </Text>
             </View>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -123,13 +180,13 @@ export default function RecentTransactions() {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
+    borderRadius: borderRadius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
-    shadowRadius: 8,
+    shadowRadius: 12,
     elevation: 2,
   },
   header: {
@@ -139,15 +196,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   title: {
-    fontSize: fontSize.base,
+    fontSize: 15,
     fontWeight: fontWeight.bold,
-    marginBottom: 2,
+    letterSpacing: -0.3,
   },
   subtitle: {
-    fontSize: fontSize.xs,
+    fontSize: 11.5,
+    marginTop: 2,
   },
   viewAllBtn: {
     flexDirection: 'row',
@@ -156,30 +214,26 @@ const styles = StyleSheet.create({
   },
   viewAll: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontWeight: fontWeight.bold,
   },
   listContent: {
-    // no extra padding — cards are flush, separated by hairline
+    // flush layout
   },
   separator: {
     height: StyleSheet.hairlineWidth,
-    marginLeft: spacing.lg + 4 + 40 + spacing.md, // align with text column
+    marginLeft: spacing.md + 40 + spacing.md, // flush align with the title text
   },
   transactionCard: {
     flexDirection: 'row',
     alignItems: 'stretch',
-  },
-  accentBar: {
-    width: 3,
-    borderRadius: 0,
   },
   cardBody: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
+    paddingVertical: spacing.sm + 2,
+    gap: spacing.md,
   },
   iconCircle: {
     width: 40,
@@ -212,6 +266,8 @@ const styles = StyleSheet.create({
   amount: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
+    letterSpacing: -0.2,
+    fontVariant: ['tabular-nums'],
   },
   typeBadge: {
     paddingHorizontal: 7,
@@ -230,3 +286,5 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
   },
 });
+
+

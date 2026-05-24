@@ -1,134 +1,134 @@
 // Theme colors matching web client design system
-// Aligned with web index.css — black/white/gray minimal palette
+// Aligned with web index.css — green/dark premium slate-green palette
 export const colors = {
   // ── Light theme ─────────────────────────────────────────
   light: {
-    // Primary — near-black (web oklch(0.141 0.005 285.823))
-    primary: '#171717',
+    // Primary — Forest Green (matching web)
+    primary: '#166114',
     primaryForeground: '#ffffff',
 
     // Backgrounds
-    background: '#ffffff',
-    foreground: '#171717',
+    background: '#f6f7f9',
+    foreground: '#0f1f12',
 
     // Cards
     card: '#ffffff',
-    cardForeground: '#171717',
+    cardForeground: '#0f1f12',
 
-    // Secondary / surface-alt (web rgb(243, 244, 247))
-    secondary: '#f3f4f7',
-    secondaryForeground: '#171717',
+    // Secondary / surface-alt
+    secondary: '#edf4ee',
+    secondaryForeground: '#166114',
 
     // Muted
-    muted: '#f3f4f7',
-    mutedForeground: '#717171',
+    muted: '#f0f3f1',
+    mutedForeground: '#5b6b5e',
 
-    // Accent (neutral hover state)
-    accent: '#f3f4f7',
-    accentForeground: '#171717',
+    // Accent
+    accent: '#e2eae4',
+    accentForeground: '#166114',
 
-    // Borders & inputs (web rgba(23,23,23,0.2))
-    border: 'rgba(23, 23, 23, 0.15)',
-    input: 'rgba(23, 23, 23, 0.15)',
-    ring: '#171717',
+    // Borders & inputs
+    border: 'rgba(22, 97, 20, 0.12)',
+    input: 'rgba(22, 97, 20, 0.12)',
+    ring: '#166114',
 
-    // Destructive — kept for safety-critical actions only
-    destructive: '#8b3c3c',
+    // Destructive
+    destructive: '#a82c2c',
     destructiveForeground: '#ffffff',
 
-    // Chart — 5-shade grayscale spectrum for data viz
-    chart1: '#171717',
-    chart2: '#4a4a4a',
-    chart3: '#7a7a7a',
-    chart4: '#a8a8a8',
-    chart5: '#cecece',
+    // Chart — Green-based spectrum
+    chart1: '#166114',
+    chart2: '#2d7a2b',
+    chart3: '#4b9b48',
+    chart4: '#72be6f',
+    chart5: '#a3e2a0',
 
     // Sidebar
-    sidebar: '#f3f4f7',
-    sidebarForeground: '#171717',
-    sidebarPrimary: '#171717',
+    sidebar: '#f6f7f9',
+    sidebarForeground: '#0f1f12',
+    sidebarPrimary: '#166114',
     sidebarPrimaryForeground: '#ffffff',
-    sidebarAccent: '#e8e9ec',
-    sidebarAccentForeground: '#171717',
-    sidebarBorder: 'rgba(23, 23, 23, 0.15)',
+    sidebarAccent: '#edf4ee',
+    sidebarAccentForeground: '#166114',
+    sidebarBorder: 'rgba(22, 97, 20, 0.12)',
 
-    // Navbar — always dark (matches web --secondary-dark-color rgb(23,23,23))
-    navbar: '#171717',
+    // Navbar
+    navbar: '#0d1b10',
     navbarForeground: '#ffffff',
 
-    // Semantic transaction colors — matches web brand-green / destructive
+    // Semantic transaction colors
     incomeText: '#166114',
-    expenseText: '#8b3c3c',
+    expenseText: '#a82c2c',
     incomeBg: 'rgba(22, 97, 20, 0.08)',
-    expenseBg: 'rgba(139, 60, 60, 0.08)',
+    expenseBg: 'rgba(168, 44, 44, 0.08)',
 
-    // Brand green (matches web --brand-green)
+    // Brand greens
     brandGreen: '#166114',
     brandGreenLight: '#9fff59',
   },
 
   // ── Dark theme ──────────────────────────────────────────
   dark: {
-    // Primary — near-white (web oklch(0.985 0 0))
-    primary: '#f9f9f9',
-    primaryForeground: '#171717',
+    // Primary — Neon Green (matching web)
+    primary: '#9fff59',
+    primaryForeground: '#0a100c',
 
-    // Backgrounds (web oklch(0.141 0.005 285.823) ≈ #171717)
-    background: '#171717',
-    foreground: '#f9f9f9',
+    // Backgrounds
+    background: '#0a100c',
+    foreground: '#f9faf9',
 
-    // Cards — slightly elevated (web surface-alt dark rgb(42,42,42))
-    card: '#2a2a2a',
-    cardForeground: '#f9f9f9',
+    // Cards — slightly elevated deep forest charcoal-green
+    card: '#111a13',
+    cardForeground: '#f9faf9',
 
-    // Secondary / surface-alt
-    secondary: '#2a2a2a',
-    secondaryForeground: '#f9f9f9',
+    // Secondary
+    secondary: '#18271c',
+    secondaryForeground: '#9fff59',
 
     // Muted
-    muted: '#2a2a2a',
-    mutedForeground: '#888888',
+    muted: '#18271c',
+    mutedForeground: '#7a8b7f',
 
     // Accent
-    accent: '#2a2a2a',
-    accentForeground: '#f9f9f9',
+    accent: '#203525',
+    accentForeground: '#9fff59',
 
-    // Borders & inputs (web rgba(255,255,255,0.12))
-    border: 'rgba(255, 255, 255, 0.12)',
-    input: 'rgba(255, 255, 255, 0.15)',
-    ring: '#f9f9f9',
+    // Borders & inputs
+    border: 'rgba(159, 255, 89, 0.08)',
+    input: 'rgba(159, 255, 89, 0.12)',
+    ring: '#9fff59',
 
     // Destructive
-    destructive: '#dc2626',
+    destructive: '#ff4d4d',
     destructiveForeground: '#ffffff',
 
-    // Chart — grayscale spectrum, dark-to-light
-    chart1: '#f0f0f0',
-    chart2: '#b8b8b8',
-    chart3: '#808080',
-    chart4: '#484848',
-    chart5: '#343434',
+    // Chart
+    chart1: '#9fff59',
+    chart2: '#7ecb47',
+    chart3: '#5e9935',
+    chart4: '#3d6722',
+    chart5: '#1d3510',
 
     // Sidebar
-    sidebar: '#2a2a2a',
-    sidebarForeground: '#f9f9f9',
-    sidebarPrimary: '#f9f9f9',
-    sidebarPrimaryForeground: '#171717',
-    sidebarAccent: '#333333',
-    sidebarAccentForeground: '#f9f9f9',
-    sidebarBorder: 'rgba(255, 255, 255, 0.12)',
+    sidebar: '#111a13',
+    sidebarForeground: '#f9faf9',
+    sidebarPrimary: '#9fff59',
+    sidebarPrimaryForeground: '#0a100c',
+    sidebarAccent: '#18271c',
+    sidebarAccentForeground: '#9fff59',
+    sidebarBorder: 'rgba(159, 255, 89, 0.08)',
 
     // Navbar — always dark
-    navbar: '#171717',
+    navbar: '#0a100c',
     navbarForeground: '#ffffff',
 
-    // Semantic transaction colors — matches web brand-green-light / destructive dark
+    // Semantic transaction colors
     incomeText: '#9fff59',
-    expenseText: '#dc2626',
+    expenseText: '#ff4d4d',
     incomeBg: 'rgba(159, 255, 89, 0.12)',
-    expenseBg: 'rgba(220, 38, 38, 0.12)',
+    expenseBg: 'rgba(255, 77, 77, 0.12)',
 
-    // Brand green (lighter variant for dark bg)
+    // Brand greens
     brandGreen: '#9fff59',
     brandGreenLight: '#9fff59',
   },

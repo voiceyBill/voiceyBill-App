@@ -25,9 +25,11 @@ const PRESETS: { label: string; value: DateRangePreset }[] = [
 export default function DateRangePicker({
   value,
   onChange,
+  isDarkHeader = false,
 }: {
   value: DateRangePreset;
   onChange: (v: DateRangePreset) => void;
+  isDarkHeader?: boolean;
 }) {
   const { activeTheme } = useTheme();
   const theme = colors[activeTheme];
@@ -37,11 +39,16 @@ export default function DateRangePicker({
   return (
     <View>
       <TouchableOpacity
-        style={[styles.button, { backgroundColor: theme.card, borderColor: theme.border }]}
+        style={[
+          styles.button,
+          isDarkHeader
+            ? { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(255, 255, 255, 0.08)' }
+            : { backgroundColor: theme.card, borderColor: theme.border }
+        ]}
         onPress={() => setOpen(true)}
       >
-  <Text style={[styles.buttonText, { color: theme.foreground }]}>{selected}</Text>
-  <Text style={{ color: theme.mutedForeground, fontSize: 14 }}>▾</Text>
+        <Text style={[styles.buttonText, isDarkHeader ? { color: '#FFFFFF' } : { color: theme.foreground }]}>{selected}</Text>
+        <Text style={{ color: isDarkHeader ? 'rgba(255,255,255,0.4)' : theme.mutedForeground, fontSize: 13 }}>▾</Text>
       </TouchableOpacity>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <View style={styles.modalOverlay}>

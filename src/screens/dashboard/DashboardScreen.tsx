@@ -45,9 +45,9 @@ export default function DashboardScreen() {
             <Text style={styles.greeting}>Welcome back{user?.name ? `, ${user.name}` : ''}</Text>
             <Text style={styles.subtitle}>This is your overview report for the selected period</Text>
             <View style={styles.headerActions}>
-              <DateRangePicker value={preset} onChange={setPreset} />
-              <TouchableOpacity style={styles.addButton} onPress={() => setShowForm(true)}>
-                <Plus size={18} color={theme.primaryForeground} />
+              <DateRangePicker value={preset} onChange={setPreset} isDarkHeader={true} />
+              <TouchableOpacity style={styles.addButton} onPress={() => setShowForm(true)} activeOpacity={0.8}>
+                <Plus size={16} color="#0a100c" strokeWidth={2.8} />
                 <Text style={styles.addButtonText}>Add Transaction</Text>
               </TouchableOpacity>
             </View>
@@ -138,42 +138,51 @@ const createStyles = (theme: typeof colors.light) =>
     darkHeaderSection: {
       backgroundColor: theme.navbar,
       paddingBottom: spacing.xl,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     },
     navbar: {
       paddingHorizontal: spacing.lg,
-      paddingTop: spacing.xl + 16,
+      paddingTop: spacing.xl + 20,
       paddingBottom: spacing.md,
     },
     greeting: {
-      fontSize: fontSize['2xl'],
+      fontSize: 22,
       fontWeight: fontWeight.extrabold,
-      color: theme.navbarForeground,
+      color: '#FFFFFF',
+      letterSpacing: -0.4,
     },
     subtitle: {
-      fontSize: fontSize.sm,
-      color: 'rgba(255, 255, 255, 0.6)',
+      fontSize: 12,
+      color: 'rgba(255, 255, 255, 0.45)',
       marginTop: spacing.xs,
+      fontWeight: fontWeight.medium,
     },
     headerActions: {
-      marginTop: spacing.md,
+      marginTop: spacing.lg,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.md,
+      gap: spacing.sm,
     },
     addButton: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing.xs,
-      paddingHorizontal: spacing.md,
+      paddingHorizontal: spacing.lg,
       height: 40,
-      borderRadius: borderRadius.md,
-      backgroundColor: theme.primary,
+      borderRadius: 20,
+      backgroundColor: '#9fff59',
+      shadowColor: '#9fff59',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 3,
     },
     addButtonText: {
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.semibold,
-      color: theme.primaryForeground,
+      fontSize: 13,
+      fontWeight: fontWeight.bold,
+      color: '#0a100c',
     },
     // Stats section - inside dark header
     statsSection: {

@@ -9,6 +9,16 @@ import { formatCurrency } from '../../lib/formatCurrency';
 
 const { width } = Dimensions.get('window');
 
+// Vibrant premium color palette matching the web client donut chart
+const COLORS = [
+  '#6366f1', // Indigo
+  '#10b981', // Emerald
+  '#f59e0b', // Amber
+  '#f43f5e', // Rose
+  '#8b5cf6', // Violet
+  '#06b6d4', // Cyan
+];
+
 export default function ExpenseBreakdownPie({
   breakdown,
   total,
@@ -29,13 +39,8 @@ export default function ExpenseBreakdownPie({
   const radius = innerRadius + strokeWidth / 2; // 70 (center of stroke)
   const center = outerRadius + 10; // Add padding
   const svgSize = center * 2;
-  const size = Math.min(svgSize, Math.max(200, Math.min(300, chartMaxWidth)));
+  const size = Math.min(svgSize, Math.max(180, Math.min(260, chartMaxWidth)));
   const scale = size / svgSize;
-
-  // Chart colors from theme — grayscale spectrum matching web design system
-  const palette = useMemo(() => {
-    return [theme.chart1, theme.chart2, theme.chart3, theme.chart4, theme.chart5];
-  }, [theme]);
 
   // Build arcs - filter out zero values to show ALL non-zero categories
   const segments = useMemo(() => {
@@ -59,11 +64,11 @@ export default function ExpenseBreakdownPie({
       const sweep = (b.percentage / 100) * 360;
       const end = start + sweep;
       const d = arcPath(center, center, radius, start, end);
-      const seg = { d, color: palette[idx % palette.length], index: idx };
+      const seg = { d, color: COLORS[idx % COLORS.length], index: idx };
       start = end;
       return seg;
     });
-  }, [breakdown, total, center, radius, palette]);
+  }, [breakdown, total, center, radius]);
 
   const showEmpty = total <= 0 || segments.length === 0;
   
@@ -105,7 +110,7 @@ export default function ExpenseBreakdownPie({
                     cx={center} 
                     cy={center} 
                     r={radius} 
-                    stroke={activeTheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} 
+                    stroke={activeTheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(23,23,23,0.06)'} 
                     strokeWidth={strokeWidth} 
                     fill="none" 
                   />
@@ -115,9 +120,9 @@ export default function ExpenseBreakdownPie({
                       key={`seg-${i}`}
                       d={seg.d}
                       stroke={seg.color}
-                      strokeWidth={strokeWidth - 1} // Slightly smaller for padding effect
+                      strokeWidth={strokeWidth - 1.5} // Slightly smaller for padding effect
                       fill="none"
-                      strokeLinecap="butt"
+                      strokeLinecap="round"
                     />
                   ))}
                 </G>
@@ -139,7 +144,7 @@ export default function ExpenseBreakdownPie({
                 <Text style={[styles.centerValue, { color: theme.foreground }]}>
                   {formatCurrency(total, { compact: true })}
                 </Text>
-                <Text style={[styles.centerLabel, { color: theme.mutedForeground }]}>Total Spent</Text>
+                <Text style={[styles.centerLabel, { color: theme.mutedForeground }]}>Spent</Text>
               </View>
             </View>
           </View>
@@ -155,18 +160,20 @@ export default function ExpenseBreakdownPie({
                 ]}
               > 
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
-                  <View style={[styles.legendDot, { backgroundColor: palette[idx % palette.length] }]} />
+                  <View style={[styles.legendDot, { backgroundColor: COLORS[idx % COLORS.length] }]} />
                   <Text style={{ color: theme.foreground, fontSize: fontSize.xs, fontWeight: fontWeight.medium, textTransform: 'capitalize' }}>
                     {b.name}
                   </Text>
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                  <Text style={{ color: theme.mutedForeground, fontSize: fontSize.xs }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                  <Text style={{ color: theme.foreground, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }}>
                     {formatCurrency(b.value)}
                   </Text>
-                  <Text style={{ color: theme.mutedForeground, fontSize: fontSize.xs, opacity: 0.6 }}>
-                    ({Math.round(b.percentage)}%)
-                  </Text>
+                  <View style={[styles.percentageBadge, { backgroundColor: activeTheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(23,23,23,0.04)' }]}>
+                    <Text style={{ color: theme.mutedForeground, fontSize: 10, fontWeight: fontWeight.semibold }}>
+                      {Math.round(b.percentage)}%
+                    </Text>
+                  </View>
                 </View>
               </View>
             ))}
@@ -180,9 +187,14 @@ export default function ExpenseBreakdownPie({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.xl,
     borderWidth: 1,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
   },
   cardHeader: {
     paddingHorizontal: spacing.lg,
@@ -202,14 +214,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   centerValue: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
     textAlign: 'center',
   },
   centerLabel: {
-    fontSize: fontSize.xs,
-    marginTop: 4,
+    fontSize: 10,
+    marginTop: 2,
     textAlign: 'center',
+    textTransform: 'uppercase',
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.5,
   },
   legendRow: {
     paddingVertical: spacing.sm + 2,
@@ -220,8 +235,13 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  percentageBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
 });

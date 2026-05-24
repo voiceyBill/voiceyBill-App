@@ -37,11 +37,10 @@ const getCardStatus = (
       };
     }
 
-    // Check savings percentage first
     if (value < 10) {
       return {
         label: 'Low Savings',
-        color: 'rgba(255,255,255,0.5)',
+        color: '#ff4d4d',
         icon: 'down',
         description: `Only ${value.toFixed(1)}% saved`,
       };
@@ -50,17 +49,16 @@ const getCardStatus = (
     if (value < 20) {
       return {
         label: 'Moderate',
-        color: 'rgba(255,255,255,0.6)',
+        color: 'rgba(255,255,255,0.7)',
         icon: 'down',
         description: `${expenseRatio?.toFixed(0)}% spent`,
       };
     }
 
-    // High savings → check if expense ratio is unusually high for warning
     if (expenseRatio && expenseRatio > 75) {
       return {
         label: 'High Spend',
-        color: 'rgba(255,255,255,0.5)',
+        color: '#ff4d4d',
         icon: 'down',
         description: `${expenseRatio.toFixed(0)}% spent`,
       };
@@ -68,7 +66,7 @@ const getCardStatus = (
 
     if (expenseRatio && expenseRatio > 60) {
       return {
-        label: 'Warning: High Spend',
+        label: 'High Spend',
         color: 'rgba(255,255,255,0.6)',
         icon: 'down',
         description: `${expenseRatio.toFixed(0)}% spent`,
@@ -77,7 +75,7 @@ const getCardStatus = (
 
     return {
       label: 'Good Savings',
-      color: 'rgba(255,255,255,0.85)',
+      color: '#9fff59',
       icon: 'up',
     };
   }
@@ -98,11 +96,10 @@ const getCardStatus = (
     };
   }
 
-  // For balance card when negative
   if (cardType === 'balance' && value < 0) {
     return {
       label: 'Overdrawn',
-      color: 'rgba(255,255,255,0.5)',
+      color: '#ff4d4d',
       icon: 'down',
       description: 'Balance is negative',
     };
@@ -117,10 +114,8 @@ const getCardStatus = (
 
 const getTrendDirection = (value: number, cardType: CardType): 'positive' | 'negative' => {
   if (cardType === 'expenses') {
-    // For expenses, lower is better
     return value <= 0 ? 'positive' : 'negative';
   }
-  // For income and balance, higher is better
   return value >= 0 ? 'positive' : 'negative';
 };
 
@@ -131,7 +126,6 @@ const formatPercentage = (value: number, options?: { showSign?: boolean; isExpen
   
   if (showSign) {
     if (isExpense) {
-      // For expenses, negative change is good (green), positive is bad (red)
       return value <= 0 ? `${formatted}%` : `+${formatted}%`;
     }
     return value >= 0 ? `+${formatted}%` : `-${formatted}%`;
@@ -150,7 +144,6 @@ export default function StatsCard({
   isLoading = false,
 }: Props) {
   const { activeTheme } = useTheme();
-  const theme = colors[activeTheme];
   
   const status = getCardStatus(value, cardType, expenseRatio);
   const showTrend =
@@ -163,10 +156,8 @@ export default function StatsCard({
       ? getTrendDirection(percentageChange, cardType)
       : null;
 
-  // Determine value color
-  const valueColor = cardType === 'balance' && value < 0 ? 'rgba(255,255,255,0.5)' : '#FFFFFF';
+  const valueColor = cardType === 'balance' && value < 0 ? '#ff4d4d' : '#FFFFFF';
   
-  // Format display value
   const isPercentageValue = cardType === 'savings';
   const displayValue = isPercentageValue
     ? `${value.toFixed(1)}%`
@@ -176,8 +167,8 @@ export default function StatsCard({
       });
 
   return (
-    <View style={[styles.card, { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderColor: 'transparent' }]}>
-      <Text style={[styles.title, { color: 'rgba(255,255,255,0.6)' }]}>{title}</Text>
+    <View style={styles.card}>
+      <Text style={styles.title}>{title}</Text>
       
       <Text style={[styles.value, { color: valueColor }]}>{displayValue}</Text>
 
@@ -185,15 +176,15 @@ export default function StatsCard({
         {cardType === 'savings' ? (
           <View style={styles.footerContent}>
             {status.icon === 'up' ? (
-              <TrendingUp size={14} color={status.color} strokeWidth={2} />
+              <TrendingUp size={13} color={status.color} strokeWidth={2.5} />
             ) : (
-              <TrendingDown size={14} color={status.color} strokeWidth={2} />
+              <TrendingDown size={13} color={status.color} strokeWidth={2.5} />
             )}
             <Text style={[styles.statusText, { color: status.color }]}>
               {status.label}
             </Text>
             {status.description && (
-              <Text style={[styles.descriptionText, { color: 'rgba(255,255,255,0.4)' }]}>
+              <Text style={styles.descriptionText}>
                 • {status.description}
               </Text>
             )}
@@ -201,20 +192,20 @@ export default function StatsCard({
         ) : value === 0 || status.label ? (
           <View style={styles.footerContent}>
             {status.icon === 'up' ? (
-              <TrendingUp size={14} color={status.color} strokeWidth={2} />
+              <TrendingUp size={13} color={status.color} strokeWidth={2.5} />
             ) : (
-              <TrendingDown size={14} color={status.color} strokeWidth={2} />
+              <TrendingDown size={13} color={status.color} strokeWidth={2.5} />
             )}
             <Text style={[styles.statusText, { color: status.color }]}>
               {status.label}
             </Text>
             {!status.description && (
-              <Text style={[styles.descriptionText, { color: 'rgba(255,255,255,0.4)' }]}>
+              <Text style={styles.descriptionText}>
                 • {dateRangeLabel}
               </Text>
             )}
             {status.description && (
-              <Text style={[styles.descriptionText, { color: 'rgba(255,255,255,0.4)' }]}>
+              <Text style={styles.descriptionText}>
                 • {status.description}
               </Text>
             )}
@@ -222,31 +213,37 @@ export default function StatsCard({
         ) : showTrend ? (
           <View style={styles.footerContent}>
             {percentageChange !== 0 && (
-              <>
+              <View style={[
+                styles.trendBadge,
+                {
+                  backgroundColor: trendDirection === 'positive' ? 'rgba(159, 255, 89, 0.08)' : 'rgba(255, 77, 77, 0.08)',
+                  borderColor: trendDirection === 'positive' ? 'rgba(159, 255, 89, 0.16)' : 'rgba(255, 77, 77, 0.16)'
+                }
+              ]}>
                 {trendDirection === 'positive' ? (
-                  <TrendingUp size={12} color="rgba(255,255,255,0.85)" strokeWidth={2} />
+                  <TrendingUp size={11} color="#9fff59" strokeWidth={2.5} />
                 ) : (
-                  <TrendingDown size={12} color="rgba(255,255,255,0.5)" strokeWidth={2} />
+                  <TrendingDown size={11} color="#ff4d4d" strokeWidth={2.5} />
                 )}
-                <Text style={[styles.trendText, { color: trendDirection === 'positive' ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.5)' }]}>
+                <Text style={[styles.trendText, { color: trendDirection === 'positive' ? '#9fff59' : '#ff4d4d' }]}>
                   {formatPercentage(percentageChange, {
                     showSign: true,
                     isExpense: cardType === 'expenses',
                     decimalPlaces: 1,
                   })}
                 </Text>
-              </>
+              </View>
             )}
             {percentageChange === 0 && (
-              <>
-                <TrendingDown size={12} color="rgba(255,255,255,0.4)" strokeWidth={2} />
+              <View style={[styles.trendBadge, { backgroundColor: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.08)' }]}>
+                <TrendingDown size={11} color="rgba(255,255,255,0.4)" strokeWidth={2.5} />
                 <Text style={[styles.trendText, { color: 'rgba(255,255,255,0.4)' }]}>
                   0.0%
                 </Text>
-              </>
+              </View>
             )}
-            <Text style={[styles.descriptionText, { color: 'rgba(255,255,255,0.4)' }]}>
-              • {dateRangeLabel}
+            <Text style={styles.descriptionText}>
+              {dateRangeLabel}
             </Text>
           </View>
         ) : null}
@@ -258,18 +255,25 @@ export default function StatsCard({
 const styles = StyleSheet.create({
   card: {
     padding: spacing.lg,
-    borderRadius: borderRadius.lg,
-    borderWidth: 0,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.035)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   title: {
-    fontSize: 15,
-    fontWeight: fontWeight.medium,
-    marginBottom: spacing.md + 4,
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: spacing.sm - 2,
+    color: 'rgba(255, 255, 255, 0.45)',
   },
   value: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: fontWeight.bold,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
+    letterSpacing: -0.5,
+    fontVariant: ['tabular-nums'],
   },
   footer: {
     marginTop: spacing.xs,
@@ -281,15 +285,26 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   statusText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.normal,
+    fontSize: 12,
+    fontWeight: fontWeight.semibold,
+  },
+  trendBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   trendText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.normal,
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
   },
   descriptionText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.normal,
+    fontSize: 11.5,
+    fontWeight: fontWeight.medium,
+    color: 'rgba(255, 255, 255, 0.4)',
   },
 });
+

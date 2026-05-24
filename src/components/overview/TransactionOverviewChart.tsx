@@ -20,8 +20,8 @@ type Props = {
 const CHART_H = 220;
 const MT = 16;  // margin top
 const MR = 12;  // margin right
-const MB = 36;  // margin bottom (x-axis labels)
-const ML = 68;  // margin left (y-axis labels)
+const MB = 32;  // margin bottom (x-axis labels)
+const ML = 64;  // margin left (y-axis labels)
 const PLOT_H = CHART_H - MT - MB;
 
 function smoothPath(pts: { x: number; y: number }[], close: boolean, closeY: number): string {
@@ -55,7 +55,7 @@ export default function TransactionOverviewChart({
   const { activeTheme } = useTheme();
   const theme = colors[activeTheme];
 
-  // Total card width = screen minus outer padding (spacing.lg on each side in DashboardScreen)
+  // Total card width = screen minus outer padding
   const cardWidth = SCREEN_WIDTH - spacing.lg * 2;
   const plotW = cardWidth - ML - MR;
   const closeY = MT + PLOT_H;
@@ -88,14 +88,15 @@ export default function TransactionOverviewChart({
     return idxs;
   }, [data.length]);
 
-  const gridColor = activeTheme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
+  // Stripe-inspired ultra-subtle grid lines
+  const gridColor = activeTheme === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(23, 23, 23, 0.04)';
   const axisLabelColor = theme.mutedForeground;
   const incomeColor = theme.brandGreen;
   const expenseColor = theme.destructive;
 
   return (
     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-      {/* Card header — title left, counts right (matching web layout) */}
+      {/* Card header — title left, counts right */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <View style={styles.titleCol}>
           <Text style={[styles.title, { color: theme.foreground }]}>Transaction Overview</Text>
@@ -107,14 +108,14 @@ export default function TransactionOverviewChart({
           <View style={[styles.countBox, { borderLeftColor: theme.border }]}>
             <Text style={[styles.countLabel, { color: theme.mutedForeground }]}>Income</Text>
             <View style={styles.countValueRow}>
-              <TrendingUp size={13} color={incomeColor} strokeWidth={2} />
+              <TrendingUp size={13} color={incomeColor} strokeWidth={2.5} />
               <Text style={[styles.countValue, { color: theme.foreground }]}>{totalIncomeCount}</Text>
             </View>
           </View>
           <View style={[styles.countBox, { borderLeftColor: theme.border }]}>
             <Text style={[styles.countLabel, { color: theme.mutedForeground }]}>Expenses</Text>
             <View style={styles.countValueRow}>
-              <TrendingDown size={13} color={expenseColor} strokeWidth={2} />
+              <TrendingDown size={13} color={expenseColor} strokeWidth={2.5} />
               <Text style={[styles.countValue, { color: theme.foreground }]}>{totalExpenseCount}</Text>
             </View>
           </View>
@@ -137,12 +138,12 @@ export default function TransactionOverviewChart({
           <Svg width={cardWidth} height={CHART_H}>
             <Defs>
               <LinearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0%" stopColor={incomeColor} stopOpacity={activeTheme === 'dark' ? 0.25 : 0.15} />
-                <Stop offset="100%" stopColor={incomeColor} stopOpacity={0.02} />
+                <Stop offset="0%" stopColor={incomeColor} stopOpacity={activeTheme === 'dark' ? 0.20 : 0.12} />
+                <Stop offset="100%" stopColor={incomeColor} stopOpacity={0.01} />
               </LinearGradient>
               <LinearGradient id="expenseGrad" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0%" stopColor={expenseColor} stopOpacity={0.25} />
-                <Stop offset="100%" stopColor={expenseColor} stopOpacity={0.02} />
+                <Stop offset="0%" stopColor={expenseColor} stopOpacity={0.20} />
+                <Stop offset="100%" stopColor={expenseColor} stopOpacity={0.01} />
               </LinearGradient>
             </Defs>
 
@@ -155,15 +156,16 @@ export default function TransactionOverviewChart({
                   x2={ML + plotW}
                   y2={y}
                   stroke={gridColor}
-                  strokeWidth={1}
-                  strokeDasharray={val === 0 ? undefined : '4 4'}
+                  strokeWidth={StyleSheet.hairlineWidth}
+                  strokeDasharray={val === 0 ? undefined : '3 3'}
                 />
                 <SvgText
                   x={ML - 6}
-                  y={y + 4}
+                  y={y + 3}
                   textAnchor="end"
                   fontSize={9}
                   fill={axisLabelColor}
+                  fontWeight="600"
                 >
                   {formatCurrency(val, { compact: true })}
                 </SvgText>
@@ -194,22 +196,22 @@ export default function TransactionOverviewChart({
               strokeLinejoin="round"
             />
 
-            {/* Income dots */}
+            {/* Income dots — cleaner micro-markers */}
             {incomePts.map((pt, i) => (
               <G key={`idot-${i}`}>
                 <Path
-                  d={`M ${pt.x} ${pt.y} m -3.5 0 a 3.5 3.5 0 1 0 7 0 a 3.5 3.5 0 1 0 -7 0`}
+                  d={`M ${pt.x} ${pt.y} m -2.5 0 a 2.5 2.5 0 1 0 5 0 a 2.5 2.5 0 1 0 -5 0`}
                   fill={theme.card}
                   stroke={incomeColor}
                   strokeWidth={1.5}
                 />
               </G>
             ))}
-            {/* Expense dots */}
+            {/* Expense dots — cleaner micro-markers */}
             {expensePts.map((pt, i) => (
               <G key={`edot-${i}`}>
                 <Path
-                  d={`M ${pt.x} ${pt.y} m -3.5 0 a 3.5 3.5 0 1 0 7 0 a 3.5 3.5 0 1 0 -7 0`}
+                  d={`M ${pt.x} ${pt.y} m -2.5 0 a 2.5 2.5 0 1 0 5 0 a 2.5 2.5 0 1 0 -5 0`}
                   fill={theme.card}
                   stroke={expenseColor}
                   strokeWidth={1.5}
@@ -228,10 +230,11 @@ export default function TransactionOverviewChart({
                 <SvgText
                   key={`xlabel-${idx}`}
                   x={sx(idx)}
-                  y={closeY + 18}
+                  y={closeY + 16}
                   textAnchor="middle"
                   fontSize={9}
                   fill={axisLabelColor}
+                  fontWeight="600"
                 >
                   {label}
                 </SvgText>
@@ -242,12 +245,12 @@ export default function TransactionOverviewChart({
           {/* Legend */}
           <View style={[styles.legend, { borderTopColor: theme.border }]}>
             <View style={styles.legendItem}>
-              <View style={[styles.legendLine, { backgroundColor: incomeColor }]} />
-              <Text style={[styles.legendLabel, { color: theme.mutedForeground }]}>Income</Text>
+              <View style={[styles.legendDot, { backgroundColor: incomeColor }]} />
+              <Text style={[styles.legendLabel, { color: theme.foreground }]}>Income</Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendLine, { backgroundColor: expenseColor }]} />
-              <Text style={[styles.legendLabel, { color: theme.mutedForeground }]}>Expenses</Text>
+              <View style={[styles.legendDot, { backgroundColor: expenseColor }]} />
+              <Text style={[styles.legendLabel, { color: theme.foreground }]}>Expenses</Text>
             </View>
           </View>
         </View>
@@ -258,14 +261,19 @@ export default function TransactionOverviewChart({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
+    borderRadius: borderRadius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   titleCol: {
     flex: 1,
@@ -274,11 +282,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: fontSize.base,
+    fontSize: 15,
     fontWeight: fontWeight.bold,
+    letterSpacing: -0.3,
   },
   subtitle: {
-    fontSize: fontSize.xs,
+    fontSize: 11.5,
     marginTop: 2,
   },
   countsRow: {
@@ -289,11 +298,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
-    borderLeftWidth: 1,
+    borderLeftWidth: StyleSheet.hairlineWidth,
     minWidth: 80,
   },
   countLabel: {
     fontSize: 10,
+    fontWeight: fontWeight.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
     marginBottom: 4,
   },
   countValueRow: {
@@ -302,8 +314,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   countValue: {
-    fontSize: fontSize.xl,
+    fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
+    fontVariant: ['tabular-nums'],
   },
   chartWrap: {
     paddingTop: spacing.sm,
@@ -313,22 +326,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.xl,
     paddingVertical: spacing.md,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     marginTop: 4,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.xs + 2,
   },
-  legendLine: {
-    width: 24,
-    height: 2,
-    borderRadius: 1,
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   legendLabel: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
   },
   emptyState: {
     alignItems: 'center',
@@ -352,3 +365,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
