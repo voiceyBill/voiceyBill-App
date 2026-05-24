@@ -62,7 +62,7 @@ export default function TransactionOverviewChart({
 
   const incomeVals = data.map((d) => d.income || 0);
   const expenseVals = data.map((d) => d.expenses || 0);
-  const hasData = data.length > 1 && (incomeVals.some((v) => v > 0) || expenseVals.some((v) => v > 0));
+  const hasData = data.length > 0 && (incomeVals.some((v) => v > 0) || expenseVals.some((v) => v > 0));
 
   const maxVal = useMemo(() => niceMax(Math.max(...incomeVals, ...expenseVals, 1)), [incomeVals, expenseVals]);
 
