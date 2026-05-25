@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,44 +12,79 @@ import {
   Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Calendar, FileText, Mail, X, CheckCircle, Clock, AlertCircle, MinusCircle } from 'lucide-react-native';
+import { Calendar, FileText, Mail, Send, X, CheckCircle, Clock, AlertCircle, MinusCircle } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme/colors';
 import {
   useGetAllReportsQuery,
   useUpdateReportSettingMutation,
+  useResendReportMutation,
   ReportStatus,
 } from '../../features/report/reportAPI';
-import { useTypedSelector } from '../../store/hooks';
+import { useAppDispatch, useTypedSelector } from '../../store/hooks';
+import { updateCredentials } from '../../features/auth/authSlice';
 import { format } from 'date-fns';
 
 export default function ReportsScreen() {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const dispatch = useAppDispatch();
   const user = useTypedSelector((s) => s.auth.user);
+  const reportSetting = useTypedSelector((s) => s.auth.reportSetting);
 
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduleEnabled, setScheduleEnabled] = useState(reportSetting?.isEnabled ?? false);
   const [isSavingSchedule, setIsSavingSchedule] = useState(false);
 
   const { data, isLoading, isFetching, refetch } = useGetAllReportsQuery({ pageNumber: page, pageSize });
   const [updateReportSetting] = useUpdateReportSettingMutation();
+  const [resendReport] = useResendReportMutation();
+  const [resendingReportId, setResendingReportId] = useState<string | null>(null);
 
   const reports = data?.reports || [];
   const pagination = data?.pagination;
+
+  useEffect(() => {
+    if (showScheduleModal) {
+      setScheduleEnabled(reportSetting?.isEnabled ?? false);
+    }
+  }, [showScheduleModal, reportSetting?.isEnabled]);
 
   const handleSaveSchedule = async () => {
     setIsSavingSchedule(true);
     try {
       await updateReportSetting({ isEnabled: scheduleEnabled }).unwrap();
+      dispatch(updateCredentials({ reportSetting: { isEnabled: scheduleEnabled } }));
       setShowScheduleModal(false);
       Alert.alert('Saved', 'Report schedule updated successfully');
-    } catch {
-      Alert.alert('Error', 'Failed to update report schedule');
+    } catch (error) {
+      console.warn('[ReportSettings] save failed:', error);
+      const message =
+        (error as { data?: { message?: string }; error?: string; status?: number | string })?.data?.message ||
+        (error as { error?: string })?.error ||
+        `Failed to update report schedule (status ${(error as { status?: number | string })?.status ?? 'unknown'})`;
+      Alert.alert('Error', message);
     } finally {
       setIsSavingSchedule(false);
+    }
+  };
+
+  const handleResend = async (reportId: string) => {
+    if (resendingReportId) return;
+    setResendingReportId(reportId);
+    try {
+      await resendReport(reportId).unwrap();
+      Alert.alert('Sent', 'Report re-sent to your email');
+    } catch (error) {
+      const message =
+        (error as { data?: { message?: string }; message?: string })?.data?.message ||
+        (error as { message?: string })?.message ||
+        'Failed to resend report';
+      Alert.alert('Error', message);
+    } finally {
+      setResendingReportId(null);
     }
   };
 
@@ -87,16 +122,16 @@ export default function ReportsScreen() {
         {/* Header */}
         <View style={styles.navbar}>
           <View style={styles.navbarTop}>
-            <View>
-              <Text style={styles.navbarTitle}>Report History</Text>
-              <Text style={styles.navbarSubtitle}>View and manage your financial reports</Text>
+            <View style={styles.navbarTextWrap}>
+              <Text style={styles.navbarTitle} numberOfLines={1}>Report History</Text>
+              <Text style={styles.navbarSubtitle} numberOfLines={2}>View and manage your financial reports</Text>
             </View>
             <TouchableOpacity
               style={styles.scheduleButton}
               onPress={() => setShowScheduleModal(true)}
             >
               <Calendar size={16} color={themeColors.navbarForeground} />
-              <Text style={styles.scheduleButtonText}>Report Settings</Text>
+              <Text style={styles.scheduleButtonText} numberOfLines={1}>Report Settings</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -138,6 +173,10 @@ export default function ReportsScreen() {
               {reports.map((report) => {
                 const status = getStatusConfig(report.status);
                 const StatusIcon = status.icon;
+                const isResending = resendingReportId === report._id;
+                const isResendDisabled =
+                  report.status === 'NO_ACTIVITY' ||
+                  (resendingReportId !== null && !isResending);
                 return (
                   <View
                     key={report._id}
@@ -162,6 +201,34 @@ export default function ReportsScreen() {
                         <StatusIcon size={12} color={status.color} strokeWidth={2} />
                         <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
                       </View>
+                    </View>
+                    <View style={[styles.reportFooter, { borderTopColor: themeColors.border }]}>
+                      <TouchableOpacity
+                        style={[
+                          styles.resendBtn,
+                          { borderColor: themeColors.border, backgroundColor: themeColors.muted },
+                          (isResendDisabled || isResending) && styles.resendBtnDisabled,
+                        ]}
+                        onPress={() => handleResend(report._id)}
+                        disabled={isResendDisabled || isResending}
+                      >
+                        {isResending ? (
+                          <ActivityIndicator size="small" color={themeColors.foreground} />
+                        ) : (
+                          <Send
+                            size={14}
+                            color={isResendDisabled ? themeColors.mutedForeground : themeColors.foreground}
+                          />
+                        )}
+                        <Text
+                          style={[
+                            styles.resendBtnText,
+                            { color: isResendDisabled ? themeColors.mutedForeground : themeColors.foreground },
+                          ]}
+                        >
+                          {isResending ? 'Sending…' : 'Resend'}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 );
@@ -230,7 +297,7 @@ export default function ReportsScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.modalContent}>
+            <ScrollView contentContainerStyle={styles.modalContent}>
               {/* Enable toggle */}
               <View style={[styles.settingRow, { borderColor: themeColors.border }]}>
                 <View style={styles.settingRowLeft}>
@@ -312,8 +379,10 @@ const createStyles = (theme: typeof colors.light) =>
     navbarTop: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      alignItems: 'flex-start',
+      alignItems: 'center',
+      gap: spacing.md,
     },
+    navbarTextWrap: { flex: 1, minWidth: 0 },
     navbarTitle: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: theme.navbarForeground },
     navbarSubtitle: { fontSize: fontSize.sm, color: theme.navbarForeground, opacity: 0.8, marginTop: spacing.xs },
     scheduleButton: {
@@ -326,6 +395,7 @@ const createStyles = (theme: typeof colors.light) =>
       borderWidth: 1,
       borderColor: 'rgba(255,255,255,0.25)',
       backgroundColor: 'rgba(255,255,255,0.1)',
+      flexShrink: 0,
     },
     scheduleButtonText: { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: theme.navbarForeground },
     content: { padding: spacing.lg },
@@ -380,6 +450,26 @@ const createStyles = (theme: typeof colors.light) =>
       flexShrink: 0,
     },
     statusText: { fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+    reportFooter: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderTopWidth: 1,
+    },
+    resendBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.md,
+      borderWidth: 1,
+    },
+    resendBtnDisabled: {
+      opacity: 0.5,
+    },
+    resendBtnText: { fontSize: fontSize.sm, fontWeight: fontWeight.medium },
     pagination: {
       flexDirection: 'row',
       justifyContent: 'space-between',
