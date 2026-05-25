@@ -18,6 +18,7 @@ import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme
 import {
   useGetAllReportsQuery,
   useUpdateReportSettingMutation,
+  useResendReportMutation,
   ReportStatus,
 } from '../../features/report/reportAPI';
 import { useAppDispatch, useTypedSelector } from '../../store/hooks';
@@ -39,6 +40,8 @@ export default function ReportsScreen() {
 
   const { data, isLoading, isFetching, refetch } = useGetAllReportsQuery({ pageNumber: page, pageSize });
   const [updateReportSetting] = useUpdateReportSettingMutation();
+  const [resendReport] = useResendReportMutation();
+  const [resendingReportId, setResendingReportId] = useState<string | null>(null);
 
   const reports = data?.reports || [];
   const pagination = data?.pagination;
@@ -63,8 +66,21 @@ export default function ReportsScreen() {
     }
   };
 
-  const handleResend = (_reportId: string) => {
-    Alert.alert('Coming soon', 'Resend will be available once the backend endpoint lands.');
+  const handleResend = async (reportId: string) => {
+    if (resendingReportId) return;
+    setResendingReportId(reportId);
+    try {
+      await resendReport(reportId).unwrap();
+      Alert.alert('Sent', 'Report re-sent to your email');
+    } catch (error) {
+      const message =
+        (error as { data?: { message?: string }; message?: string })?.data?.message ||
+        (error as { message?: string })?.message ||
+        'Failed to resend report';
+      Alert.alert('Error', message);
+    } finally {
+      setResendingReportId(null);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -152,7 +168,10 @@ export default function ReportsScreen() {
               {reports.map((report) => {
                 const status = getStatusConfig(report.status);
                 const StatusIcon = status.icon;
-                const isResendDisabled = report.status === 'NO_ACTIVITY';
+                const isResending = resendingReportId === report._id;
+                const isResendDisabled =
+                  report.status === 'NO_ACTIVITY' ||
+                  (resendingReportId !== null && !isResending);
                 return (
                   <View
                     key={report._id}
@@ -183,22 +202,26 @@ export default function ReportsScreen() {
                         style={[
                           styles.resendBtn,
                           { borderColor: themeColors.border, backgroundColor: themeColors.muted },
-                          isResendDisabled && styles.resendBtnDisabled,
+                          (isResendDisabled || isResending) && styles.resendBtnDisabled,
                         ]}
                         onPress={() => handleResend(report._id)}
-                        disabled={isResendDisabled}
+                        disabled={isResendDisabled || isResending}
                       >
-                        <Send
-                          size={14}
-                          color={isResendDisabled ? themeColors.mutedForeground : themeColors.foreground}
-                        />
+                        {isResending ? (
+                          <ActivityIndicator size="small" color={themeColors.foreground} />
+                        ) : (
+                          <Send
+                            size={14}
+                            color={isResendDisabled ? themeColors.mutedForeground : themeColors.foreground}
+                          />
+                        )}
                         <Text
                           style={[
                             styles.resendBtnText,
                             { color: isResendDisabled ? themeColors.mutedForeground : themeColors.foreground },
                           ]}
                         >
-                          Resend
+                          {isResending ? 'Sending…' : 'Resend'}
                         </Text>
                       </TouchableOpacity>
                     </View>
