@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   View,
   Text,
@@ -11,36 +11,49 @@ import {
   Modal,
   KeyboardAvoidingView,
   StatusBar,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme/colors';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "../../context/ThemeContext";
+import {
+  colors,
+  spacing,
+  fontSize,
+  fontWeight,
+  borderRadius,
+} from "../../theme/colors";
 import {
   useCreateTransactionMutation,
   useUpdateTransactionMutation,
   useGetSingleTransactionQuery,
   useAiScanReceiptMutation,
-} from '../../features/transaction/transactionAPI';
+} from "../../features/transaction/transactionAPI";
 import {
   CATEGORIES,
   PAYMENT_METHODS,
   TRANSACTION_TYPE,
   TRANSACTION_FREQUENCY,
   FREQUENCY_OPTIONS,
-} from '../../constants/transaction';
-import { Picker } from '@react-native-picker/picker';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { format as formatDate } from 'date-fns';
-import * as ImagePicker from 'expo-image-picker';
-import { Mic, ScanText, FileText, X, Calendar, Upload } from 'lucide-react-native';
-import VoiceRecorder from './VoiceRecorder';
+} from "../../constants/transaction";
+import { Picker } from "@react-native-picker/picker";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { format as formatDate } from "date-fns";
+import * as ImagePicker from "expo-image-picker";
+import {
+  Mic,
+  ScanText,
+  FileText,
+  X,
+  Calendar,
+  Upload,
+} from "lucide-react-native";
+import VoiceRecorder from "./VoiceRecorder";
 
 interface TransactionFormSheetProps {
   isVisible: boolean;
   onClose: () => void;
   transactionId?: string;
   isEdit?: boolean;
-  initialMode?: 'VOICE' | 'SCAN' | 'MANUAL';
+  initialMode?: "VOICE" | "SCAN" | "MANUAL";
 }
 
 export default function TransactionFormSheet({
@@ -48,28 +61,35 @@ export default function TransactionFormSheet({
   onClose,
   transactionId,
   isEdit = false,
-  initialMode = 'MANUAL',
+  initialMode = "MANUAL",
 }: TransactionFormSheetProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
 
   // Form state
-  const [title, setTitle] = React.useState('');
-  const [amount, setAmount] = React.useState('');
-  const [type, setType] = React.useState<'INCOME' | 'EXPENSE'>(TRANSACTION_TYPE.EXPENSE);
-  const [category, setCategory] = React.useState('');
+  const [title, setTitle] = React.useState("");
+  const [amount, setAmount] = React.useState("");
+  const [type, setType] = React.useState<"INCOME" | "EXPENSE">(
+    TRANSACTION_TYPE.EXPENSE,
+  );
+  const [category, setCategory] = React.useState("");
   const [date, setDate] = React.useState(new Date());
   const [showDatePicker, setShowDatePicker] = React.useState(false);
-  const [paymentMethod, setPaymentMethod] = React.useState('');
+  const [paymentMethod, setPaymentMethod] = React.useState("");
   const [isRecurring, setIsRecurring] = React.useState(false);
-  const [frequency, setFrequency] = React.useState(TRANSACTION_FREQUENCY.MONTHLY);
-  const [description, setDescription] = React.useState('');
+  const [frequency, setFrequency] = React.useState(
+    TRANSACTION_FREQUENCY.MONTHLY,
+  );
+  const [description, setDescription] = React.useState("");
 
   // AI Scan Receipt state
-  const [receiptName, setReceiptName] = React.useState<string>('No file chosen');
+  const [receiptName, setReceiptName] =
+    React.useState<string>("No file chosen");
   const [isScanning, setIsScanning] = React.useState(false);
   // Voice state
-  const [mode, setMode] = React.useState<'VOICE' | 'SCAN' | 'MANUAL'>(initialMode);
+  const [mode, setMode] = React.useState<"VOICE" | "SCAN" | "MANUAL">(
+    initialMode,
+  );
   const [isVoiceProcessing, setIsVoiceProcessing] = React.useState(false);
 
   // Update mode when initialMode changes
@@ -80,11 +100,16 @@ export default function TransactionFormSheet({
   }, [isVisible, initialMode]);
 
   // API hooks
-  const { data: transactionData } = useGetSingleTransactionQuery(transactionId || '', {
-    skip: !transactionId,
-  });
-  const [createTransaction, { isLoading: isCreating }] = useCreateTransactionMutation();
-  const [updateTransaction, { isLoading: isUpdating }] = useUpdateTransactionMutation();
+  const { data: transactionData } = useGetSingleTransactionQuery(
+    transactionId || "",
+    {
+      skip: !transactionId,
+    },
+  );
+  const [createTransaction, { isLoading: isCreating }] =
+    useCreateTransactionMutation();
+  const [updateTransaction, { isLoading: isUpdating }] =
+    useUpdateTransactionMutation();
   const [aiScanReceipt] = useAiScanReceiptMutation();
 
   // Load existing transaction data for edit
@@ -98,32 +123,32 @@ export default function TransactionFormSheet({
       setDate(new Date(tx.date));
       setPaymentMethod(tx.paymentMethod);
       setIsRecurring(tx.isRecurring);
-      setFrequency((tx as any).recurringInterval || TRANSACTION_FREQUENCY.MONTHLY);
-      setDescription(tx.description || '');
+      setFrequency(
+        (tx as any).recurringInterval || TRANSACTION_FREQUENCY.MONTHLY,
+      );
+      setDescription(tx.description || "");
     }
   }, [isEdit, transactionData]);
 
-
-
   // Reset form
   const resetForm = () => {
-    setTitle('');
-    setAmount('');
+    setTitle("");
+    setAmount("");
     setType(TRANSACTION_TYPE.EXPENSE);
-    setCategory('');
+    setCategory("");
     setDate(new Date());
-    setPaymentMethod('');
+    setPaymentMethod("");
     setIsRecurring(false);
     setFrequency(TRANSACTION_FREQUENCY.MONTHLY);
-    setDescription('');
-    setReceiptName('No file chosen');
+    setDescription("");
+    setReceiptName("No file chosen");
     setIsScanning(false);
   };
 
   // Handle submit
   const handleSubmit = async () => {
     if (!title || !amount || !category || !paymentMethod) {
-      alert('Please fill in all required fields');
+      alert("Please fill in all required fields");
       return;
     }
 
@@ -141,19 +166,20 @@ export default function TransactionFormSheet({
 
     try {
       if (isEdit && transactionId) {
-        await updateTransaction({ id: transactionId, transaction: payload }).unwrap();
+        await updateTransaction({
+          id: transactionId,
+          transaction: payload,
+        }).unwrap();
       } else {
         await createTransaction(payload).unwrap();
       }
       resetForm();
       onClose();
     } catch (error) {
-      console.error('Failed to save transaction:', error);
-      alert('Failed to save transaction');
+      console.error("Failed to save transaction:", error);
+      alert("Failed to save transaction");
     }
   };
-
-
 
   const styles = createStyles(themeColors);
 
@@ -164,20 +190,27 @@ export default function TransactionFormSheet({
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={{ flex: 1, backgroundColor: themeColors.background }} edges={['top', 'bottom']}>
-        <StatusBar barStyle={activeTheme === 'dark' ? 'light-content' : 'dark-content'} />
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: themeColors.background }}
+        edges={["top", "bottom"]}
+      >
+        <StatusBar
+          barStyle={activeTheme === "dark" ? "light-content" : "dark-content"}
+        />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ flex: 1 }}
         >
           {/* Header */}
           <View style={styles.header}>
             <View>
               <Text style={styles.headerTitle}>
-                {isEdit ? 'Edit Transaction' : 'Add Transaction'}
+                {isEdit ? "Edit Transaction" : "Add Transaction"}
               </Text>
               <Text style={styles.headerSubtitle}>
-                {isEdit ? 'Update your transaction details' : 'Choose how you want to add your transaction'}
+                {isEdit
+                  ? "Update your transaction details"
+                  : "Choose how you want to add your transaction"}
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -189,11 +222,13 @@ export default function TransactionFormSheet({
           {!isEdit && (
             <View style={styles.tabsContainer}>
               <View style={styles.tabsBackground}>
-                {([
-                  { key: 'VOICE', label: 'Voice', Icon: Mic },
-                  { key: 'SCAN', label: 'AI Scan', Icon: ScanText },
-                  { key: 'MANUAL', label: 'Manual', Icon: FileText },
-                ] as const).map((tab) => {
+                {(
+                  [
+                    { key: "VOICE", label: "Voice", Icon: Mic },
+                    { key: "SCAN", label: "AI Scan", Icon: ScanText },
+                    { key: "MANUAL", label: "Manual", Icon: FileText },
+                  ] as const
+                ).map((tab) => {
                   const IconComponent = tab.Icon;
                   return (
                     <TouchableOpacity
@@ -202,11 +237,20 @@ export default function TransactionFormSheet({
                       onPress={() => setMode(tab.key)}
                       activeOpacity={0.7}
                     >
-                      <IconComponent 
-                        size={16} 
-                        color={mode === tab.key ? themeColors.foreground : themeColors.mutedForeground}
+                      <IconComponent
+                        size={16}
+                        color={
+                          mode === tab.key
+                            ? themeColors.foreground
+                            : themeColors.mutedForeground
+                        }
                       />
-                      <Text style={[styles.tabText, mode === tab.key && styles.tabTextActive]}>
+                      <Text
+                        style={[
+                          styles.tabText,
+                          mode === tab.key && styles.tabTextActive,
+                        ]}
+                      >
                         {tab.label}
                       </Text>
                     </TouchableOpacity>
@@ -216,329 +260,420 @@ export default function TransactionFormSheet({
             </View>
           )}
 
-          <ScrollView 
+          <ScrollView
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-          {/* Voice Recording */}
-          {mode === 'VOICE' && (
-            <VoiceRecorder
-              loadingChange={isVoiceProcessing}
-              onLoadingChange={setIsVoiceProcessing}
-              onVoiceComplete={(data) => {
-                // Map response data to form fields
-                if (data.title) setTitle(data.title);
-                if (data.amount != null) setAmount(String(data.amount));
-                if (data.category) { 
-                  setCategory(data.category); 
-                }
-                if (data.paymentMethod) setPaymentMethod(data.paymentMethod);
-                if (data.type) setType(data.type);
-                if (data.date) { 
-                  const d = new Date(data.date); 
-                  if (!isNaN(d.getTime())) setDate(d); 
-                }
-                if (data.description) setDescription(data.description);
-              }}
-            />
-          )}
-
-          {/* AI Scan Receipt */}
-          {(mode === 'SCAN') && (
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>AI Scan Receipt</Text>
-            <View style={styles.uploadRow}>
-              <TouchableOpacity
-                onPress={async () => {
-                  try {
-                    setIsScanning(true);
-                    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
-                    if (res.canceled || !res.assets?.length) { setIsScanning(false); return; }
-                    const asset = res.assets[0];
-                    const uri = asset.uri; const name = asset.fileName || 'receipt.jpg'; const typeMime = asset.mimeType || 'image/jpeg';
-                    setReceiptName(name);
-                    const form = new FormData();
-                    // @ts-ignore
-                    form.append('receipt', { uri, name, type: typeMime });
-                    const result = await aiScanReceipt(form as any).unwrap();
-                    const scanned = result?.data;
-                    if (scanned) {
-                      if (scanned.amount != null) setAmount(String(scanned.amount));
-                      if (scanned.category) { setCategory(scanned.category); }
-                      if (scanned.description) setDescription(scanned.description);
-                      if (scanned.date) { const d = new Date(scanned.date); if (!isNaN(d.getTime())) setDate(d); }
-                    }
-                  } catch { alert('Failed to scan receipt'); } finally { setIsScanning(false); }
-                }}
-                style={[styles.scanIconBtn, { borderColor: themeColors.border, backgroundColor: themeColors.background }]}
-                disabled={isScanning}
-              >
-                <ScanText size={20} color={themeColors.foreground} />
-              </TouchableOpacity>
-              <View style={[styles.fileBox, { borderColor: themeColors.border, backgroundColor: themeColors.card }]}>
-                <Text style={{ color: themeColors.mutedForeground }} numberOfLines={1}>{receiptName}</Text>
-              </View>
-              <TouchableOpacity
-                onPress={async () => {
-                  try {
-                    setIsScanning(true);
-                    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
-                    if (res.canceled || !res.assets?.length) {
-                      setIsScanning(false);
-                      return;
-                    }
-                    const asset = res.assets[0];
-                    const uri = asset.uri;
-                    const name = asset.fileName || 'receipt.jpg';
-                    const typeMime = asset.mimeType || 'image/jpeg';
-                    setReceiptName(name);
-
-                    const form = new FormData();
-                    // @ts-ignore - React Native FormData file
-                    form.append('receipt', { uri, name, type: typeMime });
-                    const result = await aiScanReceipt(form as any).unwrap();
-                    const scanned = result?.data;
-                    if (scanned) {
-                      if (scanned.amount != null) setAmount(String(scanned.amount));
-                      if (scanned.category) {
-                        setCategory(scanned.category);
-                      }
-                      if (scanned.description) setDescription(scanned.description);
-                      if (scanned.date) {
-                        const d = new Date(scanned.date);
-                        if (!isNaN(d.getTime())) setDate(d);
-                      }
-                    }
-                  } catch (e) {
-                    alert('Failed to scan receipt');
-                  } finally {
-                    setIsScanning(false);
+            {/* Voice Recording */}
+            {mode === "VOICE" && (
+              <VoiceRecorder
+                loadingChange={isVoiceProcessing}
+                onLoadingChange={setIsVoiceProcessing}
+                onVoiceComplete={(data) => {
+                  // Map response data to form fields
+                  if (data.title) setTitle(data.title);
+                  if (data.amount != null) setAmount(String(data.amount));
+                  if (data.category) {
+                    setCategory(data.category);
                   }
-                }}
-                style={[styles.chooseBtn, { backgroundColor: themeColors.primary }]}
-                disabled={isScanning}
-              >
-                <Upload size={16} color="#ffffff" />
-                <Text style={{ color: '#ffffff', marginLeft: spacing.xs }}>{isScanning ? 'Scanning…' : 'Choose File'}</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={[styles.helpText, { color: themeColors.mutedForeground }]}>JPG, PNG up to 5MB</Text>
-          </View>
-          )}
-
-          {/* Transaction Type */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Transaction Type</Text>
-            <View style={styles.typeSelector}>
-              <TouchableOpacity
-                style={[
-                  styles.typeButton,
-                  type === TRANSACTION_TYPE.INCOME && styles.typeButtonActive,
-                ]}
-                onPress={() => setType(TRANSACTION_TYPE.INCOME)}
-                activeOpacity={0.7}
-                disabled={isScanning || isVoiceProcessing}
-              >
-                <View style={[
-                  styles.radioCircle,
-                  type === TRANSACTION_TYPE.INCOME && styles.radioCircleActive,
-                ]}>
-                  {type === TRANSACTION_TYPE.INCOME && <View style={styles.radioCircleInner} />}
-                </View>
-                <Text
-                  style={[
-                    styles.typeButtonText,
-                    type === TRANSACTION_TYPE.INCOME && styles.typeButtonTextActive,
-                  ]}
-                >
-                  Income
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.typeButton,
-                  type === TRANSACTION_TYPE.EXPENSE && styles.typeButtonActive,
-                ]}
-                onPress={() => setType(TRANSACTION_TYPE.EXPENSE)}
-                activeOpacity={0.7}
-                disabled={isScanning || isVoiceProcessing}
-              >
-                <View style={[
-                  styles.radioCircle,
-                  type === TRANSACTION_TYPE.EXPENSE && styles.radioCircleActive,
-                ]}>
-                  {type === TRANSACTION_TYPE.EXPENSE && <View style={styles.radioCircleInner} />}
-                </View>
-                <Text
-                  style={[
-                    styles.typeButtonText,
-                    type === TRANSACTION_TYPE.EXPENSE && styles.typeButtonTextActive,
-                  ]}
-                >
-                  Expense
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Title */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Title *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Transaction title"
-              placeholderTextColor={themeColors.mutedForeground}
-              value={title}
-              onChangeText={setTitle}
-            />
-          </View>
-
-          {/* Amount */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Amount *</Text>
-            <View style={styles.amountContainer}>
-              <Text style={styles.currencySymbol}>Rs</Text>
-              <TextInput
-                style={styles.amountInput}
-                placeholder="0.00"
-                placeholderTextColor={themeColors.mutedForeground}
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="decimal-pad"
-              />
-            </View>
-          </View>
-
-          {/* Category */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Category *</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={category}
-                onValueChange={setCategory}
-                style={styles.picker}
-                dropdownIconColor={themeColors.foreground}
-              >
-                <Picker.Item label="Select a category" value="" />
-                {CATEGORIES.map((cat) => (
-                  <Picker.Item key={cat.value} label={cat.label} value={cat.value} />
-                ))}
-              </Picker>
-            </View>
-          </View>
-
-          {/* Date */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Date *</Text>
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Calendar size={16} color={themeColors.mutedForeground} />
-              <Text style={styles.dateText}>{formatDate(date, 'MMMM do, yyyy')}</Text>
-            </TouchableOpacity>
-            {showDatePicker && (
-              <DateTimePicker
-                value={date}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(event, selectedDate) => {
-                  setShowDatePicker(Platform.OS === 'ios');
-                  if (selectedDate) {
-                    setDate(selectedDate);
+                  if (data.paymentMethod) setPaymentMethod(data.paymentMethod);
+                  if (data.type) setType(data.type);
+                  if (data.date) {
+                    const d = new Date(data.date);
+                    if (!isNaN(d.getTime())) setDate(d);
                   }
+                  if (data.description) setDescription(data.description);
                 }}
               />
             )}
-          </View>
 
-          {/* Payment Method */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Payment Method *</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={paymentMethod}
-                onValueChange={setPaymentMethod}
-                style={styles.picker}
-                dropdownIconColor={themeColors.foreground}
-              >
-                <Picker.Item label="Select payment method" value="" />
-                {PAYMENT_METHODS.map((method) => (
-                  <Picker.Item key={method.value} label={method.label} value={method.value} />
-                ))}
-              </Picker>
-            </View>
-          </View>
+            {/* AI Scan Receipt */}
+            {mode === "SCAN" && (
+              <View style={styles.fieldContainer}>
+                <Text style={styles.label}>AI Scan Receipt</Text>
+                <View style={styles.uploadRow}>
+                  <TouchableOpacity
+                    onPress={async () => {
+                      try {
+                        setIsScanning(true);
+                        const res = await ImagePicker.launchImageLibraryAsync({
+                          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                          quality: 0.8,
+                        });
+                        if (res.canceled || !res.assets?.length) {
+                          setIsScanning(false);
+                          return;
+                        }
+                        const asset = res.assets[0];
+                        const uri = asset.uri;
+                        const name = asset.fileName || "receipt.jpg";
+                        const typeMime = asset.mimeType || "image/jpeg";
+                        setReceiptName(name);
+                        const form = new FormData();
+                        // @ts-ignore
+                        form.append("receipt", { uri, name, type: typeMime });
+                        const result = await aiScanReceipt(
+                          form as any,
+                        ).unwrap();
+                        const scanned = result?.data;
+                        if (scanned) {
+                          if (scanned.amount != null)
+                            setAmount(String(scanned.amount));
+                          if (scanned.category) {
+                            setCategory(scanned.category);
+                          }
+                          if (scanned.description)
+                            setDescription(scanned.description);
+                          if (scanned.date) {
+                            const d = new Date(scanned.date);
+                            if (!isNaN(d.getTime())) setDate(d);
+                          }
+                        }
+                      } catch {
+                        alert("Failed to scan receipt");
+                      } finally {
+                        setIsScanning(false);
+                      }
+                    }}
+                    style={[
+                      styles.scanIconBtn,
+                      {
+                        borderColor: themeColors.border,
+                        backgroundColor: themeColors.background,
+                      },
+                    ]}
+                    disabled={isScanning}
+                  >
+                    <ScanText size={20} color={themeColors.foreground} />
+                  </TouchableOpacity>
+                  <View
+                    style={[
+                      styles.fileBox,
+                      {
+                        borderColor: themeColors.border,
+                        backgroundColor: themeColors.card,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{ color: themeColors.mutedForeground }}
+                      numberOfLines={1}
+                    >
+                      {receiptName}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={async () => {
+                      try {
+                        setIsScanning(true);
+                        const res = await ImagePicker.launchImageLibraryAsync({
+                          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                          quality: 0.8,
+                        });
+                        if (res.canceled || !res.assets?.length) {
+                          setIsScanning(false);
+                          return;
+                        }
+                        const asset = res.assets[0];
+                        const uri = asset.uri;
+                        const name = asset.fileName || "receipt.jpg";
+                        const typeMime = asset.mimeType || "image/jpeg";
+                        setReceiptName(name);
 
-          {/* Recurring Toggle */}
-          <View style={[styles.fieldContainer, styles.recurringContainer]}>
-            <View style={styles.recurringLeft}>
-              <Text style={styles.label}>Recurring Transaction</Text>
-              <Text style={styles.recurringSubtext}>
-                {isRecurring ? 'This will repeat automatically' : 'Set to repeat this transaction'}
-              </Text>
-            </View>
-            <RNSwitch
-              value={isRecurring}
-              onValueChange={setIsRecurring}
-              trackColor={{ false: themeColors.border, true: themeColors.primary }}
-              thumbColor={themeColors.card}
-            />
-          </View>
+                        const form = new FormData();
+                        // @ts-ignore - React Native FormData file
+                        form.append("receipt", { uri, name, type: typeMime });
+                        const result = await aiScanReceipt(
+                          form as any,
+                        ).unwrap();
+                        const scanned = result?.data;
+                        if (scanned) {
+                          if (scanned.amount != null)
+                            setAmount(String(scanned.amount));
+                          if (scanned.category) {
+                            setCategory(scanned.category);
+                          }
+                          if (scanned.description)
+                            setDescription(scanned.description);
+                          if (scanned.date) {
+                            const d = new Date(scanned.date);
+                            if (!isNaN(d.getTime())) setDate(d);
+                          }
+                        }
+                      } catch (e) {
+                        alert("Failed to scan receipt");
+                      } finally {
+                        setIsScanning(false);
+                      }
+                    }}
+                    style={[
+                      styles.chooseBtn,
+                      { backgroundColor: themeColors.primary },
+                    ]}
+                    disabled={isScanning}
+                  >
+                    <Upload size={16} color="#ffffff" />
+                    <Text style={{ color: "#ffffff", marginLeft: spacing.xs }}>
+                      {isScanning ? "Scanning…" : "Choose File"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <Text
+                  style={[
+                    styles.helpText,
+                    { color: themeColors.mutedForeground },
+                  ]}
+                >
+                  JPG, PNG up to 5MB
+                </Text>
+              </View>
+            )}
 
-          {/* Frequency (if recurring) */}
-          {isRecurring && (
+            {/* Transaction Type */}
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Frequency</Text>
+              <Text style={styles.label}>Transaction Type</Text>
+              <View style={styles.typeSelector}>
+                <TouchableOpacity
+                  style={[
+                    styles.typeButton,
+                    type === TRANSACTION_TYPE.INCOME && styles.typeButtonActive,
+                  ]}
+                  onPress={() => setType(TRANSACTION_TYPE.INCOME)}
+                  activeOpacity={0.7}
+                  disabled={isScanning || isVoiceProcessing}
+                >
+                  <View
+                    style={[
+                      styles.radioCircle,
+                      type === TRANSACTION_TYPE.INCOME &&
+                        styles.radioCircleActive,
+                    ]}
+                  >
+                    {type === TRANSACTION_TYPE.INCOME && (
+                      <View style={styles.radioCircleInner} />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.typeButtonText,
+                      type === TRANSACTION_TYPE.INCOME &&
+                        styles.typeButtonTextActive,
+                    ]}
+                  >
+                    Income
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.typeButton,
+                    type === TRANSACTION_TYPE.EXPENSE &&
+                      styles.typeButtonActive,
+                  ]}
+                  onPress={() => setType(TRANSACTION_TYPE.EXPENSE)}
+                  activeOpacity={0.7}
+                  disabled={isScanning || isVoiceProcessing}
+                >
+                  <View
+                    style={[
+                      styles.radioCircle,
+                      type === TRANSACTION_TYPE.EXPENSE &&
+                        styles.radioCircleActive,
+                    ]}
+                  >
+                    {type === TRANSACTION_TYPE.EXPENSE && (
+                      <View style={styles.radioCircleInner} />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.typeButtonText,
+                      type === TRANSACTION_TYPE.EXPENSE &&
+                        styles.typeButtonTextActive,
+                    ]}
+                  >
+                    Expense
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Title */}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Title *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Transaction title"
+                placeholderTextColor={themeColors.mutedForeground}
+                value={title}
+                onChangeText={setTitle}
+              />
+            </View>
+
+            {/* Amount */}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Amount *</Text>
+              <View style={styles.amountContainer}>
+                <Text style={styles.currencySymbol}>Rs</Text>
+                <TextInput
+                  style={styles.amountInput}
+                  placeholder="0.00"
+                  placeholderTextColor={themeColors.mutedForeground}
+                  value={amount}
+                  onChangeText={setAmount}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+            </View>
+
+            {/* Category */}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Category *</Text>
               <View style={styles.pickerContainer}>
                 <Picker
-                  selectedValue={frequency}
-                  onValueChange={setFrequency}
+                  selectedValue={category}
+                  onValueChange={setCategory}
                   style={styles.picker}
                   dropdownIconColor={themeColors.foreground}
                 >
-                  {FREQUENCY_OPTIONS.map((freq) => (
-                    <Picker.Item key={freq.value} label={freq.label} value={freq.value} />
+                  <Picker.Item label="Select a category" value="" />
+                  {CATEGORIES.map((cat) => (
+                    <Picker.Item
+                      key={cat.value}
+                      label={cat.label}
+                      value={cat.value}
+                    />
                   ))}
                 </Picker>
               </View>
             </View>
-          )}
 
-          {/* Description */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Description (Optional)</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Add notes about this transaction"
-              placeholderTextColor={themeColors.mutedForeground}
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-          </View>
+            {/* Date */}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Date *</Text>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Calendar size={16} color={themeColors.mutedForeground} />
+                <Text style={styles.dateText}>
+                  {formatDate(date, "MMMM do, yyyy")}
+                </Text>
+              </TouchableOpacity>
+              {showDatePicker && (
+                <DateTimePicker
+                  value={date}
+                  mode="date"
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  onChange={(event, selectedDate) => {
+                    setShowDatePicker(Platform.OS === "ios");
+                    if (selectedDate) {
+                      setDate(selectedDate);
+                    }
+                  }}
+                />
+              )}
+            </View>
 
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={[
-              styles.submitButton,
-              (isCreating || isUpdating) && styles.submitButtonDisabled,
-            ]}
-            onPress={handleSubmit}
-            disabled={isCreating || isUpdating}
-          >
-            <Text style={styles.submitButtonText}>
-              {isCreating || isUpdating
-                ? 'Saving...'
-                : isEdit
-                ? 'Update Transaction'
-                : 'Add Transaction'}
-            </Text>
-          </TouchableOpacity>
+            {/* Payment Method */}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Payment Method *</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={paymentMethod}
+                  onValueChange={setPaymentMethod}
+                  style={styles.picker}
+                  dropdownIconColor={themeColors.foreground}
+                >
+                  <Picker.Item label="Select payment method" value="" />
+                  {PAYMENT_METHODS.map((method) => (
+                    <Picker.Item
+                      key={method.value}
+                      label={method.label}
+                      value={method.value}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+
+            {/* Recurring Toggle */}
+            <View style={[styles.fieldContainer, styles.recurringContainer]}>
+              <View style={styles.recurringLeft}>
+                <Text style={styles.label}>Recurring Transaction</Text>
+                <Text style={styles.recurringSubtext}>
+                  {isRecurring
+                    ? "This will repeat automatically"
+                    : "Set to repeat this transaction"}
+                </Text>
+              </View>
+              <RNSwitch
+                value={isRecurring}
+                onValueChange={setIsRecurring}
+                trackColor={{
+                  false: themeColors.muted,
+                  true: themeColors.primary,
+                }}
+                thumbColor={themeColors.foreground}
+              />
+            </View>
+
+            {/* Frequency (if recurring) */}
+            {isRecurring && (
+              <View style={styles.fieldContainer}>
+                <Text style={styles.label}>Frequency</Text>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={frequency}
+                    onValueChange={setFrequency}
+                    style={styles.picker}
+                    dropdownIconColor={themeColors.foreground}
+                  >
+                    {FREQUENCY_OPTIONS.map((freq) => (
+                      <Picker.Item
+                        key={freq.value}
+                        label={freq.label}
+                        value={freq.value}
+                      />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+            )}
+
+            {/* Description */}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Description (Optional)</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Add notes about this transaction"
+                placeholderTextColor={themeColors.mutedForeground}
+                value={description}
+                onChangeText={setDescription}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+            </View>
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                (isCreating || isUpdating) && styles.submitButtonDisabled,
+              ]}
+              onPress={handleSubmit}
+              disabled={isCreating || isUpdating}
+            >
+              <Text style={styles.submitButtonText}>
+                {isCreating || isUpdating
+                  ? "Saving..."
+                  : isEdit
+                    ? "Update Transaction"
+                    : "Add Transaction"}
+              </Text>
+            </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -549,9 +684,9 @@ export default function TransactionFormSheet({
 const createStyles = (theme: typeof colors.light) =>
   StyleSheet.create({
     header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.lg,
       paddingBottom: spacing.md,
@@ -574,7 +709,7 @@ const createStyles = (theme: typeof colors.light) =>
       paddingBottom: spacing.md,
     },
     tabsBackground: {
-      flexDirection: 'row',
+      flexDirection: "row",
       backgroundColor: theme.muted,
       borderRadius: borderRadius.lg,
       padding: spacing.xs,
@@ -582,9 +717,9 @@ const createStyles = (theme: typeof colors.light) =>
     },
     tab: {
       flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
       gap: spacing.xs,
       paddingVertical: spacing.sm,
       paddingHorizontal: spacing.sm,
@@ -592,7 +727,7 @@ const createStyles = (theme: typeof colors.light) =>
     },
     tabActive: {
       backgroundColor: theme.background,
-      shadowColor: '#000',
+      shadowColor: "#000",
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.1,
       shadowRadius: 2,
@@ -613,8 +748,8 @@ const createStyles = (theme: typeof colors.light) =>
       paddingBottom: spacing.xl * 2,
     },
     uploadRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: spacing.sm,
     },
     fileBox: {
@@ -627,15 +762,15 @@ const createStyles = (theme: typeof colors.light) =>
     scanIconBtn: {
       width: 44,
       height: 44,
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems: "center",
+      justifyContent: "center",
       borderWidth: 1,
       borderRadius: borderRadius.md,
     },
     chooseBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
       borderRadius: borderRadius.md,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm + 2,
@@ -668,14 +803,14 @@ const createStyles = (theme: typeof colors.light) =>
       paddingTop: spacing.md,
     },
     typeSelector: {
-      flexDirection: 'row',
+      flexDirection: "row",
       gap: spacing.sm,
     },
     typeButton: {
       flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
       gap: spacing.sm,
       backgroundColor: theme.background,
       borderWidth: 1,
@@ -683,7 +818,7 @@ const createStyles = (theme: typeof colors.light) =>
       borderRadius: borderRadius.md,
       padding: spacing.md,
       paddingVertical: spacing.sm + 2,
-      shadowColor: '#000',
+      shadowColor: "#000",
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.05,
       shadowRadius: 1,
@@ -699,8 +834,8 @@ const createStyles = (theme: typeof colors.light) =>
       borderRadius: 9,
       borderWidth: 2,
       borderColor: theme.border,
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems: "center",
+      justifyContent: "center",
       backgroundColor: theme.background,
     },
     radioCircleActive: {
@@ -722,8 +857,8 @@ const createStyles = (theme: typeof colors.light) =>
       color: theme.foreground,
     },
     amountContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       backgroundColor: theme.background,
       borderWidth: 1,
       borderColor: theme.border,
@@ -747,13 +882,13 @@ const createStyles = (theme: typeof colors.light) =>
       borderWidth: 1,
       borderColor: theme.border,
       borderRadius: borderRadius.md,
-      overflow: 'hidden',
+      overflow: "hidden",
     },
     picker: {
       color: theme.foreground,
     },
     segmentRow: {
-      flexDirection: 'row',
+      flexDirection: "row",
       gap: spacing.sm,
       marginBottom: spacing.sm,
     },
@@ -764,8 +899,8 @@ const createStyles = (theme: typeof colors.light) =>
       backgroundColor: theme.background,
       paddingVertical: spacing.sm + 2,
       borderRadius: borderRadius.md,
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems: "center",
+      justifyContent: "center",
     },
     segmentBtnActive: {
       backgroundColor: theme.primary,
@@ -777,12 +912,12 @@ const createStyles = (theme: typeof colors.light) =>
       fontWeight: fontWeight.normal,
     },
     segmentTextActive: {
-      color: '#ffffff',
+      color: "#ffffff",
       fontWeight: fontWeight.medium,
     },
     dateButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: spacing.sm,
       backgroundColor: theme.background,
       borderWidth: 1,
@@ -795,9 +930,9 @@ const createStyles = (theme: typeof colors.light) =>
       color: theme.foreground,
     },
     recurringContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
       backgroundColor: theme.background,
       borderWidth: 1,
       borderColor: theme.border,
@@ -817,8 +952,8 @@ const createStyles = (theme: typeof colors.light) =>
       borderRadius: borderRadius.md,
       paddingVertical: spacing.md + 2,
       paddingHorizontal: spacing.lg,
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems: "center",
+      justifyContent: "center",
       marginTop: spacing.lg,
       marginBottom: spacing.xl,
     },
@@ -828,6 +963,6 @@ const createStyles = (theme: typeof colors.light) =>
     submitButtonText: {
       fontSize: fontSize.md,
       fontWeight: fontWeight.semibold,
-      color: '#ffffff',
+      color: "#ffffff",
     },
   });

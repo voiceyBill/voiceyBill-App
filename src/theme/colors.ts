@@ -4,133 +4,134 @@ export const colors = {
   // ── Light theme ─────────────────────────────────────────
   light: {
     // Primary — Forest Green (matching web)
-    primary: '#166114',
-    primaryForeground: '#ffffff',
+    primary: "#166114",
+    primaryForeground: "#ffffff",
 
     // Backgrounds
-    background: '#f6f7f9',
-    foreground: '#0f1f12',
+    background: "#f6f7f9",
+    foreground: "#0f1f12",
 
     // Cards
-    card: '#ffffff',
-    cardForeground: '#0f1f12',
+    card: "#ffffff",
+    cardForeground: "#0f1f12",
 
     // Secondary / surface-alt
-    secondary: '#edf4ee',
-    secondaryForeground: '#166114',
+    secondary: "#edf4ee",
+    secondaryForeground: "#166114",
 
     // Muted
-    muted: '#f0f3f1',
-    mutedForeground: '#5b6b5e',
+    muted: "#f0f3f1",
+    mutedForeground: "#5b6b5e",
 
     // Accent
-    accent: '#e2eae4',
-    accentForeground: '#166114',
+    accent: "#e2eae4",
+    accentForeground: "#166114",
 
     // Borders & inputs
-    border: 'rgba(22, 97, 20, 0.12)',
-    input: 'rgba(22, 97, 20, 0.12)',
-    ring: '#166114',
+    border: "rgba(22, 97, 20, 0.12)",
+    input: "rgba(22, 97, 20, 0.12)",
+    ring: "#166114",
 
     // Destructive
-    destructive: '#a82c2c',
-    destructiveForeground: '#ffffff',
+    destructive: "#a82c2c",
+    destructiveForeground: "#ffffff",
 
     // Chart — Green-based spectrum
-    chart1: '#166114',
-    chart2: '#2d7a2b',
-    chart3: '#4b9b48',
-    chart4: '#72be6f',
-    chart5: '#a3e2a0',
+    chart1: "#166114",
+    chart2: "#2d7a2b",
+    chart3: "#4b9b48",
+    chart4: "#72be6f",
+    chart5: "#a3e2a0",
 
     // Sidebar
-    sidebar: '#f6f7f9',
-    sidebarForeground: '#0f1f12',
-    sidebarPrimary: '#166114',
-    sidebarPrimaryForeground: '#ffffff',
-    sidebarAccent: '#edf4ee',
-    sidebarAccentForeground: '#166114',
-    sidebarBorder: 'rgba(22, 97, 20, 0.12)',
+    sidebar: "#f6f7f9",
+    sidebarForeground: "#0f1f12",
+    sidebarPrimary: "#166114",
+    sidebarPrimaryForeground: "#ffffff",
+    sidebarAccent: "#edf4ee",
+    sidebarAccentForeground: "#166114",
+    sidebarBorder: "rgba(22, 97, 20, 0.12)",
 
     // Navbar
-    navbar: '#0d1b10',
-    navbarForeground: '#ffffff',
+
+    navbar: "#f6f7f9",
+    navbarForeground: "#0f1f12",
 
     // Semantic transaction colors
-    incomeText: '#166114',
-    expenseText: '#a82c2c',
-    incomeBg: 'rgba(22, 97, 20, 0.08)',
-    expenseBg: 'rgba(168, 44, 44, 0.08)',
+    incomeText: "#166114",
+    expenseText: "#a82c2c",
+    incomeBg: "rgba(22, 97, 20, 0.08)",
+    expenseBg: "rgba(168, 44, 44, 0.08)",
 
     // Brand greens
-    brandGreen: '#166114',
-    brandGreenLight: '#9fff59',
+    brandGreen: "#166114",
+    brandGreenLight: "#9fff59",
   },
 
   // ── Dark theme ──────────────────────────────────────────
   dark: {
     // Primary — Neon Green (matching web)
-    primary: '#9fff59',
-    primaryForeground: '#0a100c',
+    primary: "#9fff59",
+    primaryForeground: "#0a100c",
 
     // Backgrounds
-    background: '#0a100c',
-    foreground: '#f9faf9',
+    background: "#0a100c",
+    foreground: "#f9faf9",
 
     // Cards — slightly elevated deep forest charcoal-green
-    card: '#111a13',
-    cardForeground: '#f9faf9',
+    card: "#111a13",
+    cardForeground: "#f9faf9",
 
     // Secondary
-    secondary: '#18271c',
-    secondaryForeground: '#9fff59',
+    secondary: "#18271c",
+    secondaryForeground: "#9fff59",
 
     // Muted
-    muted: '#18271c',
-    mutedForeground: '#7a8b7f',
+    muted: "#18271c",
+    mutedForeground: "#7a8b7f",
 
     // Accent
-    accent: '#203525',
-    accentForeground: '#9fff59',
+    accent: "#203525",
+    accentForeground: "#9fff59",
 
     // Borders & inputs
-    border: 'rgba(159, 255, 89, 0.08)',
-    input: 'rgba(159, 255, 89, 0.12)',
-    ring: '#9fff59',
+    border: "rgba(159, 255, 89, 0.08)",
+    input: "rgba(159, 255, 89, 0.12)",
+    ring: "#9fff59",
 
     // Destructive
-    destructive: '#ff4d4d',
-    destructiveForeground: '#ffffff',
+    destructive: "#ff4d4d",
+    destructiveForeground: "#ffffff",
 
     // Chart
-    chart1: '#9fff59',
-    chart2: '#7ecb47',
-    chart3: '#5e9935',
-    chart4: '#3d6722',
-    chart5: '#1d3510',
+    chart1: "#9fff59",
+    chart2: "#7ecb47",
+    chart3: "#5e9935",
+    chart4: "#3d6722",
+    chart5: "#1d3510",
 
     // Sidebar
-    sidebar: '#111a13',
-    sidebarForeground: '#f9faf9',
-    sidebarPrimary: '#9fff59',
-    sidebarPrimaryForeground: '#0a100c',
-    sidebarAccent: '#18271c',
-    sidebarAccentForeground: '#9fff59',
-    sidebarBorder: 'rgba(159, 255, 89, 0.08)',
+    sidebar: "#111a13",
+    sidebarForeground: "#f9faf9",
+    sidebarPrimary: "#9fff59",
+    sidebarPrimaryForeground: "#0a100c",
+    sidebarAccent: "#18271c",
+    sidebarAccentForeground: "#9fff59",
+    sidebarBorder: "rgba(159, 255, 89, 0.08)",
 
     // Navbar — always dark
-    navbar: '#0a100c',
-    navbarForeground: '#ffffff',
+    navbar: "#0a100c",
+    navbarForeground: "#ffffff",
 
     // Semantic transaction colors
-    incomeText: '#9fff59',
-    expenseText: '#ff4d4d',
-    incomeBg: 'rgba(159, 255, 89, 0.12)',
-    expenseBg: 'rgba(255, 77, 77, 0.12)',
+    incomeText: "#9fff59",
+    expenseText: "#ff4d4d",
+    incomeBg: "rgba(159, 255, 89, 0.12)",
+    expenseBg: "rgba(255, 77, 77, 0.12)",
 
     // Brand greens
-    brandGreen: '#9fff59',
-    brandGreenLight: '#9fff59',
+    brandGreen: "#9fff59",
+    brandGreenLight: "#9fff59",
   },
 };
 
@@ -152,7 +153,7 @@ export const borderRadius = {
   md: 6,
   lg: 8,
   xl: 12,
-  '2xl': 16,
+  "2xl": 16,
   full: 9999,
 };
 
@@ -164,17 +165,17 @@ export const fontSize = {
   md: 16,
   lg: 18,
   xl: 20,
-  '2xl': 24,
-  '3xl': 30,
-  '4xl': 36,
+  "2xl": 24,
+  "3xl": 30,
+  "4xl": 36,
 };
 
 export const fontWeight = {
-  normal: '400' as const,
-  medium: '500' as const,
-  semibold: '600' as const,
-  bold: '700' as const,
-  extrabold: '800' as const,
+  normal: "400" as const,
+  medium: "500" as const,
+  semibold: "600" as const,
+  bold: "700" as const,
+  extrabold: "800" as const,
 };
 
 export const lineHeight = {
@@ -189,35 +190,35 @@ export const lineHeight = {
 // Platform-aware shadows
 export const shadows = {
   sm: {
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
   },
   md: {
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
   },
   lg: {
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
   },
   xl: {
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,
     shadowRadius: 16,
     elevation: 8,
   },
   none: {
-    shadowColor: 'transparent',
+    shadowColor: "transparent",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0,
     shadowRadius: 0,

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -9,26 +9,32 @@ import {
   RefreshControl,
   Alert,
   Modal,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { RouteProp } from '@react-navigation/native';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { RouteProp } from "@react-navigation/native";
 import {
   useGetAllTransactionsQuery,
   useDeleteTransactionMutation,
   useDuplicateTransactionMutation,
   useBulkDeleteTransactionMutation,
   useBulkImportTransactionMutation,
-} from '../../features/transaction/transactionAPI';
-import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme/colors';
-import { Transaction } from '../../types/transaction';
-import TransactionFormSheet from '../../components/transaction/TransactionFormSheet';
-import { TRANSACTION_TYPE } from '../../constants/transaction';
-import { MainTabParamList } from '../../navigation/MainNavigator';
-import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
-import { format } from 'date-fns';
-import { formatCurrency } from '../../lib/formatCurrency';
+} from "../../features/transaction/transactionAPI";
+import { useTheme } from "../../context/ThemeContext";
+import {
+  colors,
+  spacing,
+  fontSize,
+  fontWeight,
+  borderRadius,
+} from "../../theme/colors";
+import { Transaction } from "../../types/transaction";
+import TransactionFormSheet from "../../components/transaction/TransactionFormSheet";
+import { TRANSACTION_TYPE } from "../../constants/transaction";
+import { MainTabParamList } from "../../navigation/MainNavigator";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system";
+import { format } from "date-fns";
+import { formatCurrency } from "../../lib/formatCurrency";
 import {
   Search,
   Filter,
@@ -40,13 +46,13 @@ import {
   Trash2,
   X,
   CircleDot,
-} from 'lucide-react-native';
+} from "lucide-react-native";
 
-type FilterType = 'ALL' | 'INCOME' | 'EXPENSE';
-type RecurringFilter = 'ALL' | 'RECURRING' | 'NON_RECURRING';
-type RecurringStatus = 'RECURRING' | 'NON_RECURRING' | undefined;
+type FilterType = "ALL" | "INCOME" | "EXPENSE";
+type RecurringFilter = "ALL" | "RECURRING" | "NON_RECURRING";
+type RecurringStatus = "RECURRING" | "NON_RECURRING" | undefined;
 
-type TransactionsScreenRouteProp = RouteProp<MainTabParamList, 'Transactions'>;
+type TransactionsScreenRouteProp = RouteProp<MainTabParamList, "Transactions">;
 
 interface TransactionsScreenProps {
   route?: TransactionsScreenRouteProp;
@@ -56,15 +62,20 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState(search);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [typeFilter, setTypeFilter] = useState<FilterType>('ALL');
-  const [recurringFilter, setRecurringFilter] = useState<RecurringFilter>('ALL');
+  const [typeFilter, setTypeFilter] = useState<FilterType>("ALL");
+  const [recurringFilter, setRecurringFilter] =
+    useState<RecurringFilter>("ALL");
   const [showFormSheet, setShowFormSheet] = useState(false);
-  const [initialMode, setInitialMode] = useState<'VOICE' | 'SCAN' | 'MANUAL'>('MANUAL');
-  const [editingTransactionId, setEditingTransactionId] = useState<string | undefined>();
+  const [initialMode, setInitialMode] = useState<"VOICE" | "SCAN" | "MANUAL">(
+    "MANUAL",
+  );
+  const [editingTransactionId, setEditingTransactionId] = useState<
+    string | undefined
+  >();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showRowsModal, setShowRowsModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
@@ -83,7 +94,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
     const ts = route?.params?.openVoiceMode;
     if (ts && ts !== lastVoiceModeTs.current) {
       lastVoiceModeTs.current = ts;
-      setInitialMode('VOICE');
+      setInitialMode("VOICE");
       setShowFormSheet(true);
     }
   }, [route?.params?.openVoiceMode]);
@@ -92,14 +103,19 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
     keyword: debounced || undefined,
     pageNumber: page,
     pageSize: pageSize,
-    type: typeFilter !== 'ALL' ? typeFilter : undefined,
-    recurringStatus: recurringFilter !== 'ALL' ? (recurringFilter as RecurringStatus) : undefined,
+    type: typeFilter !== "ALL" ? typeFilter : undefined,
+    recurringStatus:
+      recurringFilter !== "ALL"
+        ? (recurringFilter as RecurringStatus)
+        : undefined,
   });
 
   const [deleteTransaction] = useDeleteTransactionMutation();
   const [duplicateTransaction] = useDuplicateTransactionMutation();
-  const [bulkDelete, { isLoading: isBulkDeleting }] = useBulkDeleteTransactionMutation();
-  const [bulkImport, { isLoading: isBulkImporting }] = useBulkImportTransactionMutation();
+  const [bulkDelete, { isLoading: isBulkDeleting }] =
+    useBulkDeleteTransactionMutation();
+  const [bulkImport, { isLoading: isBulkImporting }] =
+    useBulkImportTransactionMutation();
 
   useEffect(() => {
     // clear selections when page or page size changes
@@ -108,24 +124,24 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
 
   const handleDelete = async (id: string) => {
     Alert.alert(
-      'Delete Transaction',
-      'Are you sure you want to delete this transaction?',
+      "Delete Transaction",
+      "Are you sure you want to delete this transaction?",
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Delete',
-          style: 'destructive',
+          text: "Delete",
+          style: "destructive",
           onPress: async () => {
             try {
               await deleteTransaction(id).unwrap();
               refetch();
             } catch (error) {
-              console.error('Failed to delete transaction:', error);
-              Alert.alert('Error', 'Failed to delete transaction');
+              console.error("Failed to delete transaction:", error);
+              Alert.alert("Error", "Failed to delete transaction");
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -138,10 +154,10 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
     try {
       await duplicateTransaction(id).unwrap();
       refetch();
-      Alert.alert('Success', 'Transaction duplicated successfully');
+      Alert.alert("Success", "Transaction duplicated successfully");
     } catch (error) {
-      console.error('Failed to duplicate transaction:', error);
-      Alert.alert('Error', 'Failed to duplicate transaction');
+      console.error("Failed to duplicate transaction:", error);
+      Alert.alert("Error", "Failed to duplicate transaction");
     }
   };
 
@@ -153,42 +169,43 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   const handleCloseForm = () => {
     setShowFormSheet(false);
     setEditingTransactionId(undefined);
-    setInitialMode('MANUAL');
+    setInitialMode("MANUAL");
     refetch();
   };
 
   const showActionMenu = (item: Transaction) => {
-    Alert.alert('Transaction Actions', item.title, [
+    Alert.alert("Transaction Actions", item.title, [
       {
-        text: 'Edit',
+        text: "Edit",
         onPress: () => handleEdit(item._id),
       },
       {
-        text: 'Duplicate',
+        text: "Duplicate",
         onPress: () => handleDuplicate(item._id),
       },
       {
-        text: 'Delete',
+        text: "Delete",
         onPress: () => handleDelete(item._id),
-        style: 'destructive',
+        style: "destructive",
       },
-      { text: 'Cancel', style: 'cancel' },
+      { text: "Cancel", style: "cancel" },
     ]);
   };
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
 
   const clearFilters = () => {
-    setSearch('');
-    setDebounced('');
-    setTypeFilter('ALL');
-    setRecurringFilter('ALL');
+    setSearch("");
+    setDebounced("");
+    setTypeFilter("ALL");
+    setRecurringFilter("ALL");
     setPage(1);
     setSelectedIds(new Set());
   };
@@ -196,40 +213,44 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0 || isBulkDeleting) return;
     Alert.alert(
-      'Delete Selected',
+      "Delete Selected",
       `Delete ${selectedIds.size} selected transaction(s)?`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Delete', style: 'destructive', onPress: async () => {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
             try {
               await bulkDelete(Array.from(selectedIds)).unwrap();
               setSelectedIds(new Set());
               refetch();
             } catch (e) {}
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
   };
 
   const handleBulkImport = async () => {
     if (isBulkImporting) return;
     try {
-      const result = await DocumentPicker.getDocumentAsync({ type: ['application/json'] });
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["application/json"],
+      });
       if (result.canceled || !result.assets?.length) return;
-  const fileUri = result.assets[0].uri;
-  const content = await FileSystem.readAsStringAsync(fileUri);
+      const fileUri = result.assets[0].uri;
+      const content = await FileSystem.readAsStringAsync(fileUri);
       const parsed = JSON.parse(content);
       if (!Array.isArray(parsed)) {
-        Alert.alert('Invalid file', 'Expected a JSON array of transactions');
+        Alert.alert("Invalid file", "Expected a JSON array of transactions");
         return;
       }
       await bulkImport({ transactions: parsed }).unwrap();
-      Alert.alert('Imported', 'Transactions imported successfully');
+      Alert.alert("Imported", "Transactions imported successfully");
       refetch();
     } catch (e) {
-      Alert.alert('Import failed', 'Could not import transactions');
+      Alert.alert("Import failed", "Could not import transactions");
     }
   };
 
@@ -241,27 +262,35 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   const showingFrom = items.length ? (page - 1) * pageSize + 1 : 0;
   const showingTo = items.length ? Math.min(page * pageSize, totalCount) : 0;
 
-  const hasActiveFilters = search || typeFilter !== 'ALL' || recurringFilter !== 'ALL';
+  const hasActiveFilters =
+    search || typeFilter !== "ALL" || recurringFilter !== "ALL";
   const activeFiltersCount = [
-    typeFilter !== 'ALL',
-    recurringFilter !== 'ALL',
+    typeFilter !== "ALL",
+    recurringFilter !== "ALL",
   ].filter(Boolean).length;
 
   const formatPaymentMethod = (method: string) =>
-    method.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    method.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
   // Render transaction card
   const renderTransactionCard = ({ item }: { item: Transaction }) => {
     const isIncome = item.type === TRANSACTION_TYPE.INCOME;
     const selected = selectedIds.has(item._id);
     const isRecurring = item.isRecurring;
-    const accentColor = isIncome ? themeColors.incomeText : themeColors.expenseText;
+    const accentColor = isIncome
+      ? themeColors.incomeText
+      : themeColors.expenseText;
     const iconBg = isIncome ? themeColors.incomeBg : themeColors.expenseBg;
 
-    const metaLine1Parts = [item.category, format(new Date(item.date), 'MMM d, yyyy')];
+    const metaLine1Parts = [
+      item.category,
+      format(new Date(item.date), "MMM d, yyyy"),
+    ];
     const metaLine2Parts: string[] = [];
-    if (item.paymentMethod) metaLine2Parts.push(formatPaymentMethod(item.paymentMethod));
-    if (isRecurring) metaLine2Parts.push(item.recurringFrequency || 'Recurring');
+    if (item.paymentMethod)
+      metaLine2Parts.push(formatPaymentMethod(item.paymentMethod));
+    if (isRecurring)
+      metaLine2Parts.push(item.recurringFrequency || "Recurring");
 
     return (
       <TouchableOpacity
@@ -277,32 +306,68 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
         ]}
       >
         {/* Left accent bar */}
-        <View style={[styles.accentBar, { backgroundColor: selected ? themeColors.primary : accentColor }]} />
+        <View
+          style={[
+            styles.accentBar,
+            { backgroundColor: selected ? themeColors.primary : accentColor },
+          ]}
+        />
 
         {/* Card body */}
         <View style={styles.cardContent}>
           {/* Left: Icon + Info */}
           <View style={styles.cardLeft}>
-            <View style={[styles.iconCircle, { backgroundColor: selected ? themeColors.primary : iconBg }]}>
+            <View
+              style={[
+                styles.iconCircle,
+                { backgroundColor: selected ? themeColors.primary : iconBg },
+              ]}
+            >
               {selected ? (
-                <Text style={[styles.selectedCheckText, { color: themeColors.primaryForeground }]}>✓</Text>
+                <Text
+                  style={[
+                    styles.selectedCheckText,
+                    { color: themeColors.primaryForeground },
+                  ]}
+                >
+                  ✓
+                </Text>
               ) : isIncome ? (
                 <ArrowUpRight size={20} color={accentColor} strokeWidth={2.5} />
               ) : (
-                <ArrowDownRight size={20} color={accentColor} strokeWidth={2.5} />
+                <ArrowDownRight
+                  size={20}
+                  color={accentColor}
+                  strokeWidth={2.5}
+                />
               )}
             </View>
 
             <View style={styles.infoColumn}>
-              <Text style={[styles.cardTitle, { color: themeColors.foreground }]} numberOfLines={1}>
+              <Text
+                style={[styles.cardTitle, { color: themeColors.foreground }]}
+                numberOfLines={1}
+              >
                 {item.title}
               </Text>
-              <Text style={[styles.metaText, { color: themeColors.mutedForeground }]} numberOfLines={1}>
-                {metaLine1Parts.join(' · ')}
+              <Text
+                style={[
+                  styles.metaText,
+                  { color: themeColors.mutedForeground },
+                ]}
+                numberOfLines={1}
+              >
+                {metaLine1Parts.join(" · ")}
               </Text>
               {metaLine2Parts.length > 0 && (
-                <Text style={[styles.metaText, { color: themeColors.mutedForeground }]} numberOfLines={1}>
-                  {metaLine2Parts.join(' · ')}
+                <Text
+                  style={[
+                    styles.metaText,
+                    { color: themeColors.mutedForeground },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {metaLine2Parts.join(" · ")}
                 </Text>
               )}
             </View>
@@ -311,7 +376,10 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
           {/* Right: Amount + Actions */}
           <View style={styles.cardRight}>
             <Text style={[styles.cardAmount, { color: accentColor }]}>
-              {formatCurrency(item.amount, { showSign: true, isExpense: !isIncome })}
+              {formatCurrency(item.amount, {
+                showSign: true,
+                isExpense: !isIncome,
+              })}
             </Text>
             <TouchableOpacity
               onPress={() => showActionMenu(item)}
@@ -327,13 +395,13 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Dark Header Section - Always dark like dashboard */}
       <View style={styles.darkHeaderSection}>
         <View style={styles.navbar}>
           <Text style={styles.navbarTitle}>All Transactions</Text>
           <Text style={styles.navbarSubtitle}>
-            Showing {totalCount} transaction{totalCount !== 1 ? 's' : ''}
+            Showing {totalCount} transaction{totalCount !== 1 ? "s" : ""}
           </Text>
           <View style={styles.headerActions}>
             <TouchableOpacity
@@ -341,12 +409,15 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
               style={styles.importButton}
               disabled={isBulkImporting}
             >
-              <Upload size={18} color="#ffffff" />
+              <Upload size={18} color={themeColors.navbarForeground} />
               <Text style={styles.importButtonText}>Import</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleAddNew}
-              style={[styles.addButton, { backgroundColor: themeColors.primary }]}
+              style={[
+                styles.addButton,
+                { backgroundColor: themeColors.primary },
+              ]}
             >
               <Plus size={18} color={themeColors.primaryForeground} />
               <Text style={styles.addButtonText}>Add Transaction</Text>
@@ -357,7 +428,15 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <View style={[styles.searchBox, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+        <View
+          style={[
+            styles.searchBox,
+            {
+              backgroundColor: themeColors.card,
+              borderColor: themeColors.border,
+            },
+          ]}
+        >
           <Search size={18} color={themeColors.mutedForeground} />
           <TextInput
             placeholder="Search transactions..."
@@ -367,7 +446,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
             style={[styles.searchInput, { color: themeColors.foreground }]}
           />
           {search ? (
-            <TouchableOpacity onPress={() => setSearch('')}>
+            <TouchableOpacity onPress={() => setSearch("")}>
               <X size={18} color={themeColors.mutedForeground} />
             </TouchableOpacity>
           ) : null}
@@ -381,19 +460,31 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
           style={[
             styles.filterButton,
             {
-              backgroundColor: hasActiveFilters ? themeColors.primary : themeColors.card,
-              borderColor: hasActiveFilters ? themeColors.primary : themeColors.border,
+              backgroundColor: hasActiveFilters
+                ? themeColors.primary
+                : themeColors.card,
+              borderColor: hasActiveFilters
+                ? themeColors.primary
+                : themeColors.border,
             },
           ]}
         >
           <Filter
             size={16}
-            color={hasActiveFilters ? themeColors.primaryForeground : themeColors.foreground}
+            color={
+              hasActiveFilters
+                ? themeColors.primaryForeground
+                : themeColors.foreground
+            }
           />
           <Text
             style={[
               styles.filterButtonText,
-              { color: hasActiveFilters ? themeColors.primaryForeground : themeColors.foreground },
+              {
+                color: hasActiveFilters
+                  ? themeColors.primaryForeground
+                  : themeColors.foreground,
+              },
             ]}
           >
             Filters {activeFiltersCount > 0 && `(${activeFiltersCount})`}
@@ -403,30 +494,68 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
         {hasActiveFilters && (
           <TouchableOpacity onPress={clearFilters} style={styles.resetButton}>
             <X size={14} color={themeColors.mutedForeground} />
-            <Text style={[styles.resetButtonText, { color: themeColors.mutedForeground }]}>Reset</Text>
+            <Text
+              style={[
+                styles.resetButtonText,
+                { color: themeColors.mutedForeground },
+              ]}
+            >
+              Reset
+            </Text>
           </TouchableOpacity>
         )}
       </View>
 
       {/* Expanded Filters */}
       {showFilters && (
-        <View style={[styles.filtersPanel, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+        <View
+          style={[
+            styles.filtersPanel,
+            {
+              backgroundColor: themeColors.card,
+              borderColor: themeColors.border,
+            },
+          ]}
+        >
           <TouchableOpacity
             onPress={() => setShowTypeModal(true)}
-            style={[styles.filterOption, { borderBottomColor: themeColors.border }]}
+            style={[
+              styles.filterOption,
+              { borderBottomColor: themeColors.border },
+            ]}
           >
-            <Text style={[styles.filterLabel, { color: themeColors.mutedForeground }]}>Type</Text>
-            <Text style={[styles.filterValue, { color: themeColors.foreground }]}>
-              {typeFilter === 'ALL' ? 'All Types' : typeFilter}
+            <Text
+              style={[
+                styles.filterLabel,
+                { color: themeColors.mutedForeground },
+              ]}
+            >
+              Type
+            </Text>
+            <Text
+              style={[styles.filterValue, { color: themeColors.foreground }]}
+            >
+              {typeFilter === "ALL" ? "All Types" : typeFilter}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setShowFreqModal(true)}
             style={styles.filterOption}
           >
-            <Text style={[styles.filterLabel, { color: themeColors.mutedForeground }]}>Frequency</Text>
-            <Text style={[styles.filterValue, { color: themeColors.foreground }]}>
-              {recurringFilter === 'ALL' ? 'All' : recurringFilter.replace('_', ' ')}
+            <Text
+              style={[
+                styles.filterLabel,
+                { color: themeColors.mutedForeground },
+              ]}
+            >
+              Frequency
+            </Text>
+            <Text
+              style={[styles.filterValue, { color: themeColors.foreground }]}
+            >
+              {recurringFilter === "ALL"
+                ? "All"
+                : recurringFilter.replace("_", " ")}
             </Text>
           </TouchableOpacity>
         </View>
@@ -434,17 +563,35 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
 
       {/* Bulk Actions */}
       {selectedIds.size > 0 && (
-        <View style={[styles.bulkActionsBar, { backgroundColor: themeColors.primary }]}>
-          <Text style={[styles.bulkActionsText, { color: themeColors.primaryForeground }]}>
+        <View
+          style={[
+            styles.bulkActionsBar,
+            { backgroundColor: themeColors.primary },
+          ]}
+        >
+          <Text
+            style={[
+              styles.bulkActionsText,
+              { color: themeColors.primaryForeground },
+            ]}
+          >
             {selectedIds.size} selected
           </Text>
           <TouchableOpacity
             onPress={handleBulkDelete}
-            style={[styles.bulkDeleteButton, { backgroundColor: themeColors.destructive }]}
+            style={[
+              styles.bulkDeleteButton,
+              { backgroundColor: themeColors.destructive },
+            ]}
             disabled={isBulkDeleting}
           >
             <Trash2 size={16} color={themeColors.primaryForeground} />
-            <Text style={[styles.bulkDeleteText, { color: themeColors.primaryForeground }]}>
+            <Text
+              style={[
+                styles.bulkDeleteText,
+                { color: themeColors.primaryForeground },
+              ]}
+            >
               Delete
             </Text>
           </TouchableOpacity>
@@ -457,11 +604,19 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
         keyExtractor={(item) => item._id}
         renderItem={renderTransactionCard}
         contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} />}
+        refreshControl={
+          <RefreshControl refreshing={isLoading} onRefresh={refetch} />
+        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <CircleDot size={48} color={themeColors.mutedForeground} opacity={0.5} />
-            <Text style={[styles.emptyText, { color: themeColors.mutedForeground }]}>
+            <CircleDot
+              size={48}
+              color={themeColors.mutedForeground}
+              opacity={0.5}
+            />
+            <Text
+              style={[styles.emptyText, { color: themeColors.mutedForeground }]}
+            >
               No transactions found
             </Text>
           </View>
@@ -469,37 +624,74 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
       />
 
       {/* Pagination Footer */}
-      <View style={[styles.footerBar, { backgroundColor: themeColors.card, borderTopColor: themeColors.border }]}>
+      <View
+        style={[
+          styles.footerBar,
+          {
+            backgroundColor: themeColors.card,
+            borderTopColor: themeColors.border,
+          },
+        ]}
+      >
         <View style={styles.footerLeft}>
-          <Text style={[styles.footerText, { color: themeColors.mutedForeground }]}>Rows per page</Text>
+          <Text
+            style={[styles.footerText, { color: themeColors.mutedForeground }]}
+          >
+            Rows per page
+          </Text>
           <TouchableOpacity
             onPress={() => setShowRowsModal(true)}
             style={[styles.footerButton, { borderColor: themeColors.border }]}
           >
-            <Text style={[styles.footerButtonText, { color: themeColors.foreground }]}>{pageSize}</Text>
+            <Text
+              style={[
+                styles.footerButtonText,
+                { color: themeColors.foreground },
+              ]}
+            >
+              {pageSize}
+            </Text>
           </TouchableOpacity>
         </View>
         <View style={styles.paginationContainer}>
           <TouchableOpacity
-            style={[styles.paginationButton, page === 1 && styles.paginationButtonDisabled]}
+            style={[
+              styles.paginationButton,
+              page === 1 && styles.paginationButtonDisabled,
+            ]}
             onPress={() => setPage(Math.max(1, page - 1))}
             disabled={page === 1}
           >
-            <Text style={{ color: page === 1 ? themeColors.mutedForeground : themeColors.foreground }}>
+            <Text
+              style={{
+                color:
+                  page === 1
+                    ? themeColors.mutedForeground
+                    : themeColors.foreground,
+              }}
+            >
               ◀
             </Text>
           </TouchableOpacity>
-          <Text style={[styles.paginationText, { color: themeColors.foreground }]}>
+          <Text
+            style={[styles.paginationText, { color: themeColors.foreground }]}
+          >
             {page} / {Math.max(totalPages, 1)}
           </Text>
           <TouchableOpacity
-            style={[styles.paginationButton, page === totalPages && styles.paginationButtonDisabled]}
+            style={[
+              styles.paginationButton,
+              page === totalPages && styles.paginationButtonDisabled,
+            ]}
             onPress={() => setPage(Math.min(Math.max(totalPages, 1), page + 1))}
             disabled={page === totalPages}
           >
             <Text
               style={{
-                color: page === totalPages ? themeColors.mutedForeground : themeColors.foreground,
+                color:
+                  page === totalPages
+                    ? themeColors.mutedForeground
+                    : themeColors.foreground,
               }}
             >
               ▶
@@ -509,11 +701,32 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
       </View>
 
       {/* Rows per page modal */}
-      <Modal transparent visible={showRowsModal} animationType="fade" onRequestClose={() => setShowRowsModal(false)}>
+      <Modal
+        transparent
+        visible={showRowsModal}
+        animationType="fade"
+        onRequestClose={() => setShowRowsModal(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: themeColors.card,
+                borderColor: themeColors.border,
+              },
+            ]}
+          >
             {[10, 20, 50].map((n) => (
-              <TouchableOpacity key={n} style={styles.modalOption} onPress={() => { setPageSize(n); setPage(1); setShowRowsModal(false); }}>
+              <TouchableOpacity
+                key={n}
+                style={styles.modalOption}
+                onPress={() => {
+                  setPageSize(n);
+                  setPage(1);
+                  setShowRowsModal(false);
+                }}
+              >
                 <Text style={{ color: themeColors.foreground }}>{n}</Text>
               </TouchableOpacity>
             ))}
@@ -522,11 +735,31 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
       </Modal>
 
       {/* Type Filter Modal */}
-      <Modal transparent visible={showTypeModal} animationType="fade" onRequestClose={() => setShowTypeModal(false)}>
+      <Modal
+        transparent
+        visible={showTypeModal}
+        animationType="fade"
+        onRequestClose={() => setShowTypeModal(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-            {(['ALL', 'INCOME', 'EXPENSE'] as FilterType[]).map((value) => (
-              <TouchableOpacity key={value} style={styles.modalOption} onPress={() => { setTypeFilter(value); setShowTypeModal(false); }}>
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: themeColors.card,
+                borderColor: themeColors.border,
+              },
+            ]}
+          >
+            {(["ALL", "INCOME", "EXPENSE"] as FilterType[]).map((value) => (
+              <TouchableOpacity
+                key={value}
+                style={styles.modalOption}
+                onPress={() => {
+                  setTypeFilter(value);
+                  setShowTypeModal(false);
+                }}
+              >
                 <Text style={{ color: themeColors.foreground }}>{value}</Text>
               </TouchableOpacity>
             ))}
@@ -535,14 +768,38 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
       </Modal>
 
       {/* Frequency Filter Modal */}
-      <Modal transparent visible={showFreqModal} animationType="fade" onRequestClose={() => setShowFreqModal(false)}>
+      <Modal
+        transparent
+        visible={showFreqModal}
+        animationType="fade"
+        onRequestClose={() => setShowFreqModal(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-            {(['ALL', 'RECURRING', 'NON_RECURRING'] as RecurringFilter[]).map((value) => (
-              <TouchableOpacity key={value} style={styles.modalOption} onPress={() => { setRecurringFilter(value); setShowFreqModal(false); }}>
-                <Text style={{ color: themeColors.foreground }}>{value.replace('_', ' ')}</Text>
-              </TouchableOpacity>
-            ))}
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: themeColors.card,
+                borderColor: themeColors.border,
+              },
+            ]}
+          >
+            {(["ALL", "RECURRING", "NON_RECURRING"] as RecurringFilter[]).map(
+              (value) => (
+                <TouchableOpacity
+                  key={value}
+                  style={styles.modalOption}
+                  onPress={() => {
+                    setRecurringFilter(value);
+                    setShowFreqModal(false);
+                  }}
+                >
+                  <Text style={{ color: themeColors.foreground }}>
+                    {value.replace("_", " ")}
+                  </Text>
+                </TouchableOpacity>
+              ),
+            )}
           </View>
         </View>
       </Modal>
@@ -575,7 +832,7 @@ const createStyles = (theme: typeof colors.light) =>
       paddingBottom: spacing.md,
     },
     navbarTitle: {
-      fontSize: fontSize['2xl'],
+      fontSize: fontSize["2xl"],
       fontWeight: fontWeight.bold,
       color: theme.navbarForeground,
     },
@@ -586,21 +843,21 @@ const createStyles = (theme: typeof colors.light) =>
       marginTop: spacing.xs,
     },
     headerActions: {
-      flexDirection: 'row',
+      flexDirection: "row",
       gap: spacing.md,
       marginTop: spacing.md,
     },
     importButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
       gap: spacing.xs,
-      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      backgroundColor: theme.card,
       paddingHorizontal: spacing.md,
       height: 40,
       borderRadius: borderRadius.md,
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.2)',
+      borderColor: theme.border,
     },
     importButtonText: {
       color: theme.navbarForeground,
@@ -608,9 +865,9 @@ const createStyles = (theme: typeof colors.light) =>
       fontWeight: fontWeight.medium,
     },
     addButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
       gap: spacing.xs,
       paddingHorizontal: spacing.md,
       height: 40,
@@ -627,8 +884,8 @@ const createStyles = (theme: typeof colors.light) =>
       paddingBottom: spacing.sm,
     },
     searchBox: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: spacing.sm,
       borderWidth: 1,
       borderRadius: borderRadius.md,
@@ -640,15 +897,15 @@ const createStyles = (theme: typeof colors.light) =>
       fontSize: fontSize.md,
     },
     filterBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: spacing.sm,
       paddingHorizontal: spacing.lg,
       paddingBottom: spacing.sm,
     },
     filterButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: spacing.xs,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
@@ -660,8 +917,8 @@ const createStyles = (theme: typeof colors.light) =>
       fontWeight: fontWeight.medium,
     },
     resetButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: spacing.xs,
       paddingHorizontal: spacing.sm,
     },
@@ -673,12 +930,12 @@ const createStyles = (theme: typeof colors.light) =>
       marginBottom: spacing.sm,
       borderRadius: borderRadius.md,
       borderWidth: 1,
-      overflow: 'hidden',
+      overflow: "hidden",
     },
     filterOption: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.md,
       borderBottomWidth: StyleSheet.hairlineWidth,
@@ -691,9 +948,9 @@ const createStyles = (theme: typeof colors.light) =>
       fontWeight: fontWeight.medium,
     },
     bulkActionsBar: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.sm,
       marginBottom: spacing.sm,
@@ -703,8 +960,8 @@ const createStyles = (theme: typeof colors.light) =>
       fontWeight: fontWeight.semibold,
     },
     bulkDeleteButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: spacing.xs,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.xs,
@@ -722,10 +979,10 @@ const createStyles = (theme: typeof colors.light) =>
       borderRadius: borderRadius.lg,
       marginBottom: spacing.sm,
       borderWidth: 1,
-      overflow: 'hidden',
-      flexDirection: 'row',
-      alignItems: 'stretch',
-      shadowColor: '#000',
+      overflow: "hidden",
+      flexDirection: "row",
+      alignItems: "stretch",
+      shadowColor: "#000",
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.04,
       shadowRadius: 4,
@@ -740,24 +997,24 @@ const createStyles = (theme: typeof colors.light) =>
     },
     cardContent: {
       flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.md,
     },
     cardLeft: {
       flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: spacing.sm,
     },
     iconCircle: {
       width: 40,
       height: 40,
       borderRadius: 20,
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems: "center",
+      justifyContent: "center",
       flexShrink: 0,
     },
     infoColumn: {
@@ -770,15 +1027,15 @@ const createStyles = (theme: typeof colors.light) =>
       fontWeight: fontWeight.semibold,
     },
     metaRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: spacing.xs,
     },
     metaText: {
       fontSize: fontSize.xs,
     },
     cardRight: {
-      alignItems: 'flex-end',
+      alignItems: "flex-end",
       gap: spacing.xs,
       marginLeft: spacing.sm,
       flexShrink: 0,
@@ -792,7 +1049,7 @@ const createStyles = (theme: typeof colors.light) =>
     },
     emptyState: {
       paddingTop: spacing.xxxl,
-      alignItems: 'center',
+      alignItems: "center",
       gap: spacing.md,
     },
     emptyText: {
@@ -800,16 +1057,16 @@ const createStyles = (theme: typeof colors.light) =>
       fontWeight: fontWeight.medium,
     },
     footerBar: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.md,
       borderTopWidth: 1,
     },
     footerLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: spacing.sm,
     },
     footerText: {
@@ -826,14 +1083,14 @@ const createStyles = (theme: typeof colors.light) =>
       fontWeight: fontWeight.medium,
     },
     paginationContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: spacing.md,
     },
     paginationButton: {
       padding: spacing.xs,
       minWidth: 32,
-      alignItems: 'center',
+      alignItems: "center",
     },
     paginationButtonDisabled: {
       opacity: 0.3,
@@ -844,22 +1101,22 @@ const createStyles = (theme: typeof colors.light) =>
     },
     modalOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      alignItems: 'center',
-      justifyContent: 'center',
+      backgroundColor: "rgba(0,0,0,0.5)",
+      alignItems: "center",
+      justifyContent: "center",
       padding: spacing.lg,
     },
     modalCard: {
-      width: '100%',
+      width: "100%",
       maxWidth: 320,
       borderRadius: borderRadius.lg,
       borderWidth: 1,
-      overflow: 'hidden',
+      overflow: "hidden",
     },
     modalOption: {
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.md,
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: 'rgba(0,0,0,0.1)',
+      borderBottomColor: "rgba(0,0,0,0.1)",
     },
   });
