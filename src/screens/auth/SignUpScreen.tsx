@@ -27,6 +27,13 @@ export default function SignUpScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const rules = {
+  length: password.length >= 8,
+  uppercase: /[A-Z]/.test(password),
+  lowercase: /[a-z]/.test(password),
+  number: /[0-9]/.test(password),
+  special: /[^A-Za-z0-9]/.test(password),
+};
   const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
 
   const [register, { isLoading }] = useRegisterMutation();
@@ -38,8 +45,18 @@ export default function SignUpScreen() {
     if (!name) newErrors.name = 'Name is required';
     if (!email) newErrors.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Invalid email address';
-    if (!password) newErrors.password = 'Password is required';
-    else if (password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+    if (!password) {
+  newErrors.password = 'Password is required';
+} else if (
+  !rules.length ||
+  !rules.uppercase ||
+  !rules.lowercase ||
+  !rules.number ||
+  !rules.special
+) {
+  newErrors.password =
+    'Password must contain uppercase, lowercase, number and special character';
+}
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -136,6 +153,62 @@ export default function SignUpScreen() {
                   </TouchableOpacity>
                 </View>
                 {errors.password && <Text style={styles.error}>{errors.password}</Text>}
+                <View style={{ marginTop: 8, gap: 4 }}>
+  <Text
+    style={{
+      color: rules.length
+        ? 'green'
+        : themeColors.mutedForeground,
+      fontSize: 12,
+    }}
+  >
+    • At least 8 characters
+  </Text>
+
+  <Text
+    style={{
+      color: rules.uppercase
+        ? 'green'
+        : themeColors.mutedForeground,
+      fontSize: 12,
+    }}
+  >
+    • One uppercase letter
+  </Text>
+
+  <Text
+    style={{
+      color: rules.lowercase
+        ? 'green'
+        : themeColors.mutedForeground,
+      fontSize: 12,
+    }}
+  >
+    • One lowercase letter
+  </Text>
+
+  <Text
+    style={{
+      color: rules.number
+        ? 'green'
+        : themeColors.mutedForeground,
+      fontSize: 12,
+    }}
+  >
+    • One number
+  </Text>
+
+  <Text
+    style={{
+      color: rules.special
+        ? 'green'
+        : themeColors.mutedForeground,
+      fontSize: 12,
+    }}
+  >
+    • One special character
+  </Text>
+</View>
               </View>
 
               <TouchableOpacity
