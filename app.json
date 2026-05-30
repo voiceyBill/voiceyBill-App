@@ -18,9 +18,7 @@
       "backgroundColor": "#ffffff",
       "resizeMode": "contain"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.voiceybill.mobile",
@@ -33,23 +31,23 @@
     },
     "android": {
       "package": "com.voiceybill.mobile",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.POST_NOTIFICATIONS"
       ],
       "usesCleartextTraffic": true
     },
     "plugins": [
+      "expo-notifications",
       [
         "expo-image-picker",
         {
           "photosPermission": "The app needs access to your photos to scan receipts."
         }
       ],
-      [
-        "expo-av",
-        {}
-      ],
+      ["expo-av", {}],
       "expo-updates",
       "expo-secure-store"
     ],

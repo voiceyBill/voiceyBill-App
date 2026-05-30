@@ -1,4 +1,4 @@
-import { apiClient } from '../../store/api-client';
+import { apiClient } from "../../store/api-client";
 
 // User Types
 export interface User {
@@ -27,30 +27,33 @@ export interface UpdateUserPayload {
 
 export const userApi = apiClient.injectEndpoints({
   endpoints: (builder) => ({
-    getCurrentUser: builder.query<{ message: string; data: { user: User } }, void>({
+    getCurrentUser: builder.query<
+      { message: string; data: { user: User } },
+      void
+    >({
       query: () => ({
-        url: '/user/profile',
-        method: 'GET',
+        url: "/user/profile",
+        method: "GET",
       }),
-      providesTags: ['user'],
+      providesTags: ["user"],
     }),
 
     updateUser: builder.mutation<UpdateUserResponse, FormData>({
       query: (formData) => ({
-        url: '/user/update',
-        method: 'PUT',
+        url: "/user/update",
+        method: "PUT",
         body: formData,
       }),
-      invalidatesTags: ['user'],
+      invalidatesTags: ["user"],
     }),
 
     updateUserProfile: builder.mutation<UpdateUserResponse, UpdateUserPayload>({
       query: (payload) => ({
-        url: '/user/update',
-        method: 'PUT',
+        url: "/user/update",
+        method: "PUT",
         body: payload,
       }),
-      invalidatesTags: ['user'],
+      invalidatesTags: ["user"],
     }),
 
     changePassword: builder.mutation<
@@ -58,19 +61,41 @@ export const userApi = apiClient.injectEndpoints({
       { currentPassword: string; newPassword: string }
     >({
       query: (payload) => ({
-        url: '/user/change-password',
-        method: 'PUT',
+        url: "/user/change-password",
+        method: "PUT",
         body: payload,
       }),
     }),
 
     uploadAvatar: builder.mutation<UpdateUserResponse, FormData>({
       query: (formData) => ({
-        url: '/user/upload-avatar',
-        method: 'PUT',
+        url: "/user/upload-avatar",
+        method: "PUT",
         body: formData,
       }),
-      invalidatesTags: ['user'],
+      invalidatesTags: ["user"],
+    }),
+
+    registerPushToken: builder.mutation<
+      { message: string },
+      { token: string; platform: "ANDROID" | "IOS"; deviceId?: string }
+    >({
+      query: (payload) => ({
+        url: "/user/push-token",
+        method: "POST",
+        body: payload,
+      }),
+    }),
+
+    unregisterPushToken: builder.mutation<
+      { message: string },
+      { token: string }
+    >({
+      query: (payload) => ({
+        url: "/user/push-token",
+        method: "DELETE",
+        body: payload,
+      }),
     }),
   }),
 });
@@ -81,4 +106,6 @@ export const {
   useUpdateUserProfileMutation,
   useChangePasswordMutation,
   useUploadAvatarMutation,
+  useRegisterPushTokenMutation,
+  useUnregisterPushTokenMutation,
 } = userApi;
