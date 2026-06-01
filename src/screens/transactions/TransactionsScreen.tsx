@@ -9,11 +9,15 @@ import {
   RefreshControl,
   Alert,
   Modal,
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { RouteProp } from "@react-navigation/native";
 import {
   useGetAllTransactionsQuery,
+  useGetSingleTransactionQuery,
   useDeleteTransactionMutation,
   useDuplicateTransactionMutation,
   useBulkDeleteTransactionMutation,
@@ -26,6 +30,7 @@ import {
   fontSize,
   fontWeight,
   borderRadius,
+  shadows,
 } from "../../theme/colors";
 import { Transaction } from "../../types/transaction";
 import TransactionFormSheet from "../../components/transaction/TransactionFormSheet";
@@ -79,6 +84,10 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showRowsModal, setShowRowsModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [showDetailsSheet, setShowDetailsSheet] = useState(false);
+  const [detailsTransactionId, setDetailsTransactionId] = useState<
+    string | null
+  >(null);
 
   const typeOptions: { value: FilterType; label: string }[] = [
     { value: "ALL", label: "All" },
@@ -126,10 +135,25 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   const [bulkImport, { isLoading: isBulkImporting }] =
     useBulkImportTransactionMutation();
 
+  const {
+    data: detailsData,
+    isLoading: isDetailsLoading,
+    error: detailsError,
+    refetch: refetchDetails,
+  } = useGetSingleTransactionQuery(detailsTransactionId || "", {
+    skip: !detailsTransactionId,
+  });
+
   useEffect(() => {
     // clear selections when page or page size changes
     setSelectedIds(new Set());
   }, [page, pageSize, data?.transactions?.length]);
+
+  useEffect(() => {
+    if (showDetailsSheet && detailsTransactionId) {
+      refetchDetails();
+    }
+  }, [showDetailsSheet, detailsTransactionId, refetchDetails]);
 
   const handleDelete = async (id: string) => {
     Alert.alert(
@@ -180,6 +204,16 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
     setEditingTransactionId(undefined);
     setInitialMode("MANUAL");
     refetch();
+  };
+
+  const handleOpenDetails = (id: string) => {
+    setDetailsTransactionId(id);
+    setShowDetailsSheet(true);
+  };
+
+  const handleCloseDetails = () => {
+    setShowDetailsSheet(false);
+    setDetailsTransactionId(null);
   };
 
   const showActionMenu = (item: Transaction) => {
@@ -234,7 +268,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
               await bulkDelete(Array.from(selectedIds)).unwrap();
               setSelectedIds(new Set());
               refetch();
-            } catch (e) {}
+            } catch (e) { }
           },
         },
       ],
@@ -278,8 +312,34 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
     recurringFilter !== "ALL",
   ].filter(Boolean).length;
 
-  const formatPaymentMethod = (method: string) =>
-    method.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const formatLabel = (value?: string) =>
+    value
+      ? value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+      : "Not set";
+
+  const formatPaymentMethod = (method: string) => formatLabel(method);
+
+  const selectedTransaction =
+    detailsData?.transaction ||
+    items.find((tx) => tx._id === detailsTransactionId);
+
+  const selectedAmountColor =
+    selectedTransaction?.type === TRANSACTION_TYPE.INCOME
+      ? themeColors.incomeText
+      : themeColors.expenseText;
+
+  const selectedTypeLabel =
+    selectedTransaction?.type === TRANSACTION_TYPE.INCOME
+      ? "Income"
+      : "Expense";
+
+  const selectedRecurringLabel = selectedTransaction
+    ? selectedTransaction.isRecurring
+      ? selectedTransaction.recurringFrequency
+        ? `Recurring (${formatLabel(selectedTransaction.recurringFrequency)})`
+        : "Recurring"
+      : "Non-recurring"
+    : "Not set";
 
   // Render transaction card
   const renderTransactionCard = ({ item }: { item: Transaction }) => {
@@ -292,7 +352,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
     const iconBg = isIncome ? themeColors.incomeBg : themeColors.expenseBg;
 
     const metaLine1Parts = [
-      item.category,
+      formatLabel(item.category),
       format(new Date(item.date), "MMM d, yyyy"),
     ];
     const metaLine2Parts: string[] = [];
@@ -304,7 +364,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
     return (
       <TouchableOpacity
         activeOpacity={0.7}
-        onPress={() => toggleSelect(item._id)}
+        onPress={() => handleOpenDetails(item._id)}
         onLongPress={() => showActionMenu(item)}
         style={[
           styles.transactionCard,
@@ -326,7 +386,9 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
         <View style={styles.cardContent}>
           {/* Left: Icon + Info */}
           <View style={styles.cardLeft}>
-            <View
+            <TouchableOpacity
+              onPress={() => toggleSelect(item._id)}
+              activeOpacity={0.7}
               style={[
                 styles.iconCircle,
                 { backgroundColor: selected ? themeColors.primary : iconBg },
@@ -350,7 +412,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
                   strokeWidth={2.5}
                 />
               )}
-            </View>
+            </TouchableOpacity>
 
             <View style={styles.infoColumn}>
               <Text
@@ -795,6 +857,359 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
         </View>
       </Modal>
 
+      {/* Transaction Details Bottom Sheet */}
+      <Modal
+        transparent
+        visible={showDetailsSheet}
+        animationType="slide"
+        onRequestClose={handleCloseDetails}
+      >
+        <View style={styles.sheetOverlay}>
+          <Pressable
+            style={styles.sheetBackdrop}
+            onPress={handleCloseDetails}
+          />
+          <View
+            style={[
+              styles.sheetContainer,
+              {
+                backgroundColor: themeColors.card,
+                borderColor: themeColors.border,
+              },
+            ]}
+          >
+            {/* Drag Handle */}
+            <View style={styles.sheetDragHandle} />
+
+            <View style={styles.sheetHeader}>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[styles.sheetTitle, { color: themeColors.foreground }]}
+                >
+                  Transaction Details
+                </Text>
+
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginTop: 2,
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.sheetSubtitle,
+                      { color: themeColors.mutedForeground },
+                    ]}
+                  >
+                    Read-only view
+                  </Text>
+
+                  <TouchableOpacity
+                    onPress={handleCloseDetails}
+                    style={[
+                      styles.sheetCloseButton,
+                      { backgroundColor: themeColors.muted },
+                    ]}
+                  >
+                    <X size={16} color={themeColors.foreground} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+
+            {isDetailsLoading && (
+              <View style={styles.sheetState}>
+                <ActivityIndicator size="small" color={themeColors.primary} />
+                <Text
+                  style={[
+                    styles.sheetStateText,
+                    { color: themeColors.mutedForeground },
+                  ]}
+                >
+                  Loading details...
+                </Text>
+              </View>
+            )}
+
+            {!isDetailsLoading && detailsError && (
+              <View style={styles.sheetState}>
+                <Text
+                  style={[
+                    styles.sheetStateText,
+                    { color: themeColors.mutedForeground },
+                  ]}
+                >
+                  Failed to load transaction details.
+                </Text>
+                <TouchableOpacity
+                  onPress={refetchDetails}
+                  style={[
+                    styles.retryButton,
+                    { borderColor: themeColors.border },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.retryButtonText,
+                      { color: themeColors.foreground },
+                    ]}
+                  >
+                    Retry
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {!isDetailsLoading && !detailsError && !selectedTransaction && (
+              <View style={styles.sheetState}>
+                <Text
+                  style={[
+                    styles.sheetStateText,
+                    { color: themeColors.mutedForeground },
+                  ]}
+                >
+                  Transaction not found.
+                </Text>
+              </View>
+            )}
+
+            {!isDetailsLoading && !detailsError && selectedTransaction && (
+              <>
+                <ScrollView
+                  contentContainerStyle={styles.sheetContent}
+                  showsVerticalScrollIndicator={false}
+                >
+                  <View style={styles.detailRow}>
+                    <Text
+                      style={[
+                        styles.detailLabel,
+                        { color: themeColors.mutedForeground },
+                      ]}
+                    >
+                      Title
+                    </Text>
+                    <Text
+                      style={[
+                        styles.detailValue,
+                        { color: themeColors.foreground },
+                      ]}
+                    >
+                      {selectedTransaction.title}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailRow}>
+                    <Text
+                      style={[
+                        styles.detailLabel,
+                        { color: themeColors.mutedForeground },
+                      ]}
+                    >
+                      Amount
+                    </Text>
+                    <Text
+                      style={[
+                        styles.detailValue,
+                        { color: selectedAmountColor },
+                      ]}
+                    >
+                      {formatCurrency(selectedTransaction.amount, {
+                        showSign: true,
+                        isExpense:
+                          selectedTransaction.type !== TRANSACTION_TYPE.INCOME,
+                      })}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailRow}>
+                    <Text
+                      style={[
+                        styles.detailLabel,
+                        { color: themeColors.mutedForeground },
+                      ]}
+                    >
+                      Type
+                    </Text>
+                    <Text
+                      style={[
+                        styles.detailValue,
+                        { color: themeColors.foreground },
+                      ]}
+                    >
+                      {selectedTypeLabel}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailRow}>
+                    <Text
+                      style={[
+                        styles.detailLabel,
+                        { color: themeColors.mutedForeground },
+                      ]}
+                    >
+                      Category
+                    </Text>
+                    <Text
+                      style={[
+                        styles.detailValue,
+                        { color: themeColors.foreground },
+                      ]}
+                    >
+                      {formatLabel(selectedTransaction.category)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailRow}>
+                    <Text
+                      style={[
+                        styles.detailLabel,
+                        { color: themeColors.mutedForeground },
+                      ]}
+                    >
+                      Date
+                    </Text>
+                    <Text
+                      style={[
+                        styles.detailValue,
+                        { color: themeColors.foreground },
+                      ]}
+                    >
+                      {format(
+                        new Date(selectedTransaction.date),
+                        "MMM d, yyyy",
+                      )}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailRow}>
+                    <Text
+                      style={[
+                        styles.detailLabel,
+                        { color: themeColors.mutedForeground },
+                      ]}
+                    >
+                      Payment method
+                    </Text>
+                    <Text
+                      style={[
+                        styles.detailValue,
+                        { color: themeColors.foreground },
+                      ]}
+                    >
+                      {formatPaymentMethod(selectedTransaction.paymentMethod)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailRow}>
+                    <Text
+                      style={[
+                        styles.detailLabel,
+                        { color: themeColors.mutedForeground },
+                      ]}
+                    >
+                      Description / Notes
+                    </Text>
+                    <Text
+                      style={[
+                        styles.detailValue,
+                        selectedTransaction.description
+                          ? { color: themeColors.foreground }
+                          : { color: themeColors.mutedForeground },
+                      ]}
+                    >
+                      {selectedTransaction.description?.trim() || "Not set"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailRow}>
+                    <Text
+                      style={[
+                        styles.detailLabel,
+                        { color: themeColors.mutedForeground },
+                      ]}
+                    >
+                      Recurring status
+                    </Text>
+                    <Text
+                      style={[
+                        styles.detailValue,
+                        { color: themeColors.foreground },
+                      ]}
+                    >
+                      {selectedRecurringLabel}
+                    </Text>
+                  </View>
+                </ScrollView>
+
+                <View style={styles.sheetActions}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      handleCloseDetails();
+                      handleEdit(selectedTransaction._id);
+                    }}
+                    style={[
+                      styles.actionButton,
+                      { backgroundColor: themeColors.primary },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.actionButtonText,
+                        { color: themeColors.primaryForeground },
+                      ]}
+                    >
+                      Edit Transaction
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => {
+                      handleCloseDetails();
+                      handleDuplicate(selectedTransaction._id);
+                    }}
+                    style={[
+                      styles.actionButton,
+                      { backgroundColor: themeColors.secondary },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.actionButtonText,
+                        { color: themeColors.secondaryForeground },
+                      ]}
+                    >
+                      Duplicate Transaction
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => {
+                      handleCloseDetails();
+                      handleDelete(selectedTransaction._id);
+                    }}
+                    style={[
+                      styles.actionButton,
+                      { backgroundColor: themeColors.destructive },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.actionButtonText,
+                        { color: themeColors.destructiveForeground },
+                      ]}
+                    >
+                      Delete Transaction
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       {/* Transaction Form Bottom Sheet */}
       <TransactionFormSheet
         isVisible={showFormSheet}
@@ -1122,5 +1537,111 @@ const createStyles = (theme: typeof colors.light) =>
       paddingVertical: spacing.md,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: "rgba(0,0,0,0.1)",
+    },
+    sheetOverlay: {
+      flex: 1,
+      justifyContent: "flex-end",
+    },
+    sheetBackdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: theme.background,
+      opacity: 0.6,
+    },
+    sheetContainer: {
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      borderWidth: 1,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xl,
+      ...shadows.lg,
+    },
+    sheetDragHandle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: theme.border,
+      alignSelf: "center",
+      marginBottom: spacing.md,
+      marginTop: spacing.sm,
+    },
+    sheetHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: spacing.lg,
+    },
+    sheetTitle: {
+      fontSize: fontSize.xl,
+      fontWeight: fontWeight.bold,
+    },
+    sheetSubtitle: {
+      fontSize: fontSize.sm,
+      marginTop: 2,
+    },
+    sheetCloseButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    sheetState: {
+      alignItems: "center",
+      gap: spacing.sm,
+      paddingVertical: spacing.lg,
+    },
+    sheetStateText: {
+      fontSize: fontSize.sm,
+      textAlign: "center",
+    },
+    retryButton: {
+      borderWidth: 1,
+      borderRadius: borderRadius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+    },
+    retryButtonText: {
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.medium,
+    },
+    sheetContent: {
+      gap: 0,
+      paddingBottom: spacing.lg,
+    },
+    detailRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      paddingVertical: spacing.md,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.border,
+      gap: spacing.md,
+    },
+    detailLabel: {
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.bold,
+      letterSpacing: 0.1,
+      flex: 1,
+    },
+    detailValue: {
+      fontSize: fontSize.sm,
+      fontWeight: "400",
+      flex: 1.5,
+      textAlign: "right",
+    },
+    sheetActions: {
+      gap: spacing.sm,
+      marginTop: spacing.lg,
+    },
+    actionButton: {
+      height: 48,
+      borderRadius: borderRadius.md,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    actionButtonText: {
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.semibold,
     },
   });
