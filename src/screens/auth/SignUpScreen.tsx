@@ -8,17 +8,17 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Eye, EyeOff } from 'lucide-react-native';
+import { Check, Circle, Eye, EyeOff } from 'lucide-react-native';
 import { useRegisterMutation } from '../../features/auth/authAPI';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../../theme/colors';
 import Logo from '../../components/common/Logo';
 import {
   getPasswordRules,
-  getPasswordValidationMessage,
   mapAuthApiErrors,
 } from '../../features/auth/authValidation';
 
@@ -31,12 +31,38 @@ export default function SignUpScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
 
   const [register, { isLoading }] = useRegisterMutation();
+  const scrollRef = useRef<ScrollView>(null);
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
   const rules = getPasswordRules(password);
+  const signupRules = {
+    ...rules,
+    lowercase: /[a-z]/.test(password),
+  };
+  const passwordRequirements = [
+    { label: 'At least 8 characters', met: signupRules.length },
+    { label: 'One uppercase letter', met: signupRules.uppercase },
+    { label: 'One lowercase letter', met: signupRules.lowercase },
+    { label: 'One number', met: signupRules.number },
+    { label: 'One special character', met: signupRules.special },
+  ];
+  const isSignupPasswordValid = passwordRequirements.every((requirement) => requirement.met);
+
+  const getSignupPasswordError = () => {
+    if (!password) return 'Password is required';
+    if (!isSignupPasswordValid) {
+      return 'Password must contain at least 8 characters, uppercase, lowercase, number, and special character';
+    }
+    return undefined;
+  };
+
+  const scrollToFormEnd = () => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 250);
+  };
 
   const validate = () => {
     const newErrors: { name?: string; email?: string; password?: string } = {};
@@ -45,7 +71,7 @@ export default function SignUpScreen() {
     if (!email.trim()) newErrors.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(email.trim())) newErrors.email = 'Invalid email address';
 
-    const passwordError = getPasswordValidationMessage(password);
+    const passwordError = getSignupPasswordError();
     if (passwordError) newErrors.password = passwordError;
 
     setErrors(newErrors);
@@ -59,7 +85,7 @@ export default function SignUpScreen() {
       await register({ name: name.trim(), email: email.trim(), password }).unwrap();
       (navigation as any).navigate('VerifyOtp', { email: email.trim() });
     } catch (error: any) {
-      setErrors(mapAuthApiErrors(error, getPasswordValidationMessage(password) || 'Registration failed. Please try again.', 'password'));
+      setErrors(mapAuthApiErrors(error, getSignupPasswordError() || 'Registration failed. Please try again.', 'password'));
     }
   };
 
@@ -69,13 +95,20 @@ export default function SignUpScreen() {
     name.trim() !== '' &&
     email.trim() !== '' &&
     password !== '' &&
-    !getPasswordValidationMessage(password);
+    !getSignupPasswordError();
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }} keyboardVerticalOffset={0}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+      >
         <ScrollView
+          ref={scrollRef}
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           contentContainerStyle={styles.scrollContent}
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -124,6 +157,7 @@ export default function SignUpScreen() {
                   editable={!isLoading}
                   returnKeyType="next"
                   submitBehavior="submit"
+                  onFocus={scrollToFormEnd}
                   onSubmitEditing={() => passwordRef.current?.focus()}
                 />
                 {!!errors.email && <Text style={styles.error}>{errors.email}</Text>}
@@ -131,7 +165,14 @@ export default function SignUpScreen() {
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Password</Text>
-                <View style={[styles.passwordWrap, errors.password && styles.inputError]}>
+                <View
+                  style={[
+                    styles.passwordWrap,
+                    isPasswordFocused && styles.passwordWrapFocused,
+                    password !== '' && isSignupPasswordValid && styles.passwordWrapFocused,
+                    errors.password && styles.inputError,
+                  ]}
+                >
                   <TextInput
                     ref={passwordRef}
                     style={styles.passwordInput}
@@ -145,6 +186,11 @@ export default function SignUpScreen() {
                     secureTextEntry={!showPassword}
                     editable={!isLoading}
                     returnKeyType="done"
+                    onFocus={() => {
+                      setIsPasswordFocused(true);
+                      scrollToFormEnd();
+                    }}
+                    onBlur={() => setIsPasswordFocused(false)}
                     onSubmitEditing={handleRegister}
                   />
                   <TouchableOpacity
@@ -160,18 +206,18 @@ export default function SignUpScreen() {
                 </View>
                 {!!errors.password && <Text style={styles.error}>{errors.password}</Text>}
                 <View style={styles.passwordRules}>
-                  <Text style={[styles.passwordRule, rules.length && styles.passwordRuleValid]}>
-                    - At least 8 characters
-                  </Text>
-                  <Text style={[styles.passwordRule, rules.uppercase && styles.passwordRuleValid]}>
-                    - One uppercase letter
-                  </Text>
-                  <Text style={[styles.passwordRule, rules.number && styles.passwordRuleValid]}>
-                    - One number
-                  </Text>
-                  <Text style={[styles.passwordRule, rules.special && styles.passwordRuleValid]}>
-                    - One special character
-                  </Text>
+                  {passwordRequirements.map((requirement) => (
+                    <View key={requirement.label} style={styles.passwordRuleRow}>
+                      {requirement.met ? (
+                        <Check size={13} color={themeColors.incomeText} strokeWidth={2.4} />
+                      ) : (
+                        <Circle size={12} color={themeColors.foreground} strokeWidth={1.8} />
+                      )}
+                      <Text style={[styles.passwordRule, requirement.met && styles.passwordRuleValid]}>
+                        {requirement.label}
+                      </Text>
+                    </View>
+                  ))}
                 </View>
               </View>
 
@@ -204,7 +250,12 @@ export default function SignUpScreen() {
 const createStyles = (theme: typeof colors.light) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
-    scrollContent: { padding: spacing.lg, paddingTop: spacing.xxl, paddingBottom: spacing.xxl },
+    scrollContent: {
+      flexGrow: 1,
+      padding: spacing.lg,
+      paddingTop: spacing.xxl,
+      paddingBottom: spacing.xxxl,
+    },
     content: { maxWidth: 400, width: '100%', alignSelf: 'center' },
     header: { marginBottom: spacing.xl, alignItems: 'center' },
     title: {
@@ -229,6 +280,7 @@ const createStyles = (theme: typeof colors.light) =>
       backgroundColor: theme.card,
     },
     inputError: { borderColor: theme.destructive },
+    passwordWrapFocused: { borderColor: theme.primary },
     passwordWrap: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -245,8 +297,9 @@ const createStyles = (theme: typeof colors.light) =>
       color: theme.foreground,
     },
     error: { fontSize: fontSize.xs, color: theme.destructive },
-    passwordRules: { marginTop: spacing.xs, gap: spacing.xs },
-    passwordRule: { fontSize: fontSize.xs, color: theme.mutedForeground },
+    passwordRules: { marginTop: spacing.xs, gap: spacing.sm },
+    passwordRuleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    passwordRule: { fontSize: fontSize.xs, color: theme.foreground },
     passwordRuleValid: { color: theme.incomeText },
     button: {
       backgroundColor: theme.primary,

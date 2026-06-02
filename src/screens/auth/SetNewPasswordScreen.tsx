@@ -9,6 +9,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -39,8 +40,13 @@ export default function SetNewPasswordScreen() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [errors, setErrors] = useState<{ password?: string; confirmPassword?: string }>({});
   const [resetPassword, { isLoading }] = useResetPasswordMutation();
+  const scrollRef = useRef<ScrollView>(null);
   const confirmPasswordRef = useRef<TextInput>(null);
   const rules = getPasswordRules(password);
+
+  const scrollToFormEnd = () => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 250);
+  };
 
   const validate = () => {
     const newErrors: typeof errors = {};
@@ -77,9 +83,16 @@ export default function SetNewPasswordScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+      >
         <ScrollView
+          ref={scrollRef}
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           contentContainerStyle={styles.scrollContent}
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -111,6 +124,7 @@ export default function SetNewPasswordScreen() {
                     editable={!isLoading}
                     returnKeyType="next"
                     submitBehavior="submit"
+                    onFocus={scrollToFormEnd}
                     onSubmitEditing={() => confirmPasswordRef.current?.focus()}
                   />
                   <TouchableOpacity
@@ -157,6 +171,7 @@ export default function SetNewPasswordScreen() {
                     secureTextEntry={!showConfirm}
                     editable={!isLoading}
                     returnKeyType="done"
+                    onFocus={scrollToFormEnd}
                     onSubmitEditing={handleReset}
                   />
                   <TouchableOpacity
@@ -195,7 +210,12 @@ export default function SetNewPasswordScreen() {
 const createStyles = (theme: typeof colors.light) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
-    scrollContent: { padding: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+    scrollContent: {
+      flexGrow: 1,
+      padding: spacing.lg,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.xxxl,
+    },
     backBtn: { marginBottom: spacing.lg, alignSelf: 'flex-start', padding: spacing.xs },
     content: { maxWidth: 400, width: '100%', alignSelf: 'center' },
     header: { marginBottom: spacing.xl, alignItems: 'center', gap: spacing.sm },
