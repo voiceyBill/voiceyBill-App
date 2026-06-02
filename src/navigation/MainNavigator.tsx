@@ -5,7 +5,7 @@ import {
   type BottomTabHeaderProps,
   type BottomTabBarButtonProps,
 } from '@react-navigation/bottom-tabs';
-import { Home, Wallet, Mic, BarChart3, PieChart, UserRound, Bell } from 'lucide-react-native';
+import { LayoutDashboard, ArrowUpDown, Mic, BarChart3, Wallet, UserRound, Bell } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useNotification } from '../context/NotificationContext';
 import { colors, spacing } from '../theme/colors';
@@ -123,7 +123,7 @@ export default function MainNavigator() {
         component={DashboardScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Home size={size || 24} color={color} />
+            <LayoutDashboard size={size || 24} color={color} />
           ),
         }}
       />
@@ -132,7 +132,7 @@ export default function MainNavigator() {
         component={TransactionsScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Wallet size={size || 24} color={color} />
+            <ArrowUpDown size={size || 24} color={color} />
           ),
         }}
       />
@@ -176,7 +176,7 @@ export default function MainNavigator() {
         component={BudgetScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <PieChart size={size || 24} color={color} />
+            <Wallet size={size || 24} color={color} />
           ),
         }}
       />
