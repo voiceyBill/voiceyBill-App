@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -17,6 +16,11 @@ import { useRegisterMutation } from '../../features/auth/authAPI';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../../theme/colors';
 import Logo from '../../components/common/Logo';
+import {
+  getPasswordRules,
+  getPasswordValidationMessage,
+  mapAuthApiErrors,
+} from '../../features/auth/authValidation';
 
 export default function SignUpScreen() {
   const navigation = useNavigation();
@@ -27,51 +31,45 @@ export default function SignUpScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const rules = {
-  length: password.length >= 8,
-  uppercase: /[A-Z]/.test(password),
-  lowercase: /[a-z]/.test(password),
-  number: /[0-9]/.test(password),
-  special: /[^A-Za-z0-9]/.test(password),
-};
   const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
 
   const [register, { isLoading }] = useRegisterMutation();
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
+  const rules = getPasswordRules(password);
 
   const validate = () => {
     const newErrors: { name?: string; email?: string; password?: string } = {};
-    if (!name) newErrors.name = 'Name is required';
-    if (!email) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Invalid email address';
-    if (!password) {
-  newErrors.password = 'Password is required';
-} else if (
-  !rules.length ||
-  !rules.uppercase ||
-  !rules.lowercase ||
-  !rules.number ||
-  !rules.special
-) {
-  newErrors.password =
-    'Password must contain uppercase, lowercase, number and special character';
-}
+
+    if (!name.trim()) newErrors.name = 'Name is required';
+    if (!email.trim()) newErrors.email = 'Email is required';
+    else if (!/\S+@\S+\.\S+/.test(email.trim())) newErrors.email = 'Invalid email address';
+
+    const passwordError = getPasswordValidationMessage(password);
+    if (passwordError) newErrors.password = passwordError;
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleRegister = async () => {
     if (!validate()) return;
+
     try {
-      await register({ name, email, password }).unwrap();
-      (navigation as any).navigate('VerifyOtp', { email });
+      await register({ name: name.trim(), email: email.trim(), password }).unwrap();
+      (navigation as any).navigate('VerifyOtp', { email: email.trim() });
     } catch (error: any) {
-      setErrors({ email: error?.data?.message || 'Registration failed. Please try again.' });
+      setErrors(mapAuthApiErrors(error, getPasswordValidationMessage(password) || 'Registration failed. Please try again.', 'password'));
     }
   };
 
   const styles = createStyles(themeColors);
+  const canSubmit =
+    !isLoading &&
+    name.trim() !== '' &&
+    email.trim() !== '' &&
+    password !== '' &&
+    !getPasswordValidationMessage(password);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -82,14 +80,12 @@ export default function SignUpScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.content}>
-            {/* Brand */}
             <View style={styles.header}>
               <Logo size="lg" />
               <Text style={styles.title}>Create your account</Text>
               <Text style={styles.subtitle}>Start tracking expenses with VoiceyBill</Text>
             </View>
 
-            {/* Form */}
             <View style={styles.form}>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Name</Text>
@@ -98,14 +94,17 @@ export default function SignUpScreen() {
                   placeholder="Your full name"
                   placeholderTextColor={themeColors.mutedForeground}
                   value={name}
-                  onChangeText={(v) => { setName(v); setErrors((e) => ({ ...e, name: undefined })); }}
+                  onChangeText={(v) => {
+                    setName(v);
+                    setErrors((e) => ({ ...e, name: undefined }));
+                  }}
                   autoCapitalize="words"
                   editable={!isLoading}
                   returnKeyType="next"
                   submitBehavior="submit"
                   onSubmitEditing={() => emailRef.current?.focus()}
                 />
-                {errors.name && <Text style={styles.error}>{errors.name}</Text>}
+                {!!errors.name && <Text style={styles.error}>{errors.name}</Text>}
               </View>
 
               <View style={styles.inputGroup}>
@@ -116,7 +115,10 @@ export default function SignUpScreen() {
                   placeholder="you@example.com"
                   placeholderTextColor={themeColors.mutedForeground}
                   value={email}
-                  onChangeText={(v) => { setEmail(v); setErrors((e) => ({ ...e, email: undefined })); }}
+                  onChangeText={(v) => {
+                    setEmail(v);
+                    setErrors((e) => ({ ...e, email: undefined }));
+                  }}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   editable={!isLoading}
@@ -124,7 +126,7 @@ export default function SignUpScreen() {
                   submitBehavior="submit"
                   onSubmitEditing={() => passwordRef.current?.focus()}
                 />
-                {errors.email && <Text style={styles.error}>{errors.email}</Text>}
+                {!!errors.email && <Text style={styles.error}>{errors.email}</Text>}
               </View>
 
               <View style={styles.inputGroup}>
@@ -136,7 +138,10 @@ export default function SignUpScreen() {
                     placeholder="At least 8 characters"
                     placeholderTextColor={themeColors.mutedForeground}
                     value={password}
-                    onChangeText={(v) => { setPassword(v); setErrors((e) => ({ ...e, password: undefined })); }}
+                    onChangeText={(v) => {
+                      setPassword(v);
+                      setErrors((e) => ({ ...e, password: undefined }));
+                    }}
                     secureTextEntry={!showPassword}
                     editable={!isLoading}
                     returnKeyType="done"
@@ -146,80 +151,40 @@ export default function SignUpScreen() {
                     onPress={() => setShowPassword(!showPassword)}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
-                    {showPassword
-                      ? <EyeOff size={18} color={themeColors.mutedForeground} />
-                      : <Eye size={18} color={themeColors.mutedForeground} />
-                    }
+                    {showPassword ? (
+                      <EyeOff size={18} color={themeColors.mutedForeground} />
+                    ) : (
+                      <Eye size={18} color={themeColors.mutedForeground} />
+                    )}
                   </TouchableOpacity>
                 </View>
-                {errors.password && <Text style={styles.error}>{errors.password}</Text>}
-                <View style={{ marginTop: 8, gap: 4 }}>
-  <Text
-    style={{
-      color: rules.length
-        ? 'green'
-        : themeColors.mutedForeground,
-      fontSize: 12,
-    }}
-  >
-    • At least 8 characters
-  </Text>
-
-  <Text
-    style={{
-      color: rules.uppercase
-        ? 'green'
-        : themeColors.mutedForeground,
-      fontSize: 12,
-    }}
-  >
-    • One uppercase letter
-  </Text>
-
-  <Text
-    style={{
-      color: rules.lowercase
-        ? 'green'
-        : themeColors.mutedForeground,
-      fontSize: 12,
-    }}
-  >
-    • One lowercase letter
-  </Text>
-
-  <Text
-    style={{
-      color: rules.number
-        ? 'green'
-        : themeColors.mutedForeground,
-      fontSize: 12,
-    }}
-  >
-    • One number
-  </Text>
-
-  <Text
-    style={{
-      color: rules.special
-        ? 'green'
-        : themeColors.mutedForeground,
-      fontSize: 12,
-    }}
-  >
-    • One special character
-  </Text>
-</View>
+                {!!errors.password && <Text style={styles.error}>{errors.password}</Text>}
+                <View style={styles.passwordRules}>
+                  <Text style={[styles.passwordRule, rules.length && styles.passwordRuleValid]}>
+                    - At least 8 characters
+                  </Text>
+                  <Text style={[styles.passwordRule, rules.uppercase && styles.passwordRuleValid]}>
+                    - One uppercase letter
+                  </Text>
+                  <Text style={[styles.passwordRule, rules.number && styles.passwordRuleValid]}>
+                    - One number
+                  </Text>
+                  <Text style={[styles.passwordRule, rules.special && styles.passwordRuleValid]}>
+                    - One special character
+                  </Text>
+                </View>
               </View>
 
               <TouchableOpacity
-                style={[styles.button, isLoading && styles.buttonDisabled]}
+                style={[styles.button, !canSubmit && styles.buttonDisabled]}
                 onPress={handleRegister}
-                disabled={isLoading}
+                disabled={!canSubmit}
               >
-                {isLoading
-                  ? <ActivityIndicator color={themeColors.primaryForeground} />
-                  : <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>Create account</Text>
-                }
+                {isLoading ? (
+                  <ActivityIndicator color={themeColors.primaryForeground} />
+                ) : (
+                  <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>Create account</Text>
+                )}
               </TouchableOpacity>
 
               <View style={styles.footer}>
@@ -280,6 +245,9 @@ const createStyles = (theme: typeof colors.light) =>
       color: theme.foreground,
     },
     error: { fontSize: fontSize.xs, color: theme.destructive },
+    passwordRules: { marginTop: spacing.xs, gap: spacing.xs },
+    passwordRule: { fontSize: fontSize.xs, color: theme.mutedForeground },
+    passwordRuleValid: { color: theme.incomeText },
     button: {
       backgroundColor: theme.primary,
       padding: spacing.md,
@@ -291,5 +259,10 @@ const createStyles = (theme: typeof colors.light) =>
     buttonText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold },
     footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.sm },
     footerText: { fontSize: fontSize.sm, color: theme.mutedForeground },
-    link: { fontSize: fontSize.sm, color: theme.foreground, fontWeight: fontWeight.semibold, textDecorationLine: 'underline' },
+    link: {
+      fontSize: fontSize.sm,
+      color: theme.foreground,
+      fontWeight: fontWeight.semibold,
+      textDecorationLine: 'underline',
+    },
   });
