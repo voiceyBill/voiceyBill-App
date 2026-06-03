@@ -47,6 +47,7 @@ import {
   useGetBudgetSummaryQuery,
   useUpsertBudgetMutation,
 } from '../../features/budget/budgetAPI';
+import BudgetCategoryPie from '../../components/budget/BudgetCategoryPie';
 import VoiceRecorder from '../../components/transaction/VoiceRecorder';
 import { useIsFocused } from '@react-navigation/native';
 import type {
@@ -556,102 +557,16 @@ const BudgetScreen = () => {
 
             {budget.hasBudget && budget.categories.length > 0 && (
               <View style={[styles.categorySummarySection, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-                <Text style={[styles.sectionLabel, { color: themeColors.foreground }]}>Category Budgets</Text>
-                <Text style={[styles.sectionDescription, { color: themeColors.mutedForeground }]}>Track limits for each budget category.</Text>
-                {budget.categories.map((category) => {
-                  const CategoryIcon = getCategoryIcon(category.name);
-                  const rowAccentColor = category.exceeded
-                    ? themeColors.destructive
-                    : themeColors.primary;
-                  const rowBackground = category.exceeded
-                    ? `${themeColors.destructive}12`
-                    : themeColors.background;
-
-                  return (
-                    <View
-                      key={category.name}
-                      style={[
-                        styles.categorySummaryRow,
-                        {
-                          backgroundColor: rowBackground,
-                          borderColor: category.exceeded
-                            ? themeColors.destructive
-                            : themeColors.border,
-                        },
-                      ]}
-                    >
-                      <View
-                        style={[
-                          styles.categoryAccentBar,
-                          { backgroundColor: rowAccentColor },
-                        ]}
-                      />
-                      <View style={styles.categorySummaryLeft}>
-                        <View
-                          style={[
-                            styles.categoryIconCircle,
-                            {
-                              backgroundColor: category.exceeded
-                                ? `${themeColors.destructive}18`
-                                : themeColors.muted,
-                            },
-                          ]}
-                        >
-                          <CategoryIcon
-                            size={18}
-                            color={rowAccentColor}
-                            strokeWidth={2.4}
-                          />
-                        </View>
-                        <View style={styles.categorySummaryText}>
-                          <Text
-                            style={[
-                              styles.categorySummaryTitle,
-                              { color: themeColors.foreground },
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {formatBudgetCategory(category.name)}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.categorySummaryMeta,
-                              { color: themeColors.mutedForeground },
-                            ]}
-                          >
-                            Limit {formatBudgetCurrency(category.limit)}
-                          </Text>
-                        </View>
-                      </View>
-                      <View style={styles.categorySummaryStats}>
-                        <Text
-                          style={[
-                            styles.categorySummaryValue,
-                            {
-                              color: category.exceeded
-                                ? themeColors.destructive
-                                : themeColors.foreground,
-                            },
-                          ]}
-                        >
-                          {formatBudgetCurrency(category.spent, { showSign: true, isExpense: true })}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.categorySummaryMeta,
-                            {
-                              color: category.exceeded
-                                ? themeColors.destructive
-                                : themeColors.mutedForeground,
-                            },
-                          ]}
-                        >
-                          {Math.round(category.usagePercentage)}% used
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                })}
+                <View style={styles.categorySummaryHeader}>
+                  <Text style={[styles.sectionLabel, { color: themeColors.foreground }]}>Category Budgets</Text>
+                  <Text style={[styles.sectionDescription, { color: themeColors.mutedForeground }]}>Track category distribution, limits, and usage.</Text>
+                </View>
+                <BudgetCategoryPie
+                  categories={budget.categories}
+                  totalSpent={budget.spent}
+                  formatCategory={formatBudgetCategory}
+                  getCategoryIcon={getCategoryIcon}
+                />
               </View>
             )}
 
@@ -1110,6 +1025,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     padding: spacing.md,
     marginBottom: spacing.lg,
+  },
+  categorySummaryHeader: {
+    marginBottom: spacing.sm,
   },
   categorySummaryRow: {
     flexDirection: 'row',
