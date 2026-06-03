@@ -23,10 +23,12 @@ export default function ExpenseBreakdownPie({
   breakdown,
   total,
   periodLabel,
+  baseCurrency = 'USD',
 }: {
   breakdown: ExpenseBreakdown[];
   total: number;
   periodLabel?: string;
+  baseCurrency?: string;
 }) {
   const { activeTheme } = useTheme();
   const theme = colors[activeTheme];
@@ -142,7 +144,7 @@ export default function ExpenseBreakdownPie({
                 pointerEvents="none"
               >
                 <Text style={[styles.centerValue, { color: theme.foreground }]}>
-                  {formatCurrency(total, { compact: true })}
+                  {formatCurrency(total, { compact: true, currency: baseCurrency })}
                 </Text>
                 <Text style={[styles.centerLabel, { color: theme.mutedForeground }]}>Spent</Text>
               </View>
@@ -167,7 +169,7 @@ export default function ExpenseBreakdownPie({
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                   <Text style={{ color: theme.foreground, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }}>
-                    {formatCurrency(b.value)}
+                    {formatCurrency(b.value, { currency: baseCurrency })}
                   </Text>
                   <View style={[styles.percentageBadge, { backgroundColor: activeTheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(23,23,23,0.04)' }]}>
                     <Text style={{ color: theme.mutedForeground, fontSize: 10, fontWeight: fontWeight.semibold }}>

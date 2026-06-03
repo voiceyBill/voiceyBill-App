@@ -15,6 +15,7 @@ type Props = {
   totalIncomeCount?: number;
   totalExpenseCount?: number;
   periodLabel?: string;
+  baseCurrency?: string;
 };
 
 const CHART_H = 220;
@@ -51,6 +52,7 @@ export default function TransactionOverviewChart({
   totalIncomeCount = 0,
   totalExpenseCount = 0,
   periodLabel = 'Past 30 Days',
+  baseCurrency = 'USD',
 }: Props) {
   const { activeTheme } = useTheme();
   const theme = colors[activeTheme];
@@ -167,7 +169,7 @@ export default function TransactionOverviewChart({
                   fill={axisLabelColor}
                   fontWeight="600"
                 >
-                  {formatCurrency(val, { compact: true })}
+                  {formatCurrency(val, { compact: true, currency: baseCurrency })}
                 </SvgText>
               </G>
             ))}

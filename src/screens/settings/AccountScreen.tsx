@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -9,15 +9,25 @@ import {
   ActivityIndicator,
   Image,
   Alert,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, Camera } from 'lucide-react-native';
-import { useTheme } from '../../context/ThemeContext';
-import { useTypedSelector, useAppDispatch } from '../../store/hooks';
-import { updateUser as updateUserStore } from '../../features/auth/authSlice';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme/colors';
-import * as ImagePicker from 'expo-image-picker';
-import { useUpdateUserMutation } from '../../features/user/userAPI';
+  Platform,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { User, Camera } from "lucide-react-native";
+import { useTheme } from "../../context/ThemeContext";
+import { useTypedSelector, useAppDispatch } from "../../store/hooks";
+import { updateUser as updateUserStore } from "../../features/auth/authSlice";
+import {
+  colors,
+  spacing,
+  fontSize,
+  fontWeight,
+  borderRadius,
+} from "../../theme/colors";
+import * as ImagePicker from "expo-image-picker";
+import { useUpdateUserMutation } from "../../features/user/userAPI";
+import { CurrencyPicker } from "../../components/common";
+import { useGetSupportedCurrenciesQuery } from "../../features/currency/currencyAPI";
+import { ALL_CURRENCIES } from "../../constants/currencies";
 
 export default function AccountScreen() {
   const { activeTheme } = useTheme();
@@ -25,25 +35,46 @@ export default function AccountScreen() {
   const dispatch = useAppDispatch();
   const user = useTypedSelector((state) => state.auth.user);
 
-  const [originalName, setOriginalName] = useState(user?.name || '');
-  const [originalProfilePicture, setOriginalProfilePicture] = useState<string | null>(
-    user?.profilePicture || null
+  const [originalName, setOriginalName] = useState(user?.name || "");
+  const [originalProfilePicture, setOriginalProfilePicture] = useState<
+    string | null
+  >(user?.profilePicture || null);
+  const [originalBaseCurrency, setOriginalBaseCurrency] = useState(
+    user?.baseCurrency || "USD",
   );
 
   const [name, setName] = useState(originalName);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(originalProfilePicture);
-  const [picked, setPicked] = useState<{ uri: string; name: string; type: string } | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(
+    originalProfilePicture,
+  );
+  const [baseCurrency, setBaseCurrency] = useState(originalBaseCurrency);
+  const [picked, setPicked] = useState<{
+    uri: string;
+    name: string;
+    type: string;
+  } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const [updateUser] = useUpdateUserMutation();
+  const { data: currenciesData } = useGetSupportedCurrenciesQuery();
+  const currencyOptions = useMemo(() => {
+    if (currenciesData?.currencies && currenciesData.currencies.length > 0) {
+      return currenciesData.currencies;
+    }
+    return ALL_CURRENCIES;
+  }, [currenciesData]);
 
   // Detect changes
   const hasChanges = useMemo(() => {
     const trimmedName = name.trim();
     const trimmedOriginalName = originalName.trim();
 
-    return trimmedName !== trimmedOriginalName || !!picked;
-  }, [name, originalName, picked]);
+    return (
+      trimmedName !== trimmedOriginalName ||
+      baseCurrency !== originalBaseCurrency ||
+      !!picked
+    );
+  }, [name, originalName, baseCurrency, originalBaseCurrency, picked]);
 
   const handleChooseFile = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({
@@ -59,8 +90,8 @@ export default function AccountScreen() {
 
     setPicked({
       uri: asset.uri,
-      name: asset.fileName || 'avatar.jpg',
-      type: asset.mimeType || 'image/jpeg',
+      name: asset.fileName || "avatar.jpg",
+      type: asset.mimeType || "image/jpeg",
     });
 
     setAvatarPreview(asset.uri);
@@ -75,11 +106,12 @@ export default function AccountScreen() {
 
       const form = new FormData();
 
-      form.append('name', name.trim());
+      form.append("name", name.trim());
+      form.append("baseCurrency", baseCurrency);
 
       if (picked) {
         // @ts-ignore
-        form.append('profilePicture', {
+        form.append("profilePicture", {
           uri: picked.uri,
           name: picked.name,
           type: picked.type,
@@ -89,21 +121,19 @@ export default function AccountScreen() {
       const resp = await updateUser(form as any).unwrap();
 
       const updated =
-        (resp as any)?.data?.user ||
-        (resp as any)?.data ||
-        (resp as any);
+        (resp as any)?.data?.user || (resp as any)?.data || (resp as any);
 
       if (updated) {
-        const profileUrl =
-          updated.profilePicture ||
-          updated.avatar ||
-          null;
+        const profileUrl = updated.profilePicture || updated.avatar || null;
+
+        const updatedBaseCurrency = updated.baseCurrency || baseCurrency;
 
         dispatch(
           updateUserStore({
             name: updated.name,
             profilePicture: profileUrl || undefined,
-          })
+            baseCurrency: updatedBaseCurrency,
+          }),
         );
 
         const newName = updated.name || name;
@@ -111,14 +141,16 @@ export default function AccountScreen() {
 
         setOriginalName(newName);
         setOriginalProfilePicture(newProfilePicture);
+        setOriginalBaseCurrency(updatedBaseCurrency);
         setName(newName);
         setAvatarPreview(newProfilePicture);
+        setBaseCurrency(updatedBaseCurrency);
         setPicked(null);
       }
 
-      Alert.alert('Saved', 'Account updated successfully');
+      Alert.alert("Saved", "Account updated successfully");
     } catch {
-      Alert.alert('Update failed', 'Could not update your account');
+      Alert.alert("Update failed", "Could not update your account");
     } finally {
       setIsSaving(false);
     }
@@ -127,7 +159,7 @@ export default function AccountScreen() {
   const styles = createStyles(themeColors);
 
   return (
-    <SafeAreaView style={styles.container} edges={[]}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxxl }}>
         {/* Navbar */}
         <View style={styles.navbar}>
@@ -149,12 +181,7 @@ export default function AccountScreen() {
           >
             {/* Profile Picture */}
             <View style={styles.fieldGroup}>
-              <Text
-                style={[
-                  styles.label,
-                  { color: themeColors.foreground },
-                ]}
-              >
+              <Text style={[styles.label, { color: themeColors.foreground }]}>
                 Profile Picture
               </Text>
 
@@ -190,10 +217,7 @@ export default function AccountScreen() {
                       },
                     ]}
                   >
-                    <Camera
-                      size={13}
-                      color={themeColors.primaryForeground}
-                    />
+                    <Camera size={13} color={themeColors.primaryForeground} />
                   </View>
                 </View>
 
@@ -234,20 +258,12 @@ export default function AccountScreen() {
 
             {/* Divider */}
             <View
-              style={[
-                styles.divider,
-                { backgroundColor: themeColors.border },
-              ]}
+              style={[styles.divider, { backgroundColor: themeColors.border }]}
             />
 
             {/* Name */}
             <View style={styles.fieldGroup}>
-              <Text
-                style={[
-                  styles.label,
-                  { color: themeColors.foreground },
-                ]}
-              >
+              <Text style={[styles.label, { color: themeColors.foreground }]}>
                 Name
               </Text>
 
@@ -264,6 +280,21 @@ export default function AccountScreen() {
                 onChangeText={setName}
                 placeholder="Your name"
                 placeholderTextColor={themeColors.mutedForeground}
+              />
+            </View>
+
+            {/* Divider */}
+            <View
+              style={[styles.divider, { backgroundColor: themeColors.border }]}
+            />
+
+            {/* Base Currency */}
+            <View style={styles.fieldGroup}>
+              <CurrencyPicker
+                label="Base Currency"
+                value={baseCurrency}
+                onChange={setBaseCurrency}
+                options={currencyOptions}
               />
             </View>
 
@@ -284,9 +315,7 @@ export default function AccountScreen() {
               disabled={isSaving || !hasChanges}
             >
               {isSaving ? (
-                <ActivityIndicator
-                  color={themeColors.primaryForeground}
-                />
+                <ActivityIndicator color={themeColors.primaryForeground} />
               ) : (
                 <Text
                   style={[
@@ -324,7 +353,7 @@ const createStyles = (theme: typeof colors.light) =>
     },
 
     navbarTitle: {
-      fontSize: fontSize['2xl'],
+      fontSize: fontSize["2xl"],
       fontWeight: fontWeight.bold,
       color: theme.navbarForeground,
     },
@@ -344,7 +373,7 @@ const createStyles = (theme: typeof colors.light) =>
       borderRadius: borderRadius.lg,
       borderWidth: 1,
       padding: spacing.lg,
-      shadowColor: '#000',
+      shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.05,
       shadowRadius: 8,
@@ -362,13 +391,13 @@ const createStyles = (theme: typeof colors.light) =>
     },
 
     avatarRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: spacing.lg,
     },
 
     avatarWrap: {
-      position: 'relative',
+      position: "relative",
       flexShrink: 0,
     },
 
@@ -376,26 +405,26 @@ const createStyles = (theme: typeof colors.light) =>
       width: 80,
       height: 80,
       borderRadius: 40,
-      resizeMode: 'cover',
+      resizeMode: "cover",
     },
 
     avatarPlaceholder: {
       width: 80,
       height: 80,
       borderRadius: 40,
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems: "center",
+      justifyContent: "center",
     },
 
     cameraIcon: {
-      position: 'absolute',
+      position: "absolute",
       bottom: 0,
       right: 0,
       width: 26,
       height: 26,
       borderRadius: 13,
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems: "center",
+      justifyContent: "center",
       borderWidth: 2,
     },
 
@@ -405,7 +434,7 @@ const createStyles = (theme: typeof colors.light) =>
     },
 
     changePhotoBtn: {
-      alignSelf: 'flex-start',
+      alignSelf: "flex-start",
       borderWidth: 1,
       borderRadius: borderRadius.md,
       paddingHorizontal: spacing.md,
@@ -434,10 +463,20 @@ const createStyles = (theme: typeof colors.light) =>
       fontSize: fontSize.md,
     },
 
+    pickerContainer: {
+      borderWidth: 1,
+      borderRadius: borderRadius.md,
+      overflow: "hidden",
+    },
+
+    picker: {
+      height: Platform.OS === "ios" ? undefined : 50,
+    },
+
     button: {
       padding: spacing.md,
       borderRadius: borderRadius.md,
-      alignItems: 'center',
+      alignItems: "center",
       marginTop: spacing.xs,
     },
 

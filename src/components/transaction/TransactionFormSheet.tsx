@@ -27,6 +27,8 @@ import {
   useGetSingleTransactionQuery,
   useAiScanReceiptMutation,
 } from "../../features/transaction/transactionAPI";
+import { useTypedSelector } from "../../store/hooks";
+import { useGetSupportedCurrenciesQuery } from "../../features/currency/currencyAPI";
 import {
   CATEGORIES,
   PAYMENT_METHODS,
@@ -35,7 +37,10 @@ import {
   FREQUENCY_OPTIONS,
 } from "../../constants/transaction";
 import { Picker } from "@react-native-picker/picker";
+import { CurrencyPicker } from "../common";
+import { ALL_CURRENCIES } from "../../constants/currencies";
 import DateTimePicker from "@react-native-community/datetimepicker";
+
 import { format as formatDate } from "date-fns";
 import * as ImagePicker from "expo-image-picker";
 import {
@@ -66,9 +71,13 @@ export default function TransactionFormSheet({
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
 
+  const user = useTypedSelector((state) => state.auth.user);
+  const userBaseCurrency = user?.baseCurrency || "USD";
+
   // Form state
   const [title, setTitle] = React.useState("");
   const [amount, setAmount] = React.useState("");
+  const [currency, setCurrency] = React.useState("USD");
   const [type, setType] = React.useState<"INCOME" | "EXPENSE">(
     TRANSACTION_TYPE.EXPENSE,
   );
@@ -82,6 +91,22 @@ export default function TransactionFormSheet({
   );
   const [description, setDescription] = React.useState("");
 
+  const { data: currenciesData } = useGetSupportedCurrenciesQuery();
+
+  const currencyOptions = React.useMemo(() => {
+    if (currenciesData?.currencies && currenciesData.currencies.length > 0) {
+      return currenciesData.currencies;
+    }
+    return ALL_CURRENCIES;
+  }, [currenciesData]);
+
+  const selectedCurrencySymbol = React.useMemo(() => {
+    const found = (currenciesData?.currencies || ALL_CURRENCIES).find(
+      (c) => c.code.toUpperCase() === currency.toUpperCase(),
+    );
+    return found ? found.symbol : currency;
+  }, [currenciesData, currency]);
+
   // AI Scan Receipt state
   const [receiptName, setReceiptName] =
     React.useState<string>("No file chosen");
@@ -92,12 +117,15 @@ export default function TransactionFormSheet({
   );
   const [isVoiceProcessing, setIsVoiceProcessing] = React.useState(false);
 
-  // Update mode when initialMode changes
+  // Update mode when initialMode changes and set default currency
   React.useEffect(() => {
     if (isVisible) {
       setMode(initialMode);
+      if (!isEdit) {
+        setCurrency(userBaseCurrency);
+      }
     }
-  }, [isVisible, initialMode]);
+  }, [isVisible, initialMode, isEdit, userBaseCurrency]);
 
   // API hooks
   const { data: transactionData } = useGetSingleTransactionQuery(
@@ -111,13 +139,17 @@ export default function TransactionFormSheet({
   const [updateTransaction, { isLoading: isUpdating }] =
     useUpdateTransactionMutation();
   const [aiScanReceipt] = useAiScanReceiptMutation();
-
   // Load existing transaction data for edit
   React.useEffect(() => {
     if (isEdit && transactionData?.transaction) {
       const tx = transactionData.transaction;
       setTitle(tx.title);
-      setAmount(tx.amount.toString());
+      setAmount(
+        tx.originalAmount != null
+          ? tx.originalAmount.toString()
+          : tx.amount.toString(),
+      );
+      setCurrency(tx.originalCurrency || userBaseCurrency);
       setType(tx.type);
       setCategory(tx.category);
       setDate(new Date(tx.date));
@@ -128,12 +160,13 @@ export default function TransactionFormSheet({
       );
       setDescription(tx.description || "");
     }
-  }, [isEdit, transactionData]);
+  }, [isEdit, transactionData, userBaseCurrency]);
 
   // Reset form
   const resetForm = () => {
     setTitle("");
     setAmount("");
+    setCurrency(userBaseCurrency);
     setType(TRANSACTION_TYPE.EXPENSE);
     setCategory("");
     setDate(new Date());
@@ -155,6 +188,7 @@ export default function TransactionFormSheet({
     const payload = {
       title,
       amount: parseFloat(amount),
+      currency: currency.trim() ? currency : undefined,
       type,
       category: category.trim().toLowerCase(),
       date: date.toISOString(),
@@ -271,19 +305,47 @@ export default function TransactionFormSheet({
                 loadingChange={isVoiceProcessing}
                 onLoadingChange={setIsVoiceProcessing}
                 onVoiceComplete={(data) => {
+                  console.log("onVoiceComplete triggered with data:", data);
                   // Map response data to form fields
-                  if (data.title) setTitle(data.title);
-                  if (data.amount != null) setAmount(String(data.amount));
-                  if (data.category) {
-                    setCategory(data.category);
+                  if (data.title) {
+                    console.log("Setting title to:", data.title);
+                    setTitle(data.title);
                   }
-                  if (data.paymentMethod) setPaymentMethod(data.paymentMethod);
-                  if (data.type) setType(data.type);
+                  if (data.amount != null) {
+                    console.log("Setting amount to:", String(data.amount));
+                    setAmount(String(data.amount));
+                  }
+                  if (data.currency) {
+                    console.log("Setting currency to:", data.currency);
+                    setCurrency(data.currency);
+                  }
+                  if (data.category) {
+                    let cat = data.category.toLowerCase().trim();
+                    if (cat === "dining & restaurants") cat = "dining";
+                    if (cat === "housing & rent") cat = "housing";
+                    console.log("Setting category to:", cat);
+                    setCategory(cat);
+                  }
+                  if (data.paymentMethod) {
+                    const pm = data.paymentMethod.toUpperCase();
+                    console.log("Setting paymentMethod to:", pm);
+                    setPaymentMethod(pm);
+                  }
+                  if (data.type) {
+                    console.log("Setting type to:", data.type);
+                    setType(data.type);
+                  }
                   if (data.date) {
                     const d = new Date(data.date);
-                    if (!isNaN(d.getTime())) setDate(d);
+                    if (!isNaN(d.getTime())) {
+                      console.log("Setting date to:", d);
+                      setDate(d);
+                    }
                   }
-                  if (data.description) setDescription(data.description);
+                  if (data.description) {
+                    console.log("Setting description to:", data.description);
+                    setDescription(data.description);
+                  }
                 }}
               />
             )}
@@ -317,11 +379,23 @@ export default function TransactionFormSheet({
                           form as any,
                         ).unwrap();
                         const scanned = result?.data;
+                        console.log("SCANNED.CATEGORY:", scanned.category);
                         if (scanned) {
+                          if (scanned.title) setTitle(scanned.title);
+                          setType(TRANSACTION_TYPE.EXPENSE);
+                          if (scanned.paymentMethod) {
+                            setPaymentMethod(scanned.paymentMethod.toUpperCase());
+                          }
                           if (scanned.amount != null)
                             setAmount(String(scanned.amount));
+                          if (scanned.currency) {
+                            setCurrency(scanned.currency);
+                          }
                           if (scanned.category) {
-                            setCategory(scanned.category);
+                            let cat = scanned.category.toLowerCase().trim();
+                            if (cat === "dining & restaurants") cat = "dining";
+                            if (cat === "housing & rent") cat = "housing";
+                            setCategory(cat);
                           }
                           if (scanned.description)
                             setDescription(scanned.description);
@@ -389,10 +463,21 @@ export default function TransactionFormSheet({
                         ).unwrap();
                         const scanned = result?.data;
                         if (scanned) {
+                          if (scanned.title) setTitle(scanned.title);
+                          setType(TRANSACTION_TYPE.EXPENSE);
+                          if (scanned.paymentMethod) {
+                            setPaymentMethod(scanned.paymentMethod.toUpperCase());
+                          }
                           if (scanned.amount != null)
                             setAmount(String(scanned.amount));
+                          if (scanned.currency) {
+                            setCurrency(scanned.currency);
+                          }
                           if (scanned.category) {
-                            setCategory(scanned.category);
+                            let cat = scanned.category.toLowerCase().trim();
+                            if (cat === "dining & restaurants") cat = "dining";
+                            if (cat === "housing & rent") cat = "housing";
+                            setCategory(cat);
                           }
                           if (scanned.description)
                             setDescription(scanned.description);
@@ -511,18 +596,37 @@ export default function TransactionFormSheet({
               />
             </View>
 
-            {/* Amount */}
-            <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Amount *</Text>
-              <View style={styles.amountContainer}>
-                <Text style={styles.currencySymbol}>Rs</Text>
-                <TextInput
-                  style={styles.amountInput}
-                  placeholder="0.00"
-                  placeholderTextColor={themeColors.mutedForeground}
-                  value={amount}
-                  onChangeText={setAmount}
-                  keyboardType="decimal-pad"
+            {/* Amount and Currency Row */}
+            <View
+              style={{
+                flexDirection: "row",
+                gap: spacing.md,
+                marginBottom: spacing.md,
+              }}
+            >
+              <View style={{ flex: 1.8 }}>
+                <Text style={styles.label}>Amount *</Text>
+                <View style={styles.amountContainer}>
+                  <Text style={styles.currencySymbol}>
+                    {selectedCurrencySymbol}
+                  </Text>
+                  <TextInput
+                    style={styles.amountInput}
+                    placeholder="0.00"
+                    placeholderTextColor={themeColors.mutedForeground}
+                    value={amount}
+                    onChangeText={setAmount}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+              </View>
+
+              <View style={{ flex: 1.2 }}>
+                <CurrencyPicker
+                  label="Currency"
+                  value={currency}
+                  onChange={setCurrency}
+                  options={currencyOptions}
                 />
               </View>
             </View>

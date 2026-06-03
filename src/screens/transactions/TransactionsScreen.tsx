@@ -40,6 +40,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import { format } from "date-fns";
 import { formatCurrency } from "../../lib/formatCurrency";
+import { useTypedSelector } from "../../store/hooks";
 import {
   Search,
   Filter,
@@ -66,6 +67,9 @@ interface TransactionsScreenProps {
 export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+
+  const user = useTypedSelector((state) => state.auth.user);
+  const baseCurrency = user?.baseCurrency || "USD";
 
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState(search);
@@ -448,10 +452,24 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
           <View style={styles.cardRight}>
             <Text style={[styles.cardAmount, { color: accentColor }]}>
               {formatCurrency(item.amount, {
+                currency: item.baseCurrencyAtTime || baseCurrency,
                 showSign: true,
                 isExpense: !isIncome,
               })}
             </Text>
+            {item.originalCurrency && item.originalCurrency !== (item.baseCurrencyAtTime || baseCurrency) && (
+              <View style={{ alignItems: "flex-end", gap: 1 }}>
+                <Text style={{ fontSize: 10, color: themeColors.mutedForeground }}>
+                  ({formatCurrency(item.originalAmount || item.amount, { currency: item.originalCurrency })})
+                </Text>
+                {item.rateSource === "cached" && (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                    <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: "#f59e0b" }} />
+                    <Text style={{ fontSize: 9, color: "#f59e0b", fontWeight: "600" }}>Cached Rate</Text>
+                  </View>
+                )}
+              </View>
+            )}
             <TouchableOpacity
               onPress={() => showActionMenu(item)}
               style={styles.moreButton}

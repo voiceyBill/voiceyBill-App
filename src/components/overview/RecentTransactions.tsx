@@ -21,6 +21,7 @@ import {
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../../theme/colors';
 import { useGetAllTransactionsQuery } from '../../features/transaction/transactionAPI';
+import { useTypedSelector } from '../../store/hooks';
 import { formatCurrency } from '../../lib/formatCurrency';
 import { format } from 'date-fns';
 import { useNavigation } from '@react-navigation/native';
@@ -57,6 +58,9 @@ export default function RecentTransactions() {
   const { activeTheme } = useTheme();
   const theme = colors[activeTheme];
   const navigation = useNavigation();
+
+  const user = useTypedSelector((state) => state.auth.user);
+  const baseCurrency = user?.baseCurrency || "USD";
 
   const { data, isLoading } = useGetAllTransactionsQuery({
     pageNumber: 1,
@@ -111,8 +115,21 @@ export default function RecentTransactions() {
                 { color: isIncome ? theme.incomeText : theme.foreground },
               ]}
             >
-              {isIncome ? '+' : '-'}{formatCurrency(item.amount, { showSign: false })}
+              {isIncome ? '+' : '-'}{formatCurrency(item.amount, { currency: item.baseCurrencyAtTime || baseCurrency, showSign: false })}
             </Text>
+            {item.originalCurrency && item.originalCurrency !== (item.baseCurrencyAtTime || baseCurrency) && (
+              <View style={{ alignItems: 'flex-end', gap: 1 }}>
+                <Text style={{ fontSize: 10, color: theme.mutedForeground }}>
+                  ({formatCurrency(item.originalAmount || item.amount, { currency: item.originalCurrency })})
+                </Text>
+                {item.rateSource === 'cached' && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                    <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#f59e0b' }} />
+                    <Text style={{ fontSize: 9, color: '#f59e0b', fontWeight: '600' }}>Cached Rate</Text>
+                  </View>
+                )}
+              </View>
+            )}
             <View
               style={[
                 styles.typeBadge,

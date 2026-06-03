@@ -41,7 +41,7 @@ export const userApi = apiClient.injectEndpoints({
         method: 'PUT',
         body: formData,
       }),
-      invalidatesTags: ['user'],
+      invalidatesTags: ['user', 'transactions', 'analytics'],
     }),
 
     updateUserProfile: builder.mutation<UpdateUserResponse, UpdateUserPayload>({
