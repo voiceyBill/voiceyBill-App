@@ -114,7 +114,7 @@ export default function ReportsScreen() {
   const styles = createStyles(themeColors);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={[]}>
       <ScrollView
         contentContainerStyle={{ paddingBottom: spacing.xl }}
         refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} />}
@@ -373,7 +373,7 @@ const createStyles = (theme: typeof colors.light) =>
     navbar: {
       backgroundColor: theme.navbar,
       paddingHorizontal: spacing.lg,
-      paddingTop: spacing.xl + 20,
+      paddingTop: spacing.md,
       paddingBottom: spacing.xl,
     },
     navbarTop: {

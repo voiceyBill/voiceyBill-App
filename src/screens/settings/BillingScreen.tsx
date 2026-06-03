@@ -11,7 +11,7 @@ export default function BillingScreen() {
   const styles = createStyles(themeColors);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={[]}>
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxxl }}>
         <View style={styles.navbar}>
           <Text style={styles.navbarTitle}>Settings</Text>
@@ -60,7 +60,7 @@ const createStyles = (theme: typeof colors.light) =>
     navbar: {
       backgroundColor: theme.navbar,
       padding: spacing.lg,
-      paddingTop: spacing.xl + 20,
+      paddingTop: spacing.md,
       paddingBottom: spacing.xl,
     },
     navbarTitle: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: theme.navbarForeground },

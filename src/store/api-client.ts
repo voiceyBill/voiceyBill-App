@@ -104,6 +104,6 @@ export const apiClient = createApi({
   refetchOnMountOrArgChange: true,
   refetchOnFocus: true,
   refetchOnReconnect: true,
-  tagTypes: ['transactions', 'analytics', 'billingSubscription', 'reports', 'user', 'Analytics'],
+  tagTypes: ['transactions', 'analytics', 'billingSubscription', 'reports', 'user', 'Analytics', 'budget'],
   endpoints: () => ({}),
 });

@@ -127,7 +127,7 @@ export default function AccountScreen() {
   const styles = createStyles(themeColors);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={[]}>
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxxl }}>
         {/* Navbar */}
         <View style={styles.navbar}>
@@ -319,7 +319,7 @@ const createStyles = (theme: typeof colors.light) =>
     navbar: {
       backgroundColor: theme.navbar,
       padding: spacing.lg,
-      paddingTop: spacing.xl + 20,
+      paddingTop: spacing.md,
       paddingBottom: spacing.xl,
     },
 

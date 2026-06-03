@@ -177,7 +177,7 @@ const createStyles = (theme: typeof colors.light) =>
     },
     navbar: {
       paddingHorizontal: spacing.lg,
-      paddingTop: spacing.xl + 20,
+      paddingTop: spacing.md,
       paddingBottom: spacing.md,
     },
     greeting: {

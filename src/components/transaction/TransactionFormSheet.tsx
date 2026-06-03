@@ -156,7 +156,7 @@ export default function TransactionFormSheet({
       title,
       amount: parseFloat(amount),
       type,
-      category,
+      category: category.trim().toLowerCase(),
       date: date.toISOString(),
       paymentMethod,
       isRecurring,

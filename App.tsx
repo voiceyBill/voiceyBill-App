@@ -8,6 +8,7 @@ import { PersistGate } from "redux-persist/integration/react";
 
 import { store, persistor } from "./src/store/store";
 import { ThemeProvider } from "./src/context/ThemeContext";
+import { NotificationProvider } from "./src/context/NotificationContext";
 import AppNavigator from "./src/navigation/AppNavigator";
 import SplashScreen from "./src/components/SplashScreen";
 import { configureNotifications } from "./src/lib/push-notifications";
@@ -25,14 +26,16 @@ export default function App() {
         <PersistGate loading={null} persistor={persistor}>
           <SafeAreaProvider>
             <ThemeProvider>
-              <StatusBar style="auto" />
+              <NotificationProvider>
+                <StatusBar style="auto" />
 
-              {/* FIXED: only one renders at a time */}
-              {splashDone ? (
-                <AppNavigator />
-              ) : (
-                <SplashScreen onComplete={() => setSplashDone(true)} />
-              )}
+                {/* FIXED: only one renders at a time */}
+                {splashDone ? (
+                  <AppNavigator />
+                ) : (
+                  <SplashScreen onComplete={() => setSplashDone(true)} />
+                )}
+              </NotificationProvider>
             </ThemeProvider>
           </SafeAreaProvider>
         </PersistGate>
