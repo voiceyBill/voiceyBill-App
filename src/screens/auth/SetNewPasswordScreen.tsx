@@ -9,6 +9,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -18,6 +19,11 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../../theme/colors';
 import Logo from '../../components/common/Logo';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
+import {
+  getPasswordRules,
+  getPasswordValidationMessage,
+  mapAuthApiErrors,
+} from '../../features/auth/authValidation';
 
 type SetNewPasswordRouteProp = RouteProp<AuthStackParamList, 'SetNewPassword'>;
 
@@ -34,37 +40,59 @@ export default function SetNewPasswordScreen() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [errors, setErrors] = useState<{ password?: string; confirmPassword?: string }>({});
   const [resetPassword, { isLoading }] = useResetPasswordMutation();
+  const scrollRef = useRef<ScrollView>(null);
   const confirmPasswordRef = useRef<TextInput>(null);
+  const rules = getPasswordRules(password);
+
+  const scrollToFormEnd = () => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 250);
+  };
 
   const validate = () => {
     const newErrors: typeof errors = {};
-    if (!password) newErrors.password = 'Password is required';
-    else if (password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+    const passwordError = getPasswordValidationMessage(password);
+
+    if (passwordError) newErrors.password = passwordError;
     if (!confirmPassword) newErrors.confirmPassword = 'Please confirm your password';
     else if (password !== confirmPassword) newErrors.confirmPassword = "Passwords don't match";
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleReset = async () => {
     if (!validate()) return;
+
     try {
       await resetPassword({ email, otp, password }).unwrap();
       Alert.alert('Password reset', 'Your password has been reset successfully. Please sign in.', [
         { text: 'Sign in', onPress: () => (navigation as any).navigate('SignIn') },
       ]);
     } catch (error: any) {
-      Alert.alert('Error', error?.data?.message || 'Failed to reset password. Please try again.');
+      setErrors(mapAuthApiErrors(error, 'Failed to reset password. Please try again.', 'password'));
     }
   };
 
   const styles = createStyles(themeColors);
+  const canSubmit =
+    !isLoading &&
+    password !== '' &&
+    confirmPassword !== '' &&
+    password === confirmPassword &&
+    !getPasswordValidationMessage(password);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+      >
         <ScrollView
+          ref={scrollRef}
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           contentContainerStyle={styles.scrollContent}
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -80,73 +108,96 @@ export default function SetNewPasswordScreen() {
             </View>
 
             <View style={styles.form}>
-              {/* New password */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>New password</Text>
                 <View style={[styles.passwordWrap, errors.password ? styles.inputError : null]}>
                   <TextInput
-                    style={[styles.passwordInput, { color: themeColors.foreground }]}
-                    placeholder="Min. 6 characters"
+                    style={styles.passwordInput}
+                    placeholder="At least 8 characters"
                     placeholderTextColor={themeColors.mutedForeground}
                     value={password}
-                    onChangeText={(v) => { setPassword(v); setErrors((e) => ({ ...e, password: undefined })); }}
+                    onChangeText={(v) => {
+                      setPassword(v);
+                      setErrors((e) => ({ ...e, password: undefined }));
+                    }}
                     secureTextEntry={!showPassword}
                     editable={!isLoading}
                     returnKeyType="next"
                     submitBehavior="submit"
+                    onFocus={scrollToFormEnd}
                     onSubmitEditing={() => confirmPasswordRef.current?.focus()}
                   />
                   <TouchableOpacity
                     onPress={() => setShowPassword(!showPassword)}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
-                    {showPassword
-                      ? <EyeOff size={18} color={themeColors.mutedForeground} />
-                      : <Eye size={18} color={themeColors.mutedForeground} />
-                    }
+                    {showPassword ? (
+                      <EyeOff size={18} color={themeColors.mutedForeground} />
+                    ) : (
+                      <Eye size={18} color={themeColors.mutedForeground} />
+                    )}
                   </TouchableOpacity>
                 </View>
                 {!!errors.password && <Text style={styles.error}>{errors.password}</Text>}
+                <View style={styles.passwordRules}>
+                  <Text style={[styles.passwordRule, rules.length && styles.passwordRuleValid]}>
+                    - At least 8 characters
+                  </Text>
+                  <Text style={[styles.passwordRule, rules.uppercase && styles.passwordRuleValid]}>
+                    - One uppercase letter
+                  </Text>
+                  <Text style={[styles.passwordRule, rules.number && styles.passwordRuleValid]}>
+                    - One number
+                  </Text>
+                  <Text style={[styles.passwordRule, rules.special && styles.passwordRuleValid]}>
+                    - One special character
+                  </Text>
+                </View>
               </View>
 
-              {/* Confirm password */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Confirm password</Text>
                 <View style={[styles.passwordWrap, errors.confirmPassword ? styles.inputError : null]}>
                   <TextInput
                     ref={confirmPasswordRef}
-                    style={[styles.passwordInput, { color: themeColors.foreground }]}
+                    style={styles.passwordInput}
                     placeholder="Re-enter your password"
                     placeholderTextColor={themeColors.mutedForeground}
                     value={confirmPassword}
-                    onChangeText={(v) => { setConfirmPassword(v); setErrors((e) => ({ ...e, confirmPassword: undefined })); }}
+                    onChangeText={(v) => {
+                      setConfirmPassword(v);
+                      setErrors((e) => ({ ...e, confirmPassword: undefined }));
+                    }}
                     secureTextEntry={!showConfirm}
                     editable={!isLoading}
                     returnKeyType="done"
+                    onFocus={scrollToFormEnd}
                     onSubmitEditing={handleReset}
                   />
                   <TouchableOpacity
                     onPress={() => setShowConfirm(!showConfirm)}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
-                    {showConfirm
-                      ? <EyeOff size={18} color={themeColors.mutedForeground} />
-                      : <Eye size={18} color={themeColors.mutedForeground} />
-                    }
+                    {showConfirm ? (
+                      <EyeOff size={18} color={themeColors.mutedForeground} />
+                    ) : (
+                      <Eye size={18} color={themeColors.mutedForeground} />
+                    )}
                   </TouchableOpacity>
                 </View>
                 {!!errors.confirmPassword && <Text style={styles.error}>{errors.confirmPassword}</Text>}
               </View>
 
               <TouchableOpacity
-                style={[styles.button, isLoading && styles.buttonDisabled]}
+                style={[styles.button, !canSubmit && styles.buttonDisabled]}
                 onPress={handleReset}
-                disabled={isLoading}
+                disabled={!canSubmit}
               >
-                {isLoading
-                  ? <ActivityIndicator color={themeColors.primaryForeground} />
-                  : <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>Reset password</Text>
-                }
+                {isLoading ? (
+                  <ActivityIndicator color={themeColors.primaryForeground} />
+                ) : (
+                  <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>Reset password</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -159,7 +210,12 @@ export default function SetNewPasswordScreen() {
 const createStyles = (theme: typeof colors.light) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
-    scrollContent: { padding: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+    scrollContent: {
+      flexGrow: 1,
+      padding: spacing.lg,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.xxxl,
+    },
     backBtn: { marginBottom: spacing.lg, alignSelf: 'flex-start', padding: spacing.xs },
     content: { maxWidth: 400, width: '100%', alignSelf: 'center' },
     header: { marginBottom: spacing.xl, alignItems: 'center', gap: spacing.sm },
@@ -187,9 +243,13 @@ const createStyles = (theme: typeof colors.light) =>
       flex: 1,
       paddingVertical: spacing.md,
       fontSize: fontSize.md,
+      color: theme.foreground,
     },
     inputError: { borderColor: theme.destructive },
     error: { fontSize: fontSize.xs, color: theme.destructive },
+    passwordRules: { marginTop: spacing.xs, gap: spacing.xs },
+    passwordRule: { fontSize: fontSize.xs, color: theme.mutedForeground },
+    passwordRuleValid: { color: theme.incomeText },
     button: {
       backgroundColor: theme.primary,
       padding: spacing.md,

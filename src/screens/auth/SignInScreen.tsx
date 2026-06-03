@@ -19,6 +19,7 @@ import { setRefreshToken } from '../../lib/tokenStorage';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../../theme/colors';
 import Logo from '../../components/common/Logo';
+import { getPasswordValidationMessage, mapAuthApiErrors } from '../../features/auth/authValidation';
 
 export default function SignInScreen() {
   const navigation = useNavigation();
@@ -36,10 +37,12 @@ export default function SignInScreen() {
 
   const validate = () => {
     const newErrors: { email?: string; password?: string } = {};
-    if (!email) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Invalid email address';
-    if (!password) newErrors.password = 'Password is required';
-    else if (password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+    if (!email.trim()) newErrors.email = 'Email is required';
+    else if (!/\S+@\S+\.\S+/.test(email.trim())) newErrors.email = 'Invalid email address';
+
+    const passwordError = getPasswordValidationMessage(password);
+    if (passwordError) newErrors.password = passwordError;
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -47,19 +50,24 @@ export default function SignInScreen() {
   const handleLogin = async () => {
     if (!validate()) return;
     try {
-      const result = await login({ email, password }).unwrap();
+      const result = await login({ email: email.trim(), password }).unwrap();
       await setRefreshToken(result.refreshToken);
       dispatch(setCredentials(result));
     } catch (error: any) {
       if (error?.data?.errorCode === 'AUTH_EMAIL_NOT_VERIFIED') {
-        (navigation as any).navigate('VerifyOtp', { email });
+        (navigation as any).navigate('VerifyOtp', { email: email.trim() });
         return;
       }
-      setErrors({ email: error?.data?.message || 'Login failed. Please try again.' });
+      setErrors(mapAuthApiErrors(error, 'Invalid email/password', 'password'));
     }
   };
 
   const styles = createStyles(themeColors);
+  const canSubmit =
+    !isLoading &&
+    email.trim() !== '' &&
+    password !== '' &&
+    !getPasswordValidationMessage(password);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -126,9 +134,9 @@ export default function SignInScreen() {
               </View>
 
               <TouchableOpacity
-                style={[styles.button, isLoading && styles.buttonDisabled]}
+                style={[styles.button, !canSubmit && styles.buttonDisabled]}
                 onPress={handleLogin}
-                disabled={isLoading}
+                disabled={!canSubmit}
               >
                 {isLoading
                   ? <ActivityIndicator color={themeColors.primaryForeground} />
