@@ -24,13 +24,30 @@ interface ReportSetting {
   frequency?: string;
 }
 
-interface AuthResponse {
+export interface AuthResponse {
   user: AuthUser;
   accessToken: string;
   refreshToken: string;
   expiresAt?: string;
   reportSetting?: ReportSetting | null;
 }
+
+interface GoogleUserProfile {
+  id?: string;
+  email?: string;
+  name?: string;
+  givenName?: string;
+  familyName?: string;
+  picture?: string;
+}
+
+interface GoogleAuthCredentials {
+  idToken?: string;
+  accessToken?: string;
+  user?: GoogleUserProfile | null;
+}
+
+const GOOGLE_AUTH_ENDPOINT = process.env.EXPO_PUBLIC_GOOGLE_AUTH_ENDPOINT ?? '/auth/google';
 
 interface RegisterResponse {
   message: string;
@@ -66,6 +83,16 @@ export const authApi = apiClient.injectEndpoints({
         url: '/auth/login',
         method: 'POST',
         body: credentials,
+      }),
+    }),
+    googleLogin: builder.mutation<AuthResponse, GoogleAuthCredentials>({
+      query: (credentials) => ({
+        url: GOOGLE_AUTH_ENDPOINT,
+        method: 'POST',
+        body: {
+          provider: 'google',
+          ...credentials,
+        },
       }),
     }),
     verifyOtp: builder.mutation<VerifyOtpResponse, { email: string; otp: string }>({
@@ -113,6 +140,7 @@ export const authApi = apiClient.injectEndpoints({
 
 export const {
   useLoginMutation,
+  useGoogleLoginMutation,
   useRegisterMutation,
   useVerifyOtpMutation,
   useResendOtpMutation,

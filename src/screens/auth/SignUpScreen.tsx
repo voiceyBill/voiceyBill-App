@@ -21,6 +21,8 @@ import {
   getPasswordRules,
   mapAuthApiErrors,
 } from '../../features/auth/authValidation';
+import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
+import { useGoogleAuth } from '../../features/auth/hooks/useGoogleAuth';
 
 export default function SignUpScreen() {
   const navigation = useNavigation();
@@ -35,6 +37,12 @@ export default function SignUpScreen() {
   const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
 
   const [register, { isLoading }] = useRegisterMutation();
+  const {
+    error: googleError,
+    isGoogleLoading,
+    isGoogleReady,
+    signInWithGoogle,
+  } = useGoogleAuth();
   const scrollRef = useRef<ScrollView>(null);
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
@@ -224,7 +232,7 @@ export default function SignUpScreen() {
               <TouchableOpacity
                 style={[styles.button, !canSubmit && styles.buttonDisabled]}
                 onPress={handleRegister}
-                disabled={!canSubmit}
+                disabled={!canSubmit || isGoogleLoading}
               >
                 {isLoading ? (
                   <ActivityIndicator color={themeColors.primaryForeground} />
@@ -232,6 +240,20 @@ export default function SignUpScreen() {
                   <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>Create account</Text>
                 )}
               </TouchableOpacity>
+
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <GoogleAuthButton
+                themeColors={themeColors}
+                onPress={signInWithGoogle}
+                isLoading={isGoogleLoading}
+                disabled={isLoading || isGoogleLoading || !isGoogleReady}
+              />
+              {!!googleError && <Text style={styles.error}>{googleError}</Text>}
 
               <View style={styles.footer}>
                 <Text style={styles.footerText}>Already have an account? </Text>
@@ -310,6 +332,14 @@ const createStyles = (theme: typeof colors.light) =>
     },
     buttonDisabled: { opacity: 0.6 },
     buttonText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold },
+    dividerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginVertical: spacing.xs,
+    },
+    dividerLine: { flex: 1, height: 1, backgroundColor: theme.border },
+    dividerText: { fontSize: fontSize.xs, color: theme.mutedForeground },
     footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.sm },
     footerText: { fontSize: fontSize.sm, color: theme.mutedForeground },
     link: {
