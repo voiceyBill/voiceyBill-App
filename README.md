@@ -14,6 +14,7 @@ voiceyBill-App helps users track income and expenses with a mobile-first experie
 - Dashboard analytics and summaries
 - Voice-assisted transaction flows
 - Report and category insights
+- **Multi-Currency Support**: Select currencies per-transaction, auto-convert amounts using live/cached exchange rates, see cached-rate warning indicators, and display cohesive dashboards converted to your chosen base currency.
 
 ## Open Source Standards
 

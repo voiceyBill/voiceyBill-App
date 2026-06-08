@@ -4,17 +4,20 @@
     "slug": "voiceybill-mobile",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
+    "scheme": [
+      "voiceybill",
+      "com.voiceybill.mobile"
+    ],
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "runtimeVersion": {
-      "policy": "sdkVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
-      "url": "",
       "fallbackToCacheTimeout": 0,
       "checkAutomatically": "ON_LOAD"
     },
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/icon.png",
       "backgroundColor": "#ffffff",
       "resizeMode": "contain"
     },
@@ -50,7 +53,8 @@
       ],
       ["expo-av", {}],
       "expo-updates",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {

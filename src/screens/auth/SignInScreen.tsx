@@ -20,6 +20,8 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../../theme/colors';
 import Logo from '../../components/common/Logo';
 import { getPasswordValidationMessage, mapAuthApiErrors } from '../../features/auth/authValidation';
+import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
+import { useGoogleAuth } from '../../features/auth/hooks/useGoogleAuth';
 
 export default function SignInScreen() {
   const navigation = useNavigation();
@@ -34,6 +36,12 @@ export default function SignInScreen() {
   const passwordRef = useRef<TextInput>(null);
 
   const [login, { isLoading }] = useLoginMutation();
+  const {
+    error: googleError,
+    isGoogleLoading,
+    isGoogleReady,
+    signInWithGoogle,
+  } = useGoogleAuth();
 
   const validate = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -136,13 +144,27 @@ export default function SignInScreen() {
               <TouchableOpacity
                 style={[styles.button, !canSubmit && styles.buttonDisabled]}
                 onPress={handleLogin}
-                disabled={!canSubmit}
+                disabled={!canSubmit || isGoogleLoading}
               >
                 {isLoading
                   ? <ActivityIndicator color={themeColors.primaryForeground} />
                   : <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>Sign in</Text>
                 }
               </TouchableOpacity>
+
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <GoogleAuthButton
+                themeColors={themeColors}
+                onPress={signInWithGoogle}
+                isLoading={isGoogleLoading}
+                disabled={isLoading || isGoogleLoading || !isGoogleReady}
+              />
+              {!!googleError && <Text style={styles.error}>{googleError}</Text>}
 
               <TouchableOpacity
                 style={styles.forgotRow}
@@ -233,6 +255,14 @@ const createStyles = (theme: typeof colors.light) =>
     },
     buttonDisabled: { opacity: 0.6 },
     buttonText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold },
+    dividerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginVertical: spacing.xs,
+    },
+    dividerLine: { flex: 1, height: 1, backgroundColor: theme.border },
+    dividerText: { fontSize: fontSize.xs, color: theme.mutedForeground },
     forgotRow: { alignItems: 'flex-end' },
     footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.sm },
     footerText: { fontSize: fontSize.sm, color: theme.mutedForeground },

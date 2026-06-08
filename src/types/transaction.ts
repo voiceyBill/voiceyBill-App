@@ -4,6 +4,12 @@ export interface Transaction {
   _id: string;
   title: string;
   amount: number;
+  originalAmount?: number | null;
+  originalCurrency?: string | null;
+  baseCurrencyAtTime?: string | null;
+  exchangeRate?: number | null;
+  rateSource?: 'live' | 'cached' | null;
+  exchangeRateFetchedAt?: string | null;
   category: string;
   description?: string;
   type: _TransactionType;
@@ -29,6 +35,7 @@ export interface CreateTransactionBody {
   status?: TransactionStatusType;
   isRecurring?: boolean;
   recurringFrequency?: TransactionFrequencyType;
+  currency?: string;
 }
 
 export interface GetAllTransactionParams {

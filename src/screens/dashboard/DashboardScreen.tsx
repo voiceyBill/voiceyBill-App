@@ -38,6 +38,7 @@ export default function DashboardScreen() {
   const [preset, setPreset] = useState<DateRangePreset>("30days");
   const [showForm, setShowForm] = useState(false);
   const user = useTypedSelector((s) => s.auth.user);
+  const baseCurrency = user?.baseCurrency || "USD";
 
   const summaryQuery = useGetSummaryAnalyticsQuery({ preset });
   const chartQuery = useGetChartAnalyticsQuery({ preset });
@@ -94,6 +95,7 @@ export default function DashboardScreen() {
               percentageChange={summary?.percentageChange?.balance}
               dateRangeLabel={summary?.preset?.label || "for Last 30 Days"}
               isLoading={summaryQuery.isFetching}
+              currency={baseCurrency}
             />
             <StatsCard
               title="Total Income"
@@ -102,6 +104,7 @@ export default function DashboardScreen() {
               percentageChange={summary?.percentageChange?.income}
               dateRangeLabel={summary?.preset?.label || "for Last 30 Days"}
               isLoading={summaryQuery.isFetching}
+              currency={baseCurrency}
             />
             <StatsCard
               title="Total Expenses"
@@ -110,6 +113,7 @@ export default function DashboardScreen() {
               percentageChange={summary?.percentageChange?.expenses}
               dateRangeLabel={summary?.preset?.label || "for Last 30 Days"}
               isLoading={summaryQuery.isFetching}
+              currency={baseCurrency}
             />
             <StatsCard
               title="Savings Rate"
@@ -118,6 +122,7 @@ export default function DashboardScreen() {
               expenseRatio={summary?.savingRate?.expenseRatio}
               dateRangeLabel={summary?.preset?.label || "for Last 30 Days"}
               isLoading={summaryQuery.isFetching}
+              currency={baseCurrency}
             />
           </View>
         </View>
@@ -131,6 +136,7 @@ export default function DashboardScreen() {
               totalIncomeCount={chartQuery.data?.data?.totalIncomeCount || 0}
               totalExpenseCount={chartQuery.data?.data?.totalExpenseCount || 0}
               periodLabel={summary?.preset?.label || "Past 30 Days"}
+              baseCurrency={baseCurrency}
             />
           </View>
 
@@ -140,6 +146,7 @@ export default function DashboardScreen() {
               breakdown={pieQuery.data?.data?.breakdown || []}
               total={pieQuery.data?.data?.totalSpent || 0}
               periodLabel={summary?.preset?.label}
+              baseCurrency={baseCurrency}
             />
           </View>
 

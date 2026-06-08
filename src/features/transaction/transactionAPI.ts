@@ -10,10 +10,13 @@ import {
 export interface AIScanReceiptResponse {
   message: string;
   data: {
+    title?: string;
     amount: number;
     category: string;
     description: string;
     date: string;
+    currency?: string;
+    paymentMethod?: string;
   };
 }
 

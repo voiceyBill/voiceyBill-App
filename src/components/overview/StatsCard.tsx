@@ -22,6 +22,7 @@ type Props = {
   expenseRatio?: number;
   dateRangeLabel?: string;
   isLoading?: boolean;
+  currency?: string;
 };
 
 const getCardStatus = (
@@ -109,6 +110,7 @@ export default function StatsCard({
   cardType,
   expenseRatio,
   dateRangeLabel = "for Last 30 Days",
+  currency = "USD",
 }: Props) {
   const { activeTheme } = useTheme();
   const theme = colors[activeTheme];
@@ -124,6 +126,7 @@ export default function StatsCard({
       : formatCurrency(value, {
           showSign: cardType === "balance" && value < 0,
           isExpense: cardType === "expenses",
+          currency,
         });
 
   return (
