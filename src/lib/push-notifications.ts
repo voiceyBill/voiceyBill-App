@@ -41,6 +41,6 @@ export const registerForPushNotificationsAsync = async (): Promise<{
     });
   }
 
-  const token = await Notifications.getDevicePushTokenAsync();
+  const token = await Notifications.getExpoPushTokenAsync();
   return { status: "granted", token: token.data };
 };

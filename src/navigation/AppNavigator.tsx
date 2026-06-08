@@ -22,10 +22,6 @@ export default function AppNavigator() {
       return;
     }
 
-    if (Platform.OS !== "android") {
-      return;
-    }
-
     let isMounted = true;
 
     const register = async () => {
