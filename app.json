@@ -16,6 +16,7 @@
       "fallbackToCacheTimeout": 0,
       "checkAutomatically": "ON_LOAD"
     },
+    "icon": "./assets/icon.png",
     "splash": {
       "backgroundColor": "#ffffff",
       "resizeMode": "contain"
@@ -35,6 +36,10 @@
     },
     "android": {
       "package": "com.voiceybill.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#ffffff"
+      },
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.RECORD_AUDIO",
