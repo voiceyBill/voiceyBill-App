@@ -6,7 +6,8 @@
     "sdkVersion": "54.0.0",
     "scheme": [
       "voiceybill",
-      "com.voiceybill.mobile"
+      "com.voiceybill.mobile",
+      "com.googleusercontent.apps.747929251420-lrvmm7c2vbm1g4f7shn2kgj4f9o8eq53"
     ],
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
@@ -21,9 +22,7 @@
       "backgroundColor": "#ffffff",
       "resizeMode": "contain"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.voiceybill.mobile",
@@ -54,10 +53,7 @@
           "photosPermission": "The app needs access to your photos to scan receipts."
         }
       ],
-      [
-        "expo-av",
-        {}
-      ],
+      ["expo-av", {}],
       "expo-updates",
       "expo-secure-store",
       "expo-web-browser"
