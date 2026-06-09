@@ -4,11 +4,7 @@
     "slug": "voiceybill-mobile",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
-    "scheme": [
-      "voiceybill",
-      "com.voiceybill.mobile",
-      "com.googleusercontent.apps.747929251420-lrvmm7c2vbm1g4f7shn2kgj4f9o8eq53"
-    ],
+    "scheme": ["voiceybill", "com.voiceybill.mobile"],
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "runtimeVersion": "1.0.0",
@@ -56,7 +52,13 @@
       ["expo-av", {}],
       "expo-updates",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.REPLACE_WITH_IOS_CLIENT_ID"
+        }
+      ]
     ],
     "extra": {
       "eas": {
