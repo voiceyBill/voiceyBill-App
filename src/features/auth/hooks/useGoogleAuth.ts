@@ -54,6 +54,7 @@ type GoogleProfile = {
 };
 
 const getFriendlyError = (err: unknown): string => {
+  // ── Google Sign-In SDK errors (device-level) ────────────────────────────────
   if (isErrorWithCode(err)) {
     switch ((err as any).code) {
       case statusCodes.SIGN_IN_CANCELLED:
@@ -63,13 +64,38 @@ const getFriendlyError = (err: unknown): string => {
       case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
         return "Google Play Services is not available or outdated on this device.";
       default:
+        // Unrecognised SDK error code — surface it in DEV so we can see it.
+        if (__DEV__)
+          return `Google SDK error (code: ${(err as any).code}). Check logs.`;
         return "Google sign-in failed. Please try again.";
     }
   }
-  const message = (err as any)?.data?.message ?? (err as any)?.message;
-  if (typeof message === "string" && message.trim()) return message;
-  if ((err as any)?.status === "FETCH_ERROR")
+
+  // ── Backend / network errors (RTK Query FetchBaseQueryError) ────────────────
+  const e = err as any;
+
+  // Network-level failures
+  if (e?.status === "FETCH_ERROR")
     return "Network error. Check your connection and try again.";
+  if (e?.status === "TIMEOUT_ERROR")
+    return "Request timed out. Check your connection and try again.";
+
+  // HTTP error — extract whatever message the backend returned
+  const backendMessage =
+    e?.data?.message ?? // { message: "..." }  — most common
+    e?.data?.error ?? // { error: "..." }
+    e?.data?.detail ?? // { detail: "..." }  — DRF / FastAPI style
+    e?.message; // plain Error object
+
+  if (typeof backendMessage === "string" && backendMessage.trim()) {
+    return backendMessage;
+  }
+
+  // HTTP status code hint for developers
+  if (__DEV__ && typeof e?.status === "number") {
+    return `Server returned ${e.status}. Check logs for details.`;
+  }
+
   return "Google sign-in failed. Please try again.";
 };
 
@@ -122,6 +148,15 @@ export const useGoogleAuth = () => {
       await setRefreshToken(authResult.refreshToken);
       dispatch(setCredentials(authResult));
     } catch (err) {
+      // Log the full error so we can diagnose backend/SDK failures.
+      // Check Metro (dev build) or Logcat (production) for these lines.
+      console.error("[GoogleAuth] sign-in failed:", err);
+      if (__DEV__) {
+        console.error(
+          "[GoogleAuth] error detail:",
+          JSON.stringify(err, null, 2),
+        );
+      }
       setError(getFriendlyError(err));
     } finally {
       setIsSigningIn(false);
