@@ -20,12 +20,11 @@ function AppContent() {
 
   // Store navigation ref in context so VoiceRecordingModalContainer can use it
   useEffect(() => {
-    if (!navigationSetRef.current) {
-      setNavigationRef(navigation);
-      navigationSetRef.current = true;
-    }
-  }, []);
-
+  if (!navigationSetRef.current) {
+    setNavigationRef(navigation as any); // FIX CI TYPE ERROR
+    navigationSetRef.current = true;
+  }
+}, []);
   return (
     <>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
