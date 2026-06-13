@@ -158,16 +158,24 @@ export const borderRadius = {
 };
 
 // Typography
+export const fontFamily = {
+  regular: "Inter_400Regular",
+  medium: "Inter_500Medium",
+  semibold: "Inter_600SemiBold",
+  bold: "Inter_700Bold",
+  extrabold: "Inter_800ExtraBold",
+};
+
 export const fontSize = {
-  xs: 12,
-  sm: 14,
-  base: 16,
-  md: 16,
-  lg: 18,
-  xl: 20,
-  "2xl": 24,
-  "3xl": 30,
-  "4xl": 36,
+  xs: 11,
+  sm: 13,
+  base: 15,
+  md: 15,
+  lg: 17,
+  xl: 19,
+  "2xl": 22,
+  "3xl": 28,
+  "4xl": 34,
 };
 
 export const fontWeight = {
@@ -224,7 +232,18 @@ export const shadows = {
     shadowRadius: 0,
     elevation: 0,
   },
+  // Premium card shadow used across screens (matches dashboard surfaces)
+  card: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 20,
+    elevation: 3,
+  },
 };
+
+// Shared radius for premium card surfaces
+export const cardRadius = 20;
 
 export const maxWidth = {
   container: 1248,

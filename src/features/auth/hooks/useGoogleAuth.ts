@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { Platform } from "react-native";
 import {
   GoogleSignin,
   statusCodes,
@@ -31,15 +32,19 @@ import { useAppDispatch } from "../../../store/hooks";
 // can verify with the Google Auth Library.
 // ─────────────────────────────────────────────────────────────────────────────
 
-GoogleSignin.configure({
-  // Required — tells Google which server-side client will validate the idToken.
-  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-  // Request an id_token (needed by the backend) plus basic profile scopes.
-  scopes: ["profile", "email"],
-  // offlineAccess: true would return a serverAuthCode for server-side token
-  // exchange. We don't need it because the backend validates the idToken directly.
-  offlineAccess: false,
-});
+try {
+  GoogleSignin.configure({
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    ...(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID &&
+      process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID !== "your_ios_client_id_here" && {
+        iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+      }),
+    scopes: ["profile", "email"],
+    offlineAccess: false,
+  });
+} catch (e) {
+  console.warn("[GoogleAuth] configure skipped — iOS client ID not set:", e);
+}
 
 // Fields match GoogleUserProfile in authAPI.ts (string | undefined, no null).
 // The native SDK returns string | null for optional fields, so we convert
@@ -165,8 +170,12 @@ export const useGoogleAuth = () => {
 
   return {
     error,
-    // isGoogleReady is always true — the native SDK initialises synchronously.
-    isGoogleReady: Boolean(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID),
+    isGoogleReady:
+      Boolean(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID) &&
+      (Platform.OS !== "ios" ||
+        (Boolean(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID) &&
+          process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID !==
+            "your_ios_client_id_here")),
     isGoogleLoading: isSigningIn || isExchangingToken,
     signInWithGoogle,
   };

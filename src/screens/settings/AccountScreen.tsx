@@ -8,12 +8,13 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
-  Alert,
   Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { User, Camera } from "lucide-react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import { User, Camera, ChevronLeft } from "lucide-react-native";
 import { useTheme } from "../../context/ThemeContext";
+import { useToast } from "../../context/NotificationContext";
 import { useTypedSelector, useAppDispatch } from "../../store/hooks";
 import { updateUser as updateUserStore } from "../../features/auth/authSlice";
 import {
@@ -22,6 +23,9 @@ import {
   fontSize,
   fontWeight,
   borderRadius,
+  fontFamily,
+  shadows,
+  cardRadius,
 } from "../../theme/colors";
 import * as ImagePicker from "expo-image-picker";
 import { useUpdateUserMutation } from "../../features/user/userAPI";
@@ -30,8 +34,11 @@ import { useGetSupportedCurrenciesQuery } from "../../features/currency/currency
 import { ALL_CURRENCIES } from "../../constants/currencies";
 
 export default function AccountScreen() {
+  const navigation = useNavigation();
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { showToast } = useToast();
+  const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
   const user = useTypedSelector((state) => state.auth.user);
 
@@ -148,9 +155,9 @@ export default function AccountScreen() {
         setPicked(null);
       }
 
-      Alert.alert("Saved", "Account updated successfully");
+      showToast({ type: "success", title: "Saved", message: "Account updated successfully." });
     } catch {
-      Alert.alert("Update failed", "Could not update your account");
+      showToast({ type: "error", title: "Update failed", message: "Could not update your account." });
     } finally {
       setIsSaving(false);
     }
@@ -159,114 +166,65 @@ export default function AccountScreen() {
   const styles = createStyles(themeColors);
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxxl }}>
-        {/* Navbar */}
-        <View style={styles.navbar}>
-          <Text style={styles.navbarTitle}>Settings</Text>
-          <Text style={styles.navbarSubtitle}>
-            Manage your account settings and set e-mail preferences.
-          </Text>
+    <SafeAreaView style={styles.container} edges={[]}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: spacing.xxxl }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={[styles.screenHeader, { paddingTop: Math.max(insets.top, spacing.sm) }]}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={[styles.backBtn, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <ChevronLeft size={20} color={themeColors.foreground} />
+          </TouchableOpacity>
+          <View style={styles.headerTextWrap}>
+            <Text style={[styles.screenTitle, { color: themeColors.foreground }]}>Account</Text>
+            <Text style={[styles.screenSubtitle, { color: themeColors.mutedForeground }]}>
+              Profile & preferences
+            </Text>
+          </View>
         </View>
 
         <View style={styles.content}>
+          {/* Avatar hero */}
+          <View style={styles.avatarHero}>
+            <TouchableOpacity onPress={handleChooseFile} activeOpacity={0.85} style={styles.avatarWrap}>
+              {avatarPreview ? (
+                <Image source={{ uri: avatarPreview }} style={styles.avatarImage} />
+              ) : (
+                <View style={[styles.avatarPlaceholder, { backgroundColor: themeColors.primary + "18" }]}>
+                  <User size={36} color={themeColors.primary} strokeWidth={1.5} />
+                </View>
+              )}
+              <View style={[styles.cameraIcon, { backgroundColor: themeColors.primary, borderColor: themeColors.background }]}>
+                <Camera size={12} color={themeColors.primaryForeground} />
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleChooseFile}
+              style={[styles.changePhotoBtn, { borderColor: themeColors.border }]}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.changePhotoBtnText, { color: themeColors.foreground }]}>Change photo</Text>
+            </TouchableOpacity>
+            <Text style={[styles.avatarHint, { color: themeColors.mutedForeground }]}>
+              JPG or PNG, at least 300×300px
+            </Text>
+          </View>
+
           <View
             style={[
               styles.card,
-              {
-                backgroundColor: themeColors.card,
-                borderColor: themeColors.border,
-              },
+              { backgroundColor: themeColors.card, borderColor: themeColors.border },
             ]}
           >
-            {/* Profile Picture */}
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.label, { color: themeColors.foreground }]}>
-                Profile Picture
-              </Text>
-
-              <View style={styles.avatarRow}>
-                {/* Avatar */}
-                <View style={styles.avatarWrap}>
-                  {avatarPreview ? (
-                    <Image
-                      source={{ uri: avatarPreview }}
-                      style={styles.avatarImage}
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        styles.avatarPlaceholder,
-                        { backgroundColor: themeColors.muted },
-                      ]}
-                    >
-                      <User
-                        size={32}
-                        color={themeColors.mutedForeground}
-                        strokeWidth={1.5}
-                      />
-                    </View>
-                  )}
-
-                  <View
-                    style={[
-                      styles.cameraIcon,
-                      {
-                        backgroundColor: themeColors.primary,
-                        borderColor: themeColors.card,
-                      },
-                    ]}
-                  >
-                    <Camera size={13} color={themeColors.primaryForeground} />
-                  </View>
-                </View>
-
-                {/* Controls */}
-                <View style={styles.avatarControls}>
-                  <TouchableOpacity
-                    style={[
-                      styles.changePhotoBtn,
-                      {
-                        borderColor: themeColors.border,
-                        backgroundColor: themeColors.background,
-                      },
-                    ]}
-                    onPress={handleChooseFile}
-                    activeOpacity={0.7}
-                  >
-                    <Text
-                      style={[
-                        styles.changePhotoBtnText,
-                        { color: themeColors.foreground },
-                      ]}
-                    >
-                      Change photo
-                    </Text>
-                  </TouchableOpacity>
-
-                  <Text
-                    style={[
-                      styles.avatarHint,
-                      { color: themeColors.mutedForeground },
-                    ]}
-                  >
-                    Recommended: Square JPG, PNG, at least 300×300px.
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Divider */}
-            <View
-              style={[styles.divider, { backgroundColor: themeColors.border }]}
-            />
-
             {/* Name */}
             <View style={styles.fieldGroup}>
-              <Text style={[styles.label, { color: themeColors.foreground }]}>
-                Name
-              </Text>
-
+              <Text style={[styles.label, { color: themeColors.foreground }]}>Name</Text>
               <TextInput
                 style={[
                   styles.input,
@@ -283,13 +241,8 @@ export default function AccountScreen() {
               />
             </View>
 
-            {/* Divider */}
-            <View
-              style={[styles.divider, { backgroundColor: themeColors.border }]}
-            />
-
             {/* Base Currency */}
-            <View style={styles.fieldGroup}>
+            <View style={[styles.fieldGroup, { marginBottom: 0 }]}>
               <CurrencyPicker
                 label="Base Currency"
                 value={baseCurrency}
@@ -297,41 +250,38 @@ export default function AccountScreen() {
                 options={currencyOptions}
               />
             </View>
-
-            {/* Submit */}
-            <TouchableOpacity
-              style={[
-                styles.button,
-                {
-                  backgroundColor: hasChanges
-                    ? themeColors.primary
-                    : themeColors.muted,
-                },
-                (isSaving || !hasChanges) && {
-                  opacity: 0.7,
-                },
-              ]}
-              onPress={handleSave}
-              disabled={isSaving || !hasChanges}
-            >
-              {isSaving ? (
-                <ActivityIndicator color={themeColors.primaryForeground} />
-              ) : (
-                <Text
-                  style={[
-                    styles.buttonText,
-                    {
-                      color: hasChanges
-                        ? themeColors.primaryForeground
-                        : themeColors.mutedForeground,
-                    },
-                  ]}
-                >
-                  Update account
-                </Text>
-              )}
-            </TouchableOpacity>
           </View>
+
+          {/* Save */}
+          <TouchableOpacity
+            style={[
+              styles.button,
+              {
+                backgroundColor: hasChanges ? themeColors.primary : themeColors.muted,
+              },
+              (isSaving || !hasChanges) && { opacity: 0.7 },
+            ]}
+            onPress={handleSave}
+            disabled={isSaving || !hasChanges}
+            activeOpacity={0.85}
+          >
+            {isSaving ? (
+              <ActivityIndicator color={themeColors.primaryForeground} />
+            ) : (
+              <Text
+                style={[
+                  styles.buttonText,
+                  {
+                    color: hasChanges
+                      ? themeColors.primaryForeground
+                      : themeColors.mutedForeground,
+                  },
+                ]}
+              >
+                Save changes
+              </Text>
+            )}
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -344,144 +294,115 @@ const createStyles = (theme: typeof colors.light) =>
       flex: 1,
       backgroundColor: theme.background,
     },
-
-    navbar: {
-      backgroundColor: theme.navbar,
-      padding: spacing.lg,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.xl,
+    screenHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.md,
     },
-
-    navbarTitle: {
-      fontSize: fontSize["2xl"],
-      fontWeight: fontWeight.bold,
-      color: theme.navbarForeground,
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: StyleSheet.hairlineWidth,
+      alignItems: "center",
+      justifyContent: "center",
+      ...shadows.card,
     },
-
-    navbarSubtitle: {
-      fontSize: fontSize.sm,
-      color: theme.navbarForeground,
-      opacity: 0.8,
+    headerTextWrap: { flex: 1 },
+    screenTitle: {
+      fontFamily: fontFamily.bold,
+      fontSize: 20,
+      letterSpacing: -0.3,
+    },
+    screenSubtitle: {
+      fontFamily: fontFamily.regular,
+      fontSize: 13,
+      marginTop: 2,
+    },
+    content: {
+      paddingHorizontal: spacing.lg,
+      gap: spacing.lg,
+    },
+    avatarHero: {
+      alignItems: "center",
+      paddingVertical: spacing.md,
+      gap: spacing.sm,
+    },
+    avatarWrap: {
+      position: "relative",
+    },
+    avatarImage: {
+      width: 88,
+      height: 88,
+      borderRadius: 44,
+      resizeMode: "cover",
+    },
+    avatarPlaceholder: {
+      width: 88,
+      height: 88,
+      borderRadius: 44,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    cameraIcon: {
+      position: "absolute",
+      bottom: 2,
+      right: 2,
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 2.5,
+    },
+    changePhotoBtn: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.full,
+      borderWidth: StyleSheet.hairlineWidth,
       marginTop: spacing.xs,
     },
-
-    content: {
-      padding: spacing.lg,
+    changePhotoBtnText: {
+      fontFamily: fontFamily.semibold,
+      fontSize: 13,
     },
-
+    avatarHint: {
+      fontFamily: fontFamily.regular,
+      fontSize: 11,
+      textAlign: "center",
+    },
     card: {
-      borderRadius: borderRadius.lg,
-      borderWidth: 1,
+      borderRadius: cardRadius,
+      borderWidth: StyleSheet.hairlineWidth,
       padding: spacing.lg,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      elevation: 2,
+      ...shadows.card,
     },
-
     fieldGroup: {
       marginBottom: spacing.lg,
     },
-
     label: {
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
+      fontSize: 13,
       marginBottom: spacing.sm,
     },
-
-    avatarRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.lg,
-    },
-
-    avatarWrap: {
-      position: "relative",
-      flexShrink: 0,
-    },
-
-    avatarImage: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
-      resizeMode: "cover",
-    },
-
-    avatarPlaceholder: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-
-    cameraIcon: {
-      position: "absolute",
-      bottom: 0,
-      right: 0,
-      width: 26,
-      height: 26,
-      borderRadius: 13,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 2,
-    },
-
-    avatarControls: {
-      flex: 1,
-      gap: spacing.sm,
-    },
-
-    changePhotoBtn: {
-      alignSelf: "flex-start",
-      borderWidth: 1,
-      borderRadius: borderRadius.md,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-    },
-
-    changePhotoBtnText: {
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.medium,
-    },
-
-    avatarHint: {
-      fontSize: fontSize.xs,
-      lineHeight: 16,
-    },
-
-    divider: {
-      height: 1,
-      marginBottom: spacing.lg,
-    },
-
     input: {
-      borderWidth: 1,
-      borderRadius: borderRadius.md,
-      padding: spacing.md,
-      fontSize: fontSize.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: borderRadius.xl,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm + 4,
+      fontFamily: fontFamily.regular,
+      fontSize: 15,
     },
-
-    pickerContainer: {
-      borderWidth: 1,
-      borderRadius: borderRadius.md,
-      overflow: "hidden",
-    },
-
-    picker: {
-      height: Platform.OS === "ios" ? undefined : 50,
-    },
-
     button: {
-      padding: spacing.md,
-      borderRadius: borderRadius.md,
+      paddingVertical: spacing.md,
+      borderRadius: borderRadius.full,
       alignItems: "center",
-      marginTop: spacing.xs,
+      ...shadows.md,
     },
-
     buttonText: {
-      fontSize: fontSize.md,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
+      fontSize: 15,
     },
   });

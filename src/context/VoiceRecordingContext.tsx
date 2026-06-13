@@ -14,7 +14,8 @@ export interface VoiceRecordingData {
 
 interface VoiceRecordingContextType {
   isVisible: boolean;
-  openVoiceRecording: () => void;
+  isAutoStart: boolean;
+  openVoiceRecording: (autoStart?: boolean) => void;
   closeVoiceRecording: () => void;
   onVoiceComplete?: (data: VoiceRecordingData) => void;
   setOnVoiceComplete: (callback: (data: VoiceRecordingData) => void) => void;
@@ -28,18 +29,21 @@ const VoiceRecordingContext = createContext<VoiceRecordingContextType | undefine
 
 export const VoiceRecordingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isVisible, setIsVisible] = useState(false);
+  const [isAutoStart, setIsAutoStart] = useState(false);
   const [onVoiceComplete, setOnVoiceComplete] = useState<
     ((data: VoiceRecordingData) => void) | undefined
   >();
   const [voiceData, setVoiceData] = useState<VoiceRecordingData | null>(null);
   const [navigationRef, setNavigationRef] = useState<NavigationProp<any>>();
 
-  const openVoiceRecording = () => {
+  const openVoiceRecording = (autoStart: boolean = false) => {
+    setIsAutoStart(autoStart);
     setIsVisible(true);
   };
 
   const closeVoiceRecording = () => {
     setIsVisible(false);
+    setIsAutoStart(false);
     setVoiceData(null);
   };
 

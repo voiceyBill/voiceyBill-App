@@ -12,14 +12,17 @@ import {
   KeyboardAvoidingView,
   StatusBar,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../context/ThemeContext";
+import { useToast } from "../../context/NotificationContext";
 import {
   colors,
   spacing,
   fontSize,
   fontWeight,
   borderRadius,
+  fontFamily,
+  shadows,
 } from "../../theme/colors";
 import {
   useCreateTransactionMutation,
@@ -59,6 +62,7 @@ interface TransactionFormSheetProps {
   transactionId?: string;
   isEdit?: boolean;
   initialMode?: "VOICE" | "SCAN" | "MANUAL";
+  initialType?: "INCOME" | "EXPENSE";
 }
 
 export default function TransactionFormSheet({
@@ -66,10 +70,13 @@ export default function TransactionFormSheet({
   onClose,
   transactionId,
   isEdit = false,
-  initialMode = "MANUAL",
+  initialMode = "VOICE",
+  initialType = "EXPENSE",
 }: TransactionFormSheetProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { showToast } = useToast();
+  const insets = useSafeAreaInsets();
 
   const user = useTypedSelector((state) => state.auth.user);
   const userBaseCurrency = user?.baseCurrency || "USD";
@@ -123,9 +130,10 @@ export default function TransactionFormSheet({
       setMode(initialMode);
       if (!isEdit) {
         setCurrency(userBaseCurrency);
+        setType(initialType);
       }
     }
-  }, [isVisible, initialMode, isEdit, userBaseCurrency]);
+  }, [isVisible, initialMode, isEdit, userBaseCurrency, initialType]);
 
   // API hooks
   const { data: transactionData } = useGetSingleTransactionQuery(
@@ -181,7 +189,7 @@ export default function TransactionFormSheet({
   // Handle submit
   const handleSubmit = async () => {
     if (!title || !amount || !category || !paymentMethod) {
-      alert("Please fill in all required fields");
+      showToast({ type: "warning", title: "Missing fields", message: "Please fill in all required fields." });
       return;
     }
 
@@ -211,7 +219,7 @@ export default function TransactionFormSheet({
       onClose();
     } catch (error) {
       console.error("Failed to save transaction:", error);
-      alert("Failed to save transaction");
+      showToast({ type: "error", title: "Save failed", message: "Failed to save transaction." });
     }
   };
 
@@ -226,7 +234,7 @@ export default function TransactionFormSheet({
     >
       <SafeAreaView
         style={{ flex: 1, backgroundColor: themeColors.background }}
-        edges={["top", "bottom"]}
+        edges={["bottom"]}
       >
         <StatusBar
           barStyle={activeTheme === "dark" ? "light-content" : "dark-content"}
@@ -236,7 +244,7 @@ export default function TransactionFormSheet({
           style={{ flex: 1 }}
         >
           {/* Header */}
-          <View style={styles.header}>
+          <View style={[styles.header, { paddingTop: Math.max(insets.top, spacing.lg) }]}>
             <View>
               <Text style={styles.headerTitle}>
                 {isEdit ? "Edit Transaction" : "Add Transaction"}
@@ -252,14 +260,14 @@ export default function TransactionFormSheet({
             </TouchableOpacity>
           </View>
 
-          {/* Tab Selector: Voice | AI Scan | Manual */}
+          {/* Tab Selector: AI Scan | Voice | Manual */}
           {!isEdit && (
             <View style={styles.tabsContainer}>
               <View style={styles.tabsBackground}>
                 {(
                   [
-                    { key: "VOICE", label: "Voice", Icon: Mic },
                     { key: "SCAN", label: "AI Scan", Icon: ScanText },
+                    { key: "VOICE", label: "Voice", Icon: Mic },
                     { key: "MANUAL", label: "Manual", Icon: FileText },
                   ] as const
                 ).map((tab) => {
@@ -405,7 +413,7 @@ export default function TransactionFormSheet({
                           }
                         }
                       } catch {
-                        alert("Failed to scan receipt");
+                        showToast({ type: "error", title: "Scan failed", message: "Failed to scan receipt." });
                       } finally {
                         setIsScanning(false);
                       }
@@ -487,7 +495,7 @@ export default function TransactionFormSheet({
                           }
                         }
                       } catch (e) {
-                        alert("Failed to scan receipt");
+                        showToast({ type: "error", title: "Scan failed", message: "Failed to scan receipt." });
                       } finally {
                         setIsScanning(false);
                       }
@@ -796,13 +804,14 @@ const createStyles = (theme: typeof colors.light) =>
       paddingBottom: spacing.md,
     },
     headerTitle: {
-      fontSize: fontSize.xl,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
+      fontSize: 18,
       color: theme.foreground,
       marginBottom: spacing.xs,
     },
     headerSubtitle: {
-      fontSize: fontSize.sm,
+      fontFamily: fontFamily.regular,
+      fontSize: 12,
       color: theme.mutedForeground,
     },
     closeButton: {
@@ -815,7 +824,7 @@ const createStyles = (theme: typeof colors.light) =>
     tabsBackground: {
       flexDirection: "row",
       backgroundColor: theme.muted,
-      borderRadius: borderRadius.lg,
+      borderRadius: borderRadius.full,
       padding: spacing.xs,
       gap: spacing.xs,
     },
@@ -827,7 +836,7 @@ const createStyles = (theme: typeof colors.light) =>
       gap: spacing.xs,
       paddingVertical: spacing.sm,
       paddingHorizontal: spacing.sm,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.full,
     },
     tabActive: {
       backgroundColor: theme.background,
@@ -838,8 +847,8 @@ const createStyles = (theme: typeof colors.light) =>
       elevation: 2,
     },
     tabText: {
-      fontSize: fontSize.xs,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
+      fontSize: 12,
       color: theme.mutedForeground,
     },
     tabTextActive: {
@@ -880,7 +889,8 @@ const createStyles = (theme: typeof colors.light) =>
       paddingVertical: spacing.sm + 2,
     },
     helpText: {
-      fontSize: fontSize.xs,
+      fontFamily: fontFamily.regular,
+      fontSize: 11,
       marginTop: spacing.xs,
       color: theme.mutedForeground,
     },
@@ -888,8 +898,8 @@ const createStyles = (theme: typeof colors.light) =>
       marginBottom: spacing.md,
     },
     label: {
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.normal,
+      fontFamily: fontFamily.medium,
+      fontSize: 13,
       color: theme.foreground,
       marginBottom: spacing.sm,
     },
@@ -897,9 +907,10 @@ const createStyles = (theme: typeof colors.light) =>
       backgroundColor: theme.background,
       borderWidth: 1,
       borderColor: theme.border,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.xl,
       padding: spacing.md,
-      fontSize: fontSize.sm,
+      fontFamily: fontFamily.regular,
+      fontSize: 14,
       color: theme.foreground,
     },
     textArea: {
@@ -919,7 +930,7 @@ const createStyles = (theme: typeof colors.light) =>
       backgroundColor: theme.background,
       borderWidth: 1,
       borderColor: theme.border,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.xl,
       padding: spacing.md,
       paddingVertical: spacing.sm + 2,
       shadowColor: "#000",
@@ -952,12 +963,12 @@ const createStyles = (theme: typeof colors.light) =>
       backgroundColor: theme.primary,
     },
     typeButtonText: {
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.normal,
+      fontFamily: fontFamily.regular,
+      fontSize: 14,
       color: theme.foreground,
     },
     typeButtonTextActive: {
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
       color: theme.foreground,
     },
     amountContainer: {
@@ -966,29 +977,31 @@ const createStyles = (theme: typeof colors.light) =>
       backgroundColor: theme.background,
       borderWidth: 1,
       borderColor: theme.border,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.xl,
       paddingHorizontal: spacing.md,
     },
     currencySymbol: {
-      fontSize: fontSize.lg,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
+      fontSize: 16,
       color: theme.foreground,
       marginRight: spacing.xs,
     },
     amountInput: {
       flex: 1,
       padding: spacing.md,
-      fontSize: fontSize.md,
+      fontFamily: fontFamily.medium,
+      fontSize: 15,
       color: theme.foreground,
     },
     pickerContainer: {
       backgroundColor: theme.background,
       borderWidth: 1,
       borderColor: theme.border,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.xl,
       overflow: "hidden",
     },
     picker: {
+      fontFamily: fontFamily.regular,
       color: theme.foreground,
     },
     segmentRow: {
@@ -1012,12 +1025,12 @@ const createStyles = (theme: typeof colors.light) =>
     },
     segmentText: {
       color: theme.foreground,
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.normal,
+      fontFamily: fontFamily.regular,
+      fontSize: 13,
     },
     segmentTextActive: {
       color: "#ffffff",
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
     },
     dateButton: {
       flexDirection: "row",
@@ -1026,11 +1039,12 @@ const createStyles = (theme: typeof colors.light) =>
       backgroundColor: theme.background,
       borderWidth: 1,
       borderColor: theme.border,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.xl,
       padding: spacing.md,
     },
     dateText: {
-      fontSize: fontSize.sm,
+      fontFamily: fontFamily.regular,
+      fontSize: 14,
       color: theme.foreground,
     },
     recurringContainer: {
@@ -1040,33 +1054,35 @@ const createStyles = (theme: typeof colors.light) =>
       backgroundColor: theme.background,
       borderWidth: 1,
       borderColor: theme.border,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.xl,
       padding: spacing.md,
     },
     recurringLeft: {
       flex: 1,
     },
     recurringSubtext: {
-      fontSize: fontSize.xs,
+      fontFamily: fontFamily.regular,
+      fontSize: 11,
       color: theme.mutedForeground,
       marginTop: spacing.xs,
     },
     submitButton: {
       backgroundColor: theme.primary,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.full,
       paddingVertical: spacing.md + 2,
       paddingHorizontal: spacing.lg,
       alignItems: "center",
       justifyContent: "center",
       marginTop: spacing.lg,
       marginBottom: spacing.xl,
+      ...shadows.md,
     },
     submitButtonDisabled: {
       opacity: 0.5,
     },
     submitButtonText: {
-      fontSize: fontSize.md,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
+      fontSize: 15,
       color: "#ffffff",
     },
   });

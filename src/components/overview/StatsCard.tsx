@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { TrendingUp, TrendingDown } from "lucide-react-native";
-import { colors, spacing, fontWeight } from "../../theme/colors";
+import { colors, spacing, fontWeight, borderRadius, fontFamily } from "../../theme/colors";
 import { formatCurrency } from "../../lib/formatCurrency";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -143,7 +143,13 @@ export default function StatsCard({
         {title}
       </Text>
 
-      <Text style={[styles.value, { color: valueColor }]}>{displayValue}</Text>
+      <Text 
+        style={[styles.value, { color: valueColor }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+      >
+        {displayValue}
+      </Text>
 
       <View style={styles.footer}>
         <View style={styles.footerRow}>
@@ -175,21 +181,21 @@ export default function StatsCard({
 const styles = StyleSheet.create({
   card: {
     padding: spacing.lg,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
   },
 
   title: {
-    fontSize: 11,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.semibold,
+    fontSize: 10,
     textTransform: "uppercase",
-    letterSpacing: 1,
+    letterSpacing: 0.5,
     marginBottom: spacing.sm - 2,
   },
 
   value: {
-    fontSize: 28,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.bold,
+    fontSize: 22,
     marginBottom: spacing.sm,
     letterSpacing: -0.5,
   },
@@ -206,12 +212,12 @@ const styles = StyleSheet.create({
   },
 
   statusText: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontFamily: fontFamily.medium,
+    fontSize: 11,
   },
 
   descText: {
-    fontSize: 11.5,
-    fontWeight: "500",
+    fontFamily: fontFamily.regular,
+    fontSize: 10.5,
   },
 });
