@@ -12,9 +12,14 @@ import { NotificationProvider } from "./src/context/NotificationContext";
 import { VoiceRecordingProvider } from "./src/context/VoiceRecordingContext";
 import AppNavigator from "./src/navigation/AppNavigator";
 import SplashScreen from "./src/components/SplashScreen";
+import { configureNotifications } from "./src/lib/push-notifications";
 
 export default function App() {
   const [splashDone, setSplashDone] = React.useState(false);
+
+  React.useEffect(() => {
+    configureNotifications();
+  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
