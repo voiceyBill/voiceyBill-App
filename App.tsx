@@ -9,6 +9,7 @@ import { PersistGate } from "redux-persist/integration/react";
 import { store, persistor } from "./src/store/store";
 import { ThemeProvider } from "./src/context/ThemeContext";
 import { NotificationProvider } from "./src/context/NotificationContext";
+import { VoiceRecordingProvider } from "./src/context/VoiceRecordingContext";
 import AppNavigator from "./src/navigation/AppNavigator";
 import SplashScreen from "./src/components/SplashScreen";
 
@@ -22,14 +23,16 @@ export default function App() {
           <SafeAreaProvider>
             <ThemeProvider>
               <NotificationProvider>
-                <StatusBar style="auto" />
+                <VoiceRecordingProvider>
+                  <StatusBar style="auto" />
 
-                {/* FIXED: only one renders at a time */}
-                {splashDone ? (
-                  <AppNavigator />
-                ) : (
-                  <SplashScreen onComplete={() => setSplashDone(true)} />
-                )}
+                  {/* FIXED: only one renders at a time */}
+                  {splashDone ? (
+                    <AppNavigator />
+                  ) : (
+                    <SplashScreen onComplete={() => setSplashDone(true)} />
+                  )}
+                </VoiceRecordingProvider>
               </NotificationProvider>
             </ThemeProvider>
           </SafeAreaProvider>

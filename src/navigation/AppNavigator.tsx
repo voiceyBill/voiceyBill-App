@@ -1,18 +1,32 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
 import { useTypedSelector } from '../store/hooks';
+import { useVoiceRecording } from '../context/VoiceRecordingContext';
 import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
+import VoiceRecordingModalContainer from '../components/VoiceRecordingModalContainer';
 
 const Stack = createNativeStackNavigator();
 
-export default function AppNavigator() {
+// Inner component that has access to navigation context
+function AppContent() {
+  const navigation = useNavigation();
+  const { setNavigationRef } = useVoiceRecording();
   const { accessToken } = useTypedSelector((state) => state.auth);
   const isAuthenticated = !!accessToken;
+  const navigationSetRef = useRef(false);
 
+  // Store navigation ref in context so VoiceRecordingModalContainer can use it
+  useEffect(() => {
+  if (!navigationSetRef.current) {
+    setNavigationRef(navigation as any); // FIX CI TYPE ERROR
+    navigationSetRef.current = true;
+  }
+}, []);
   return (
-    <NavigationContainer>
+    <>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <Stack.Screen name="Auth" component={AuthNavigator} />
@@ -20,6 +34,15 @@ export default function AppNavigator() {
           <Stack.Screen name="Main" component={MainNavigator} />
         )}
       </Stack.Navigator>
+      <VoiceRecordingModalContainer />
+    </>
+  );
+}
+
+export default function AppNavigator() {
+  return (
+    <NavigationContainer>
+      <AppContent />
     </NavigationContainer>
   );
 }
