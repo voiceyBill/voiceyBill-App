@@ -1,12 +1,14 @@
-import React, { useEffect, useRef } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
-import { useTypedSelector } from '../store/hooks';
-import { useVoiceRecording } from '../context/VoiceRecordingContext';
-import AuthNavigator from './AuthNavigator';
-import MainNavigator from './MainNavigator';
-import VoiceRecordingModalContainer from '../components/VoiceRecordingModalContainer';
+import React, { useEffect } from "react";
+import { NavigationContainer, useNavigation } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { Platform } from "react-native";
+import { useTypedSelector } from "../store/hooks";
+import AuthNavigator from "./AuthNavigator";
+import MainNavigator from "./MainNavigator";
+import { registerForPushNotificationsAsync } from "../lib/push-notifications";
+import { useRegisterPushTokenMutation } from "../features/user/userAPI";
+import { useVoiceRecording } from "@/context/VoiceRecordingContext";
+import VoiceRecordingModalContainer from "@/components/VoiceRecordingModalContainer";
 
 const Stack = createNativeStackNavigator();
 
@@ -16,15 +18,44 @@ function AppContent() {
   const { setNavigationRef } = useVoiceRecording();
   const { accessToken } = useTypedSelector((state) => state.auth);
   const isAuthenticated = !!accessToken;
-  const navigationSetRef = useRef(false);
+  const [registerPushToken] = useRegisterPushTokenMutation();
+  const lastTokenRef = React.useRef<string | null>(null);
+  const navigationSetRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!isAuthenticated) {
+      lastTokenRef.current = null;
+      return;
+    }
+
+    let isMounted = true;
+
+    const register = async () => {
+      const result = await registerForPushNotificationsAsync();
+      if (!isMounted || result.status !== "granted" || !result.token) return;
+      if (lastTokenRef.current === result.token) return;
+
+      lastTokenRef.current = result.token;
+      await registerPushToken({
+        token: result.token,
+        platform: "ANDROID",
+      });
+    };
+
+    register();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated, registerPushToken]);
 
   // Store navigation ref in context so VoiceRecordingModalContainer can use it
   useEffect(() => {
-  if (!navigationSetRef.current) {
-    setNavigationRef(navigation as any); // FIX CI TYPE ERROR
-    navigationSetRef.current = true;
-  }
-}, []);
+    if (!navigationSetRef.current) {
+      setNavigationRef(navigation as any); // FIX CI TYPE ERROR
+      navigationSetRef.current = true;
+    }
+  }, []);
   return (
     <>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
