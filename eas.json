@@ -6,13 +6,28 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "747929251420-pda33jplvlh7votecms914khkh215rb9.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "747929251420-lrvmm7c2vbm1g4f7shn2kgj4f9o8eq53.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_AUTH_ENDPOINT": "/auth/google"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "747929251420-pda33jplvlh7votecms914khkh215rb9.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "747929251420-lrvmm7c2vbm1g4f7shn2kgj4f9o8eq53.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_AUTH_ENDPOINT": "/auth/google"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "747929251420-pda33jplvlh7votecms914khkh215rb9.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "747929251420-lrvmm7c2vbm1g4f7shn2kgj4f9o8eq53.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_AUTH_ENDPOINT": "/auth/google"
+      }
     }
   },
   "submit": {

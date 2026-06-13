@@ -3,9 +3,9 @@ name: Performance Monitoring
 on:
   pull_request:
     paths:
-      - 'src/**'
-      - 'package.json'
-      - '.github/workflows/performance.yml'
+      - "src/**"
+      - "package.json"
+      - ".github/workflows/performance.yml"
   push:
     branches: ["main", "master"]
 
@@ -33,16 +33,19 @@ jobs:
       - name: Calculate bundle size
         id: bundle
         run: |
-          # Install size analyzer
-          npm install -g size-limit @size-limit/preset-app
-          
-          # Create output file
-          size-limit > bundle-report.txt 2>&1 || echo "Bundle size check completed"
-          
+          # Use npx so no global-install permission issues on the runner.
+          # @size-limit/file measures raw source file sizes — appropriate for
+          # a React Native project where the Metro bundle is built by EAS, not CI.
+          npx --yes size-limit > bundle-report.txt 2>&1 || true
+
           cat bundle-report.txt
-          
-          # Save for later steps
-          echo "report=$(cat bundle-report.txt)" >> $GITHUB_OUTPUT
+
+          # Write output using heredoc so multi-line content doesn't break
+          # the GITHUB_OUTPUT key=value parser (single-line echo would cause
+          # the runner to error on newlines, bypassing continue-on-error).
+          echo "report<<BUNDLE_EOF" >> "$GITHUB_OUTPUT"
+          cat bundle-report.txt >> "$GITHUB_OUTPUT"
+          echo "BUNDLE_EOF" >> "$GITHUB_OUTPUT"
         continue-on-error: true
 
       - name: Comment on PR with bundle info
@@ -80,7 +83,7 @@ jobs:
         run: |
           echo "=== React Native Ecosystem Check ==="
           npm ls react react-native expo 2>&1 | head -20 || true
-          
+
           echo ""
           echo "=== Total dependencies ==="
           npm ls --depth=0 2>&1 | tail -5 || true
@@ -105,7 +108,7 @@ jobs:
         run: |
           echo "Checking TypeScript type coverage..."
           npx tsc --noEmit --skipLibCheck
-          
+
           # Count TypeScript files
           TS_FILES=$(find src -name "*.ts" -o -name "*.tsx" | wc -l)
           echo "Total TypeScript files: $TS_FILES"

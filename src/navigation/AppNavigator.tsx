@@ -10,7 +10,10 @@ import { useRegisterPushTokenMutation } from "../features/user/userAPI";
 
 const Stack = createNativeStackNavigator();
 
-export default function AppNavigator() {
+// Inner component that has access to navigation context
+function AppContent() {
+  const navigation = useNavigation();
+  const { setNavigationRef } = useVoiceRecording();
   const { accessToken } = useTypedSelector((state) => state.auth);
   const isAuthenticated = !!accessToken;
   const [registerPushToken] = useRegisterPushTokenMutation();
@@ -43,8 +46,15 @@ export default function AppNavigator() {
     };
   }, [isAuthenticated, registerPushToken]);
 
+  // Store navigation ref in context so VoiceRecordingModalContainer can use it
+  useEffect(() => {
+  if (!navigationSetRef.current) {
+    setNavigationRef(navigation as any); // FIX CI TYPE ERROR
+    navigationSetRef.current = true;
+  }
+}, []);
   return (
-    <NavigationContainer>
+    <>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <Stack.Screen name="Auth" component={AuthNavigator} />
@@ -52,6 +62,15 @@ export default function AppNavigator() {
           <Stack.Screen name="Main" component={MainNavigator} />
         )}
       </Stack.Navigator>
+      <VoiceRecordingModalContainer />
+    </>
+  );
+}
+
+export default function AppNavigator() {
+  return (
+    <NavigationContainer>
+      <AppContent />
     </NavigationContainer>
   );
 }
