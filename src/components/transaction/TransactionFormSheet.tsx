@@ -91,6 +91,9 @@ export default function TransactionFormSheet({
   );
   const [description, setDescription] = React.useState("");
 
+  // Dirty state: true when form differs from original transaction (edit mode)
+  const [isDirty, setIsDirty] = React.useState(false);
+
   const { data: currenciesData } = useGetSupportedCurrenciesQuery();
 
   const currencyOptions = React.useMemo(() => {
@@ -143,6 +146,8 @@ export default function TransactionFormSheet({
   React.useEffect(() => {
     if (isEdit && transactionData?.transaction) {
       const tx = transactionData.transaction;
+      // store original transaction for change-detection
+      originalTransactionRef.current = tx;
       setTitle(tx.title);
       setAmount(
         tx.originalAmount != null
@@ -159,8 +164,39 @@ export default function TransactionFormSheet({
         (tx as any).recurringInterval || TRANSACTION_FREQUENCY.MONTHLY,
       );
       setDescription(tx.description || "");
+      // ensure dirty flag resets after loading original transaction
+      setTimeout(() => setIsDirty(false), 0);
     }
   }, [isEdit, transactionData, userBaseCurrency]);
+
+  const originalTransactionRef = React.useRef<any>(null);
+
+  const isSameTransaction = (existing: any, payload: any) => {
+    if (!existing) return false;
+    const existingAmount =
+      existing.originalAmount != null ? Number(existing.originalAmount) : Number(existing.amount);
+    const existingCurrency = existing.originalCurrency || existing.currency || undefined;
+    const existingCategory = existing.category?.toLowerCase() || "";
+    const existingDate = new Date(existing.date).toISOString();
+
+    const payloadAmount = Number(payload.amount);
+    const payloadCurrency = payload.currency || undefined;
+    const payloadCategory = (payload.category || "").toLowerCase();
+    const payloadDate = new Date(payload.date).toISOString();
+
+    return (
+      (existing.title || "") === (payload.title || "") &&
+      existingAmount === payloadAmount &&
+      (existingCurrency || undefined) === (payloadCurrency || undefined) &&
+      existing.type === payload.type &&
+      existingCategory === payloadCategory &&
+      existingDate === payloadDate &&
+      (existing.paymentMethod || "") === (payload.paymentMethod || "") &&
+      Boolean(existing.isRecurring) === Boolean(payload.isRecurring) &&
+      (existing.recurringInterval || null) === (payload.recurringInterval || null) &&
+      (existing.description || "") === (payload.description || "")
+    );
+  };
 
   // Reset form
   const resetForm = () => {
@@ -177,6 +213,45 @@ export default function TransactionFormSheet({
     setReceiptName("No file chosen");
     setIsScanning(false);
   };
+
+  // Determine if current form values differ from the original transaction
+  React.useEffect(() => {
+    if (!isEdit || !originalTransactionRef.current) {
+      // For create mode or when original not loaded, consider form as dirty
+      setIsDirty(!isEdit);
+      return;
+    }
+
+    const payloadForCompare = {
+      title,
+      amount: parseFloat(amount || "0"),
+      currency: currency.trim() ? currency : undefined,
+      type,
+      category: category.trim().toLowerCase(),
+      date: date.toISOString(),
+      paymentMethod,
+      isRecurring,
+      recurringInterval: isRecurring ? frequency : null,
+      description,
+    };
+
+    const existing = originalTransactionRef.current;
+    const same = isSameTransaction(existing, payloadForCompare);
+    setIsDirty(!same);
+  }, [
+    title,
+    amount,
+    currency,
+    type,
+    category,
+    date,
+    paymentMethod,
+    isRecurring,
+    frequency,
+    description,
+    isEdit,
+    transactionData,
+  ]);
 
   // Handle submit
   const handleSubmit = async () => {
@@ -200,10 +275,15 @@ export default function TransactionFormSheet({
 
     try {
       if (isEdit && transactionId) {
-        await updateTransaction({
-          id: transactionId,
-          transaction: payload,
-        }).unwrap();
+        // prevent sending update when there are no changes
+        const existing = originalTransactionRef.current;
+        if (isSameTransaction(existing, payload)) {
+          alert("No changes detected");
+          onClose();
+          return;
+        }
+
+        await updateTransaction({ id: transactionId, transaction: payload }).unwrap();
       } else {
         await createTransaction(payload).unwrap();
       }
@@ -532,7 +612,7 @@ export default function TransactionFormSheet({
                     style={[
                       styles.radioCircle,
                       type === TRANSACTION_TYPE.INCOME &&
-                        styles.radioCircleActive,
+                      styles.radioCircleActive,
                     ]}
                   >
                     {type === TRANSACTION_TYPE.INCOME && (
@@ -543,7 +623,7 @@ export default function TransactionFormSheet({
                     style={[
                       styles.typeButtonText,
                       type === TRANSACTION_TYPE.INCOME &&
-                        styles.typeButtonTextActive,
+                      styles.typeButtonTextActive,
                     ]}
                   >
                     Income
@@ -554,7 +634,7 @@ export default function TransactionFormSheet({
                   style={[
                     styles.typeButton,
                     type === TRANSACTION_TYPE.EXPENSE &&
-                      styles.typeButtonActive,
+                    styles.typeButtonActive,
                   ]}
                   onPress={() => setType(TRANSACTION_TYPE.EXPENSE)}
                   activeOpacity={0.7}
@@ -564,7 +644,7 @@ export default function TransactionFormSheet({
                     style={[
                       styles.radioCircle,
                       type === TRANSACTION_TYPE.EXPENSE &&
-                        styles.radioCircleActive,
+                      styles.radioCircleActive,
                     ]}
                   >
                     {type === TRANSACTION_TYPE.EXPENSE && (
@@ -575,7 +655,7 @@ export default function TransactionFormSheet({
                     style={[
                       styles.typeButtonText,
                       type === TRANSACTION_TYPE.EXPENSE &&
-                        styles.typeButtonTextActive,
+                      styles.typeButtonTextActive,
                     ]}
                   >
                     Expense
@@ -765,10 +845,11 @@ export default function TransactionFormSheet({
             <TouchableOpacity
               style={[
                 styles.submitButton,
-                (isCreating || isUpdating) && styles.submitButtonDisabled,
+                (isCreating || isUpdating || (isEdit && !isDirty)) &&
+                styles.submitButtonDisabled,
               ]}
               onPress={handleSubmit}
-              disabled={isCreating || isUpdating}
+              disabled={isCreating || isUpdating || (isEdit && !isDirty)}
             >
               <Text style={styles.submitButtonText}>
                 {isCreating || isUpdating
