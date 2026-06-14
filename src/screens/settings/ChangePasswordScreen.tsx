@@ -7,20 +7,23 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
-import { Eye, EyeOff } from "lucide-react-native";
+import { Eye, EyeOff, ChevronLeft } from "lucide-react-native";
 import { useTheme } from "../../context/ThemeContext";
+import { useToast } from "../../context/NotificationContext";
 import {
   colors,
   spacing,
   fontSize,
   fontWeight,
   borderRadius,
+  fontFamily,
+  shadows,
+  cardRadius,
 } from "../../theme/colors";
 import { useChangePasswordMutation } from "../../features/user/userAPI";
 import {
@@ -53,6 +56,8 @@ export default function ChangePasswordScreen() {
   const navigation = useNavigation();
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { showToast } = useToast();
+  const insets = useSafeAreaInsets();
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -117,11 +122,12 @@ export default function ChangePasswordScreen() {
         newPassword: newPassword.trim(),
       }).unwrap();
 
-      Alert.alert(
-        "Password Updated",
-        "Your password has been updated successfully.",
-        [{ text: "OK", onPress: () => navigation.goBack() }],
-      );
+      showToast({
+        type: "success",
+        title: "Password updated",
+        message: "Your password has been updated successfully.",
+      });
+      navigation.goBack();
 
       setCurrentPassword("");
       setNewPassword("");
@@ -136,23 +142,32 @@ export default function ChangePasswordScreen() {
   const styles = createStyles(themeColors);
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={[]}>
       <KeyboardAvoidingView
         style={styles.keyboardAvoiding}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
           <View
-            style={[styles.header, { backgroundColor: themeColors.background }]}
+            style={[styles.header, { paddingTop: Math.max(insets.top, spacing.sm) }]}
           >
-            <Text style={[styles.title, { color: themeColors.foreground }]}>
-              Change Password
-            </Text>
-            <Text
-              style={[styles.subtitle, { color: themeColors.mutedForeground }]}
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={[styles.backBtn, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+              activeOpacity={0.7}
             >
-              Keep your account secure by updating your password.
-            </Text>
+              <ChevronLeft size={20} color={themeColors.foreground} />
+            </TouchableOpacity>
+            <View style={styles.headerTextWrap}>
+              <Text style={[styles.title, { color: themeColors.foreground }]}>
+                Change Password
+              </Text>
+              <Text
+                style={[styles.subtitle, { color: themeColors.mutedForeground }]}
+              >
+                Keep your account secure
+              </Text>
+            </View>
           </View>
 
           <View
@@ -349,32 +364,47 @@ const createStyles = (themeColors: any) =>
       flex: 1,
     },
     scrollContainer: {
-      padding: spacing.lg,
+      paddingHorizontal: spacing.lg,
       paddingBottom: spacing.xxxl,
     },
     header: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
       marginBottom: spacing.lg,
     },
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: StyleSheet.hairlineWidth,
+      alignItems: "center",
+      justifyContent: "center",
+      ...shadows.card,
+    },
+    headerTextWrap: { flex: 1 },
     title: {
-      fontSize: fontSize["2xl"],
-      fontWeight: fontWeight.extrabold,
-      marginBottom: spacing.sm,
+      fontFamily: fontFamily.bold,
+      fontSize: 20,
+      letterSpacing: -0.3,
     },
     subtitle: {
-      fontSize: fontSize.base,
-      lineHeight: 24,
+      fontFamily: fontFamily.regular,
+      fontSize: 13,
+      marginTop: 2,
     },
     card: {
-      borderRadius: borderRadius.xl,
-      borderWidth: 1,
+      borderRadius: cardRadius,
+      borderWidth: StyleSheet.hairlineWidth,
       padding: spacing.lg,
+      ...shadows.card,
     },
     fieldGroup: {
-      marginBottom: spacing.lg,
+      marginBottom: spacing.md,
     },
     label: {
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
+      fontSize: 13,
       marginBottom: spacing.xs,
     },
     inputWrapper: {
@@ -382,11 +412,12 @@ const createStyles = (themeColors: any) =>
       justifyContent: "center",
     },
     input: {
-      borderRadius: borderRadius.lg,
-      borderWidth: 1,
+      borderRadius: borderRadius.xl,
+      borderWidth: StyleSheet.hairlineWidth,
       paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      fontSize: fontSize.base,
+      paddingVertical: spacing.sm + 4,
+      fontFamily: fontFamily.regular,
+      fontSize: 15,
       paddingRight: 45,
     },
     eyeIcon: {
@@ -397,8 +428,8 @@ const createStyles = (themeColors: any) =>
       alignItems: "center",
     },
     rulesContainer: {
-      marginBottom: spacing.lg,
-      marginTop: spacing.sm,
+      marginBottom: spacing.md,
+      marginTop: spacing.xs,
     },
     ruleRow: {
       flexDirection: "row",
@@ -407,26 +438,31 @@ const createStyles = (themeColors: any) =>
     },
     ruleBullet: {
       width: 18,
-      fontSize: fontSize.sm,
+      fontFamily: fontFamily.medium,
+      fontSize: 13,
       marginRight: spacing.sm,
     },
     ruleText: {
-      fontSize: fontSize.sm,
-      lineHeight: 20,
+      fontFamily: fontFamily.regular,
+      fontSize: 12,
+      lineHeight: 18,
+      flex: 1,
     },
     errorText: {
       marginBottom: spacing.md,
-      fontSize: fontSize.sm,
+      fontFamily: fontFamily.medium,
+      fontSize: 13,
     },
     button: {
-      borderRadius: borderRadius.lg,
+      borderRadius: borderRadius.full,
       paddingVertical: spacing.md,
       alignItems: "center",
       justifyContent: "center",
       marginTop: spacing.sm,
+      ...shadows.md,
     },
     buttonText: {
-      fontSize: fontSize.md,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
+      fontSize: 15,
     },
   });

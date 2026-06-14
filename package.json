@@ -14,11 +14,13 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@react-native-google-signin/google-signin": "^14.0.0",
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo/vector-icons": "^15.0.3",
     "@gorhom/bottom-sheet": "^5.2.6",
     "@hookform/resolvers": "^3.3.3",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "^8.4.4",
+    "@react-native-google-signin/google-signin": "^14.0.0",
     "@react-native-picker/picker": "^2.11.1",
     "@react-navigation/bottom-tabs": "^6.5.11",
     "@react-navigation/drawer": "^6.6.6",
@@ -35,6 +37,7 @@
     "expo-device": "~8.0.10",
     "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.22",
+    "expo-font": "^56.0.6",
     "expo-image-picker": "~17.0.11",
     "expo-notifications": "~0.32.17",
     "expo-secure-store": "~15.0.8",

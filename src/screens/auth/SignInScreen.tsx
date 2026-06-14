@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   KeyboardAvoidingView,
   ScrollView,
   ActivityIndicator,
@@ -17,9 +16,10 @@ import { useAppDispatch } from '../../store/hooks';
 import { setCredentials } from '../../features/auth/authSlice';
 import { setRefreshToken } from '../../lib/tokenStorage';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, borderRadius, fontSize, fontWeight } from '../../theme/colors';
+import { colors } from '../../theme/colors';
+import { createAuthStyles } from '../../theme/authStyles';
 import Logo from '../../components/common/Logo';
-import { getPasswordValidationMessage, mapAuthApiErrors } from '../../features/auth/authValidation';
+import { mapAuthApiErrors } from '../../features/auth/authValidation';
 import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
 import { useGoogleAuth } from '../../features/auth/hooks/useGoogleAuth';
 
@@ -47,9 +47,7 @@ export default function SignInScreen() {
     const newErrors: { email?: string; password?: string } = {};
     if (!email.trim()) newErrors.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(email.trim())) newErrors.email = 'Invalid email address';
-
-    const passwordError = getPasswordValidationMessage(password);
-    if (passwordError) newErrors.password = passwordError;
+    if (!password) newErrors.password = 'Password is required';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -66,16 +64,12 @@ export default function SignInScreen() {
         (navigation as any).navigate('VerifyOtp', { email: email.trim() });
         return;
       }
-      setErrors(mapAuthApiErrors(error, 'Invalid email/password', 'password'));
+      setErrors(mapAuthApiErrors(error, 'Invalid email or password', 'password'));
     }
   };
 
-  const styles = createStyles(themeColors);
-  const canSubmit =
-    !isLoading &&
-    email.trim() !== '' &&
-    password !== '' &&
-    !getPasswordValidationMessage(password);
+  const styles = createAuthStyles(themeColors);
+  const canSubmit = !isLoading && email.trim() !== '' && password !== '';
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -86,14 +80,12 @@ export default function SignInScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.content}>
-            {/* Brand */}
             <View style={styles.header}>
               <Logo size="lg" />
               <Text style={styles.title}>Welcome back</Text>
               <Text style={styles.subtitle}>Sign in to your VoiceyBill account</Text>
             </View>
 
-            {/* Form */}
             <View style={styles.form}>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Email</Text>
@@ -102,7 +94,10 @@ export default function SignInScreen() {
                   placeholder="you@example.com"
                   placeholderTextColor={themeColors.mutedForeground}
                   value={email}
-                  onChangeText={(v) => { setEmail(v); setErrors((e) => ({ ...e, email: undefined })); }}
+                  onChangeText={(v) => {
+                    setEmail(v);
+                    setErrors((e) => ({ ...e, email: undefined }));
+                  }}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   editable={!isLoading}
@@ -110,7 +105,7 @@ export default function SignInScreen() {
                   submitBehavior="submit"
                   onSubmitEditing={() => passwordRef.current?.focus()}
                 />
-                {errors.email && <Text style={styles.error}>{errors.email}</Text>}
+                {errors.email ? <Text style={styles.fieldError}>{errors.email}</Text> : null}
               </View>
 
               <View style={styles.inputGroup}>
@@ -122,7 +117,10 @@ export default function SignInScreen() {
                     placeholder="Enter your password"
                     placeholderTextColor={themeColors.mutedForeground}
                     value={password}
-                    onChangeText={(v) => { setPassword(v); setErrors((e) => ({ ...e, password: undefined })); }}
+                    onChangeText={(v) => {
+                      setPassword(v);
+                      setErrors((e) => ({ ...e, password: undefined }));
+                    }}
                     secureTextEntry={!showPassword}
                     editable={!isLoading}
                     returnKeyType="done"
@@ -132,13 +130,14 @@ export default function SignInScreen() {
                     onPress={() => setShowPassword(!showPassword)}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
-                    {showPassword
-                      ? <EyeOff size={18} color={themeColors.mutedForeground} />
-                      : <Eye size={18} color={themeColors.mutedForeground} />
-                    }
+                    {showPassword ? (
+                      <EyeOff size={18} color={themeColors.mutedForeground} />
+                    ) : (
+                      <Eye size={18} color={themeColors.mutedForeground} />
+                    )}
                   </TouchableOpacity>
                 </View>
-                {errors.password && <Text style={styles.error}>{errors.password}</Text>}
+                {errors.password ? <Text style={styles.fieldError}>{errors.password}</Text> : null}
               </View>
 
               <TouchableOpacity
@@ -146,10 +145,13 @@ export default function SignInScreen() {
                 onPress={handleLogin}
                 disabled={!canSubmit || isGoogleLoading}
               >
-                {isLoading
-                  ? <ActivityIndicator color={themeColors.primaryForeground} />
-                  : <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>Sign in</Text>
-                }
+                {isLoading ? (
+                  <ActivityIndicator color={themeColors.primaryForeground} />
+                ) : (
+                  <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>
+                    Sign in
+                  </Text>
+                )}
               </TouchableOpacity>
 
               <View style={styles.dividerRow}>
@@ -164,7 +166,7 @@ export default function SignInScreen() {
                 isLoading={isGoogleLoading}
                 disabled={isLoading || isGoogleLoading || !isGoogleReady}
               />
-              {!!googleError && <Text style={styles.error}>{googleError}</Text>}
+              {googleError ? <Text style={styles.fieldError}>{googleError}</Text> : null}
 
               <TouchableOpacity
                 style={styles.forgotRow}
@@ -181,8 +183,7 @@ export default function SignInScreen() {
               </View>
             </View>
 
-            {/* Feature highlights */}
-            <View style={[styles.features, { borderColor: themeColors.border }]}>
+            <View style={styles.features}>
               {[
                 'Log expenses by voice in any language',
                 'AI-powered receipt scanning',
@@ -190,8 +191,8 @@ export default function SignInScreen() {
                 'Free and open source',
               ].map((item) => (
                 <View key={item} style={styles.featureRow}>
-                  <Text style={[styles.featureDot, { color: themeColors.foreground }]}>›</Text>
-                  <Text style={[styles.featureText, { color: themeColors.mutedForeground }]}>{item}</Text>
+                  <Text style={styles.featureDot}>›</Text>
+                  <Text style={styles.featureText}>{item}</Text>
                 </View>
               ))}
             </View>
@@ -201,79 +202,3 @@ export default function SignInScreen() {
     </SafeAreaView>
   );
 }
-
-const createStyles = (theme: typeof colors.light) =>
-  StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.background },
-    scrollContent: { padding: spacing.lg, paddingTop: spacing.xxl, paddingBottom: spacing.xxl },
-    content: { maxWidth: 400, width: '100%', alignSelf: 'center' },
-    header: { marginBottom: spacing.xl, alignItems: 'center' },
-    title: {
-      fontSize: fontSize['2xl'],
-      fontWeight: fontWeight.bold,
-      color: theme.foreground,
-      marginTop: spacing.md,
-      marginBottom: spacing.xs,
-      textAlign: 'center',
-    },
-    subtitle: { fontSize: fontSize.sm, color: theme.mutedForeground, textAlign: 'center' },
-    form: { gap: spacing.md },
-    inputGroup: { gap: spacing.sm },
-    label: { fontSize: fontSize.sm, color: theme.foreground, fontWeight: fontWeight.medium },
-    input: {
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: borderRadius.md,
-      padding: spacing.md,
-      fontSize: fontSize.md,
-      color: theme.foreground,
-      backgroundColor: theme.card,
-    },
-    inputError: { borderColor: theme.destructive },
-    passwordWrap: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: borderRadius.md,
-      paddingHorizontal: spacing.md,
-      backgroundColor: theme.card,
-    },
-    passwordInput: {
-      flex: 1,
-      paddingVertical: spacing.md,
-      fontSize: fontSize.md,
-      color: theme.foreground,
-    },
-    error: { fontSize: fontSize.xs, color: theme.destructive },
-    button: {
-      backgroundColor: theme.primary,
-      padding: spacing.md,
-      borderRadius: borderRadius.md,
-      alignItems: 'center',
-      marginTop: spacing.sm,
-    },
-    buttonDisabled: { opacity: 0.6 },
-    buttonText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold },
-    dividerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      marginVertical: spacing.xs,
-    },
-    dividerLine: { flex: 1, height: 1, backgroundColor: theme.border },
-    dividerText: { fontSize: fontSize.xs, color: theme.mutedForeground },
-    forgotRow: { alignItems: 'flex-end' },
-    footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.sm },
-    footerText: { fontSize: fontSize.sm, color: theme.mutedForeground },
-    link: { fontSize: fontSize.sm, color: theme.foreground, fontWeight: fontWeight.semibold, textDecorationLine: 'underline' },
-    features: {
-      marginTop: spacing.xl,
-      paddingTop: spacing.xl,
-      borderTopWidth: 1,
-      gap: spacing.sm,
-    },
-    featureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
-    featureDot: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, lineHeight: 20 },
-    featureText: { flex: 1, fontSize: fontSize.sm, lineHeight: 20 },
-  });

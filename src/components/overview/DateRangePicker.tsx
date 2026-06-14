@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, FlatList } from 'react-native';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme/colors';
+import { colors, spacing, fontSize, fontWeight, borderRadius, fontFamily } from '../../theme/colors';
 import { useTheme } from '../../context/ThemeContext';
 
 export type DateRangePreset =
@@ -64,7 +64,7 @@ export default function DateRangePicker({
                     setOpen(false);
                   }}
                 >
-                  <Text style={{ color: theme.foreground }}>{item.label}</Text>
+                  <Text style={[{ color: theme.foreground }, styles.optionText]}>{item.label}</Text>
                 </TouchableOpacity>
               )}
             />
@@ -82,13 +82,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
-    height: 40,
-    borderRadius: borderRadius.md,
+    height: 36,
+    borderRadius: 100, // Pill shape
     borderWidth: 1,
   },
   buttonText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.medium,
+    fontSize: 13,
   },
   modalOverlay: {
     flex: 1,
@@ -110,4 +110,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#00000010',
   },
+  optionText: {
+    fontFamily: fontFamily.medium,
+    fontSize: 14,
+  }
 });

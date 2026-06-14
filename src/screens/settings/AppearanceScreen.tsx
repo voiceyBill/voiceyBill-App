@@ -1,26 +1,39 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { ChevronLeft } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme/colors';
+import { colors, spacing, fontSize, fontWeight, borderRadius, fontFamily, shadows, cardRadius } from '../../theme/colors';
 
 export default function AppearanceScreen() {
+  const navigation = useNavigation();
   const { theme, setTheme, activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const insets = useSafeAreaInsets();
   const [selectedTheme, setSelectedTheme] = React.useState<'light' | 'dark' | 'system'>(theme);
 
   const styles = createStyles(themeColors);
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }}>
-        <View style={styles.navbar}>
-          <Text style={styles.navbarTitle}>Settings</Text>
-          <Text style={styles.navbarSubtitle}>Manage your account settings and set e-mail preferences.</Text>
+      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }} showsVerticalScrollIndicator={false}>
+        <View style={[styles.screenHeader, { paddingTop: Math.max(insets.top, spacing.sm) }]}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={[styles.backBtn, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+            activeOpacity={0.7}
+          >
+            <ChevronLeft size={20} color={themeColors.foreground} />
+          </TouchableOpacity>
+          <View style={styles.headerTextWrap}>
+            <Text style={[styles.screenTitle, { color: themeColors.foreground }]}>Appearance</Text>
+            <Text style={[styles.screenSubtitle, { color: themeColors.mutedForeground }]}>Theme & display</Text>
+          </View>
         </View>
 
         <View style={styles.content}>
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
             <Text style={styles.sectionLabel}>Theme</Text>
             <Text style={styles.sectionDescription}>
               Select the theme for the dashboard.
@@ -164,46 +177,43 @@ const createStyles = (theme: typeof colors.light) =>
       flex: 1,
       backgroundColor: theme.background,
     },
-    navbar: {
-      backgroundColor: theme.navbar,
-      padding: spacing.lg,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.xl,
+    screenHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.md,
     },
-    navbarTitle: {
-      fontSize: fontSize['2xl'],
-      fontWeight: fontWeight.bold,
-      color: theme.navbarForeground,
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: StyleSheet.hairlineWidth,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...shadows.card,
     },
-    navbarSubtitle: {
-      fontSize: fontSize.sm,
-      color: theme.navbarForeground,
-      opacity: 0.9,
-      marginTop: spacing.xs,
-    },
+    headerTextWrap: { flex: 1 },
+    screenTitle: { fontFamily: fontFamily.bold, fontSize: 20, letterSpacing: -0.3 },
+    screenSubtitle: { fontFamily: fontFamily.regular, fontSize: 13, marginTop: 2 },
     content: {
-      padding: spacing.lg,
+      paddingHorizontal: spacing.lg,
     },
     card: {
-      backgroundColor: theme.card,
-      borderRadius: borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.border,
+      borderRadius: cardRadius,
+      borderWidth: StyleSheet.hairlineWidth,
       padding: spacing.lg,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      elevation: 2,
+      ...shadows.card,
     },
     sectionLabel: {
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.semibold,
+      fontSize: 14,
       color: theme.foreground,
       marginBottom: spacing.xs,
     },
     sectionDescription: {
-      fontSize: fontSize.sm,
+      fontFamily: fontFamily.regular,
+      fontSize: 13,
       color: theme.mutedForeground,
       marginBottom: spacing.lg,
     },
@@ -361,18 +371,14 @@ const createStyles = (theme: typeof colors.light) =>
       fontWeight: fontWeight.semibold,
     },
     updateButton: {
-      padding: spacing.md,
-      borderRadius: borderRadius.md,
+      paddingVertical: spacing.md,
+      borderRadius: borderRadius.full,
       alignItems: 'center',
       marginTop: spacing.sm,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
+      ...shadows.md,
     },
     updateButtonText: {
-      fontSize: fontSize.md,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
+      fontSize: 15,
     },
   });

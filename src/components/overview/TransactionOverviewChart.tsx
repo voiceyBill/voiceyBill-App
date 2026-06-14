@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Path, Line, Text as SvgText, G } from 'react-native-svg';
 import { TrendingUp, TrendingDown, FileX } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, borderRadius, fontSize, fontWeight } from '../../theme/colors';
+import { colors, spacing, borderRadius, fontSize, fontWeight, fontFamily } from '../../theme/colors';
 import { ChartDataPoint } from '../../features/analytics/analyticsAPI';
 import { formatCurrency } from '../../lib/formatCurrency';
 import { format } from 'date-fns';
@@ -16,14 +16,12 @@ type Props = {
   totalExpenseCount?: number;
   periodLabel?: string;
   baseCurrency?: string;
+  hideHeader?: boolean;
+  transparentBackground?: boolean;
+  height?: number;
 };
 
-const CHART_H = 220;
-const MT = 16;  // margin top
-const MR = 12;  // margin right
-const MB = 32;  // margin bottom (x-axis labels)
-const ML = 64;  // margin left (y-axis labels)
-const PLOT_H = CHART_H - MT - MB;
+const DEFAULT_CHART_H = 220;
 
 function smoothPath(pts: { x: number; y: number }[], close: boolean, closeY: number): string {
   if (!pts.length) return '';
@@ -53,9 +51,19 @@ export default function TransactionOverviewChart({
   totalExpenseCount = 0,
   periodLabel = 'Past 30 Days',
   baseCurrency = 'USD',
+  hideHeader = false,
+  transparentBackground = false,
+  height,
 }: Props) {
   const { activeTheme } = useTheme();
   const theme = colors[activeTheme];
+
+  const CHART_H = height || DEFAULT_CHART_H;
+  const MT = 28;  // Increased margin top for currency label
+  const MR = 12;  // margin right
+  const MB = 32;  // margin bottom (x-axis labels)
+  const ML = 54;  // Reduced margin left since we'll remove the currency code from labels
+  const PLOT_H = CHART_H - MT - MB;
 
   // Total card width = screen minus outer padding
   const cardWidth = SCREEN_WIDTH - spacing.lg * 2;
@@ -66,7 +74,10 @@ export default function TransactionOverviewChart({
   const expenseVals = data.map((d) => d.expenses || 0);
   const hasData = data.length > 0 && (incomeVals.some((v) => v > 0) || expenseVals.some((v) => v > 0));
 
-  const maxVal = useMemo(() => niceMax(Math.max(...incomeVals, ...expenseVals, 1)), [incomeVals, expenseVals]);
+  const maxVal = useMemo(() => {
+    const rawMax = Math.max(...incomeVals, ...expenseVals, 1);
+    return niceMax(rawMax);
+  }, [incomeVals, expenseVals]);
 
   const sx = (i: number) => ML + (i / Math.max(data.length - 1, 1)) * plotW;
   const sy = (v: number) => MT + PLOT_H - (v / maxVal) * PLOT_H;
@@ -74,8 +85,8 @@ export default function TransactionOverviewChart({
   const incomePts = incomeVals.map((v, i) => ({ x: sx(i), y: sy(v) }));
   const expensePts = expenseVals.map((v, i) => ({ x: sx(i), y: sy(v) }));
 
-  // Y-axis: 4 grid levels
-  const yLevels = [0, 0.25, 0.5, 0.75, 1].map((f) => ({
+  // Y-axis: 3 grid levels, skip 0 to keep it clean
+  const yLevels = [0.33, 0.66, 1].map((f) => ({
     val: maxVal * f,
     y: sy(maxVal * f),
   }));
@@ -91,38 +102,43 @@ export default function TransactionOverviewChart({
   }, [data.length]);
 
   // Stripe-inspired ultra-subtle grid lines
-  const gridColor = activeTheme === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(23, 23, 23, 0.04)';
+  const gridColor = activeTheme === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(23, 23, 23, 0.06)';
   const axisLabelColor = theme.mutedForeground;
   const incomeColor = theme.brandGreen;
   const expenseColor = theme.destructive;
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+    <View style={[
+      !transparentBackground && styles.card, 
+      !transparentBackground && { backgroundColor: theme.card, borderColor: theme.border }
+    ]}>
       {/* Card header — title left, counts right */}
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <View style={styles.titleCol}>
-          <Text style={[styles.title, { color: theme.foreground }]}>Transaction Overview</Text>
-          <Text style={[styles.subtitle, { color: theme.mutedForeground }]}>
-            Showing total transactions {periodLabel}
-          </Text>
-        </View>
-        <View style={styles.countsRow}>
-          <View style={[styles.countBox, { borderLeftColor: theme.border }]}>
-            <Text style={[styles.countLabel, { color: theme.mutedForeground }]}>Income</Text>
-            <View style={styles.countValueRow}>
-              <TrendingUp size={13} color={incomeColor} strokeWidth={2.5} />
-              <Text style={[styles.countValue, { color: theme.foreground }]}>{totalIncomeCount}</Text>
+      {!hideHeader && (
+        <View style={[styles.header, { borderBottomColor: theme.border }]}>
+          <View style={styles.titleCol}>
+            <Text style={[styles.title, { color: theme.foreground }]}>Transaction Overview</Text>
+            <Text style={[styles.subtitle, { color: theme.mutedForeground }]}>
+              Showing total transactions {periodLabel}
+            </Text>
+          </View>
+          <View style={styles.countsRow}>
+            <View style={[styles.countBox, { borderLeftColor: theme.border }]}>
+              <Text style={[styles.countLabel, { color: theme.mutedForeground }]}>Income</Text>
+              <View style={styles.countValueRow}>
+                <TrendingUp size={13} color={incomeColor} strokeWidth={2.5} />
+                <Text style={[styles.countValue, { color: theme.foreground }]}>{totalIncomeCount}</Text>
+              </View>
+            </View>
+            <View style={[styles.countBox, { borderLeftColor: theme.border }]}>
+              <Text style={[styles.countLabel, { color: theme.mutedForeground }]}>Expenses</Text>
+              <View style={styles.countValueRow}>
+                <TrendingDown size={13} color={expenseColor} strokeWidth={2.5} />
+                <Text style={[styles.countValue, { color: theme.foreground }]}>{totalExpenseCount}</Text>
+              </View>
             </View>
           </View>
-          <View style={[styles.countBox, { borderLeftColor: theme.border }]}>
-            <Text style={[styles.countLabel, { color: theme.mutedForeground }]}>Expenses</Text>
-            <View style={styles.countValueRow}>
-              <TrendingDown size={13} color={expenseColor} strokeWidth={2.5} />
-              <Text style={[styles.countValue, { color: theme.foreground }]}>{totalExpenseCount}</Text>
-            </View>
-          </View>
         </View>
-      </View>
+      )}
 
       {/* Chart area */}
       {!hasData ? (
@@ -149,6 +165,19 @@ export default function TransactionOverviewChart({
               </LinearGradient>
             </Defs>
 
+            {/* Currency Indicator at the top left of the axis */}
+            <SvgText
+              x={ML - 6}
+              y={MT - 10}
+              textAnchor="end"
+              fontSize={10}
+              fill={axisLabelColor}
+              fontWeight="700"
+              fontFamily={fontFamily.bold}
+            >
+              {baseCurrency}
+            </SvgText>
+
             {/* Horizontal grid lines + Y labels */}
             {yLevels.map(({ val, y }) => (
               <G key={`grid-${val}`}>
@@ -158,21 +187,34 @@ export default function TransactionOverviewChart({
                   x2={ML + plotW}
                   y2={y}
                   stroke={gridColor}
-                  strokeWidth={StyleSheet.hairlineWidth}
-                  strokeDasharray={val === 0 ? undefined : '3 3'}
+                  strokeWidth={1}
                 />
                 <SvgText
-                  x={ML - 6}
-                  y={y + 3}
+                  x={ML - 8}
+                  y={y + 4}
                   textAnchor="end"
-                  fontSize={9}
+                  fontSize={10}
                   fill={axisLabelColor}
-                  fontWeight="600"
+                  fontWeight="500"
+                  fontFamily={fontFamily.medium}
                 >
-                  {formatCurrency(val, { compact: true, currency: baseCurrency })}
+                  {new Intl.NumberFormat('en-US', {
+                    notation: 'compact',
+                    maximumFractionDigits: 0,
+                  }).format(val)}
                 </SvgText>
               </G>
             ))}
+
+            {/* X-axis baseline */}
+            <Line
+              x1={ML}
+              y1={closeY}
+              x2={ML + plotW}
+              y2={closeY}
+              stroke={gridColor}
+              strokeWidth={1}
+            />
 
             {/* Expense area fill */}
             <Path d={smoothPath(expensePts, true, closeY)} fill="url(#expenseGrad)" />
@@ -245,16 +287,18 @@ export default function TransactionOverviewChart({
           </Svg>
 
           {/* Legend */}
-          <View style={[styles.legend, { borderTopColor: theme.border }]}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: incomeColor }]} />
-              <Text style={[styles.legendLabel, { color: theme.foreground }]}>Income</Text>
+          {!hideHeader && (
+            <View style={[styles.legend, { borderTopColor: theme.border }]}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: incomeColor }]} />
+                <Text style={[styles.legendLabel, { color: theme.foreground }]}>Income</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: expenseColor }]} />
+                <Text style={[styles.legendLabel, { color: theme.foreground }]}>Expenses</Text>
+              </View>
             </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: expenseColor }]} />
-              <Text style={[styles.legendLabel, { color: theme.foreground }]}>Expenses</Text>
-            </View>
-          </View>
+          )}
         </View>
       )}
     </View>
@@ -367,4 +411,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-

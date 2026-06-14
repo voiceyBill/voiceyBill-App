@@ -1,58 +1,15 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
-import {
-  ArrowUpRight,
-  ArrowDownRight,
-  ChevronRight,
-  ShoppingBag,
-  Utensils,
-  Car,
-  Zap,
-  Film,
-  Tag,
-  Activity,
-  Plane,
-  Home,
-  TrendingUp,
-  Coins,
-  HelpCircle,
-  LucideIcon
-} from 'lucide-react-native';
+import { ChevronRight } from 'lucide-react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, borderRadius, fontSize, fontWeight } from '../../theme/colors';
+import { colors, spacing, borderRadius, fontSize, fontWeight, fontFamily } from '../../theme/colors';
 import { useGetAllTransactionsQuery } from '../../features/transaction/transactionAPI';
 import { useTypedSelector } from '../../store/hooks';
 import { formatCurrency } from '../../lib/formatCurrency';
+import { getCategoryVisual } from '../../lib/categoryVisuals';
 import { format } from 'date-fns';
 import { useNavigation } from '@react-navigation/native';
-
-// Color mappings and icons for categories matching the Revolut / Stripe premium design
-const categoryConfig: Record<string, { icon: LucideIcon; color: string; bgColor: string }> = {
-  groceries: { icon: ShoppingBag, color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.08)' }, // Amber
-  dining: { icon: Utensils, color: '#8b5cf6', bgColor: 'rgba(139, 92, 246, 0.08)' }, // Violet
-  transportation: { icon: Car, color: '#3b82f6', bgColor: 'rgba(59, 130, 246, 0.08)' }, // Blue
-  utilities: { icon: Zap, color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.08)' }, // Emerald
-  entertainment: { icon: Film, color: '#a855f7', bgColor: 'rgba(168, 85, 247, 0.08)' }, // Purple
-  shopping: { icon: Tag, color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.08)' }, // Amber
-  healthcare: { icon: Activity, color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.08)' }, // Rose
-  travel: { icon: Plane, color: '#06b6d4', bgColor: 'rgba(6, 182, 212, 0.08)' }, // Cyan
-  housing: { icon: Home, color: '#64748b', bgColor: 'rgba(100, 116, 139, 0.08)' }, // Slate
-  income: { icon: TrendingUp, color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.08)' }, // Emerald
-  investments: { icon: Coins, color: '#14b8a6', bgColor: 'rgba(20, 184, 166, 0.08)' }, // Teal
-};
-
-const getCategoryConfig = (cat: string) => {
-  const lower = cat?.toLowerCase() || 'other';
-  if (lower.includes('food') || lower.includes('dining')) return categoryConfig.dining;
-  if (lower.includes('groceries') || lower.includes('shopping') || lower.includes('retail')) return categoryConfig.shopping;
-  if (lower.includes('transport') || lower.includes('car') || lower.includes('travel')) return categoryConfig.transportation;
-  if (lower.includes('bill') || lower.includes('utilities') || lower.includes('rent')) return categoryConfig.utilities;
-  if (lower.includes('health') || lower.includes('medical')) return categoryConfig.healthcare;
-  if (lower.includes('income')) return categoryConfig.income;
-  if (lower.includes('investment')) return categoryConfig.investments;
-  
-  return categoryConfig[lower] || { icon: HelpCircle, color: '#8e8e93', bgColor: 'rgba(142, 142, 147, 0.08)' };
-};
 
 export default function RecentTransactions() {
   const { activeTheme } = useTheme();
@@ -73,10 +30,9 @@ export default function RecentTransactions() {
 
   const renderTransactionCard = ({ item }: { item: any }) => {
     const isIncome = item.type === 'INCOME';
-    const config = getCategoryConfig(item.category);
-    const CategoryIcon = config.icon;
+    const visual = getCategoryVisual(item.category);
 
-    const metaParts = [item.category, format(new Date(item.createdAt), 'MMM d, yyyy')].filter(Boolean);
+    const metaParts = [item.category, format(new Date(item.createdAt), 'MMM d')].filter(Boolean);
     if (item.paymentMethod) metaParts.push(formatPaymentMethod(item.paymentMethod));
 
     return (
@@ -92,9 +48,9 @@ export default function RecentTransactions() {
       >
         {/* Card body */}
         <View style={styles.cardBody}>
-          {/* Category Icon Badge with glassmorphic pastel backing */}
-          <View style={[styles.iconCircle, { backgroundColor: config.bgColor }]}>
-            <CategoryIcon size={18} color={config.color} strokeWidth={2.2} />
+          {/* Category Icon Badge */}
+          <View style={[styles.iconCircle, { backgroundColor: visual.bgColor }]}>
+            <Ionicons name={visual.icon} size={18} color={visual.color} />
           </View>
 
           {/* Transaction title and metadata */}
@@ -114,22 +70,10 @@ export default function RecentTransactions() {
                 styles.amount,
                 { color: isIncome ? theme.incomeText : theme.foreground },
               ]}
+              numberOfLines={1}
             >
               {isIncome ? '+' : '-'}{formatCurrency(item.amount, { currency: item.baseCurrencyAtTime || baseCurrency, showSign: false })}
             </Text>
-            {item.originalCurrency && item.originalCurrency !== (item.baseCurrencyAtTime || baseCurrency) && (
-              <View style={{ alignItems: 'flex-end', gap: 1 }}>
-                <Text style={{ fontSize: 10, color: theme.mutedForeground }}>
-                  ({formatCurrency(item.originalAmount || item.amount, { currency: item.originalCurrency })})
-                </Text>
-                {item.rateSource === 'cached' && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                    <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#f59e0b' }} />
-                    <Text style={{ fontSize: 9, color: '#f59e0b', fontWeight: '600' }}>Cached Rate</Text>
-                  </View>
-                )}
-              </View>
-            )}
             <View
               style={[
                 styles.typeBadge,
@@ -198,13 +142,13 @@ export default function RecentTransactions() {
 const styles = StyleSheet.create({
   card: {
     borderRadius: borderRadius.xl,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 24,
+    elevation: 4,
   },
   header: {
     flexDirection: 'row',
@@ -213,15 +157,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
   },
   title: {
-    fontSize: 15,
-    fontWeight: fontWeight.bold,
-    letterSpacing: -0.3,
+    fontFamily: fontFamily.semibold,
+    fontSize: 14,
+    letterSpacing: -0.2,
   },
   subtitle: {
-    fontSize: 11.5,
+    fontFamily: fontFamily.regular,
+    fontSize: 11,
     marginTop: 2,
   },
   viewAllBtn: {
@@ -230,14 +175,14 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   viewAll: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.medium,
+    fontSize: 12,
   },
   listContent: {
     // flush layout
   },
   separator: {
-    height: StyleSheet.hairlineWidth,
+    height: 1,
     marginLeft: spacing.md + 40 + spacing.md, // flush align with the title text
   },
   transactionCard: {
@@ -249,7 +194,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
+    paddingVertical: spacing.md,
     gap: spacing.md,
   },
   iconCircle: {
@@ -266,12 +211,13 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   transactionTitle: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.medium,
+    fontSize: 13,
     lineHeight: 18,
   },
   metaText: {
-    fontSize: 11,
+    fontFamily: fontFamily.regular,
+    fontSize: 10.5,
     lineHeight: 16,
   },
   cardRight: {
@@ -281,26 +227,27 @@ const styles = StyleSheet.create({
     marginLeft: spacing.xs,
   },
   amount: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.bold,
+    fontSize: 14,
     letterSpacing: -0.2,
     fontVariant: ['tabular-nums'],
   },
   typeBadge: {
-    paddingHorizontal: 7,
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: borderRadius.full,
+    borderRadius: borderRadius.sm,
   },
   typeBadgeText: {
-    fontSize: 10,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.medium,
+    fontSize: 9,
   },
   emptyState: {
     paddingVertical: spacing.xxl,
     alignItems: 'center',
   },
   emptyText: {
-    fontSize: fontSize.sm,
+    fontFamily: fontFamily.regular,
+    fontSize: 13,
   },
 });
 
