@@ -52,6 +52,8 @@ import {
   useGetBudgetSummaryQuery,
   useUpsertBudgetMutation,
 } from '../../features/budget/budgetAPI';
+import { useGetSupportedCurrenciesQuery } from '../../features/currency/currencyAPI';
+import { useTypedSelector } from '../../store/hooks';
 import BudgetCategoryPie from '../../components/budget/BudgetCategoryPie';
 import VoiceRecorder from '../../components/transaction/VoiceRecorder';
 import { useIsFocused } from '@react-navigation/native';
@@ -148,6 +150,11 @@ const getCategoryIcon = (name: string) => categoryIcons[name] ?? PiggyBank;
 
 // formatBudgetCurrency is created inside the component so it can use the
 // current user's base currency from the auth store.
+const formatBudgetCurrency = (
+  value: number,
+  currency: string = 'USD',
+  options: Parameters<typeof formatCurrency>[1] = {},
+) => formatCurrency(Math.round(value), { ...options, currency, decimalPlaces: 0 });
 
 const parseBudgetAmount = (value: string) => {
   const amount = Number(String(value || '').replace(/,/g, ''));
@@ -165,6 +172,12 @@ const BudgetScreen = () => {
   ) => formatCurrency(Math.round(value), { ...options, decimalPlaces: 0, currency: userBaseCurrency });
   const { showNotification } = useNotification();
   const isBudgetFocused = useIsFocused();
+  const { user } = useTypedSelector((state) => state.auth);
+  const { data: currencyData } = useGetSupportedCurrenciesQuery();
+  const baseCurrency = user?.baseCurrency || 'USD';
+  const currencySymbol = currencyData?.currencies?.find(
+    (c) => c.code === baseCurrency
+  )?.symbol ?? '$';
   const currentMonthYear = getCurrentMonthYear();
   const monthOptions = useMemo(() => getBudgetMonthOptions(), []);
   const [selectedMonthValue, setSelectedMonthValue] = useState(
@@ -399,7 +412,7 @@ const BudgetScreen = () => {
       showNotification({
         type: 'budget_alert',
         title: 'Budget Increased',
-        message: `Your overall budget increased from ${formatBudgetCurrency(previousBudget.totalBudget)} to ${formatBudgetCurrency(budget.totalBudget)}`,
+        message: `Your overall budget increased from ${formatBudgetCurrency(previousBudget.totalBudget, baseCurrency)} to ${formatBudgetCurrency(budget.totalBudget, baseCurrency)}`,
       });
     }
 
@@ -412,7 +425,7 @@ const BudgetScreen = () => {
         showNotification({
           type: 'budget_alert',
           title: 'Category Budget Increased',
-          message: `${formatBudgetCategory(category.name)} budget increased from ${formatBudgetCurrency(prevCategory.limit)} to ${formatBudgetCurrency(category.limit)}`,
+          message: `${formatBudgetCategory(category.name)} budget increased from ${formatBudgetCurrency(prevCategory.limit, baseCurrency)} to ${formatBudgetCurrency(category.limit, baseCurrency)}`,
         });
       }
     });
@@ -423,13 +436,13 @@ const BudgetScreen = () => {
   const summaryItems: SummaryItem[] = [
     {
       label: 'Total Budget',
-      value: formatBudgetCurrency(budget?.totalBudget || 0),
+      value: formatBudgetCurrency(budget?.totalBudget || 0, baseCurrency),
       progress: budget?.hasBudget ? 100 : 0,
       tone: 'safe',
     },
     {
       label: 'Spent',
-      value: formatBudgetCurrency(budget?.spent || 0, {
+      value: formatBudgetCurrency(budget?.spent || 0, baseCurrency, {
         showSign: true,
         isExpense: true,
       }),
@@ -438,7 +451,7 @@ const BudgetScreen = () => {
     },
     {
       label: 'Remaining',
-      value: formatBudgetCurrency(budget?.remaining || 0),
+      value: formatBudgetCurrency(budget?.remaining || 0, baseCurrency),
       progress: budget?.hasBudget ? Math.max(100 - (budget?.usagePercentage || 0), 0) : 0,
       tone: getBudgetTone(budget?.usagePercentage || 0),
     },
@@ -504,6 +517,7 @@ const BudgetScreen = () => {
         type: 'error',
         title: 'Invalid Budget',
         message: `Total budget must be greater than ${formatBudgetCurrency(0)}.`,
+        message: `Total budget must be greater than ${currencySymbol}0.`,
       });
       return;
     }
@@ -700,6 +714,13 @@ const BudgetScreen = () => {
                     );
                   })()
                 }
+                <BudgetCategoryPie
+                  categories={budget.categories}
+                  totalSpent={budget.spent}
+                  formatCategory={formatBudgetCategory}
+                  getCategoryIcon={getCategoryIcon}
+                  baseCurrency={baseCurrency}
+                />
               </View>
             )}
 
@@ -851,7 +872,7 @@ const BudgetScreen = () => {
                   value={totalBudget}
                   onChangeText={(value) => setTotalBudget(value.replace(/[^0-9.]/g, ''))}
                   keyboardType="decimal-pad"
-                  placeholder="0.00"
+                  placeholder={`${currencySymbol}0.00`}
                   placeholderTextColor={themeColors.mutedForeground}
                   style={[styles.input, { color: themeColors.foreground, borderColor: themeColors.border, backgroundColor: themeColors.card }]}
                 />
@@ -935,6 +956,27 @@ const BudgetScreen = () => {
                           onValueChange={setNewCategoryPermanent}
                           trackColor={{ false: '#ccc', true: themeColors.primary }}
                           thumbColor={newCategoryPermanent ? themeColors.primaryForeground : undefined}
+                  {CATEGORIES.map((category) => {
+                    const categoryError = categoryLimitErrors[category.value] ?? '';
+
+                    return (
+                      <View
+                        key={category.value}
+                        style={[styles.categoryRow, { borderColor: categoryError ? themeColors.destructive : themeColors.border }]}
+                      >
+                        <Text style={[styles.categoryLabel, { color: themeColors.foreground }]}>{category.label}</Text>
+                        <TextInput
+                          value={categoryLimits[category.value]}
+                          onChangeText={(value) =>
+                            handleCategoryLimitChange(
+                              category.value,
+                              value.replace(/[^0-9.]/g, ''),
+                            )
+                          }
+                          keyboardType="decimal-pad"
+                          placeholder={`${currencySymbol}0.00`}
+                          placeholderTextColor={themeColors.mutedForeground}
+                          style={[styles.categoryInput, { color: themeColors.foreground, borderColor: categoryError ? themeColors.destructive : themeColors.border, backgroundColor: themeColors.card }]}
                         />
                       </View>
                       <TouchableOpacity onPress={handleAddCategory} style={[styles.addCategoryBtn, { backgroundColor: themeColors.primary }]}>

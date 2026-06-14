@@ -24,6 +24,7 @@ import {
   useBulkImportTransactionMutation,
 } from "../../features/transaction/transactionAPI";
 import { useTheme } from "../../context/ThemeContext";
+import { useVoiceRecording } from "../../context/VoiceRecordingContext";
 import {
   colors,
   spacing,
@@ -67,6 +68,7 @@ interface TransactionsScreenProps {
 export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { voiceData, setVoiceData } = useVoiceRecording();
 
   const user = useTypedSelector((state) => state.auth.user);
   const baseCurrency = user?.baseCurrency || "USD";
@@ -120,6 +122,14 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
       setShowFormSheet(true);
     }
   }, [route?.params?.openVoiceMode]);
+
+  // Listen for voice data from context
+  useEffect(() => {
+    if (voiceData) {
+      setShowFormSheet(true);
+      setVoiceData(null);
+    }
+  }, [voiceData]);
 
   const { data, isLoading, refetch } = useGetAllTransactionsQuery({
     keyword: debounced || undefined,

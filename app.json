@@ -31,18 +31,17 @@
     },
     "android": {
       "package": "com.voiceybill.mobile",
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#ffffff"
-      },
+      "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.POST_NOTIFICATIONS"
       ],
       "usesCleartextTraffic": true
     },
     "plugins": [
+      "expo-notifications",
       [
         "expo-image-picker",
         {

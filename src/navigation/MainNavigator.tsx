@@ -8,6 +8,7 @@ import {
 import { LayoutDashboard, ArrowUpDown, Mic, BarChart3, Wallet, UserRound, Bell } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useNotification } from '../context/NotificationContext';
+import { useVoiceRecording } from '../context/VoiceRecordingContext';
 import { colors, spacing } from '../theme/colors';
 
 // Screens
@@ -105,6 +106,7 @@ function MainTopBar({ navigation, route }: BottomTabHeaderProps) {
 export default function MainNavigator() {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { openVoiceRecording } = useVoiceRecording();
 
   return (
     <Tab.Navigator
@@ -155,10 +157,10 @@ export default function MainNavigator() {
             </TouchableOpacity>
           ),
         }}
-        listeners={({ navigation }) => ({
+        listeners={() => ({
           tabPress: (e) => {
             e.preventDefault();
-            navigation.navigate('Transactions', { openVoiceMode: Date.now() });
+            openVoiceRecording();
           },
         })}
       />
