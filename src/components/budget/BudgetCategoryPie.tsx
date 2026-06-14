@@ -25,7 +25,6 @@ type Props = {
   totalSpent: number;
   formatCategory: (name: string) => string;
   getCategoryIcon: (name: string) => React.ComponentType<CategoryIconProps>;
-  baseCurrency?: string;
 };
 
 const CATEGORY_COLORS = [
@@ -65,8 +64,6 @@ const arcPath = (startAngle: number, endAngle: number) => {
 
 // formatBudgetCurrency will be created inside the component so it can use
 // the current user's base currency.
-const formatBudgetCurrency = (value: number, currency: string = 'USD') =>
-  formatCurrency(Math.round(value), { currency, decimalPlaces: 0 });
 
 const getUsageColor = (
   category: BudgetCategorySummary & { color: string },
@@ -82,7 +79,6 @@ export default function BudgetCategoryPie({
   totalSpent,
   formatCategory,
   getCategoryIcon,
-  baseCurrency = 'USD',
 }: Props) {
   const { activeTheme } = useTheme();
   const theme = colors[activeTheme];
@@ -159,7 +155,7 @@ export default function BudgetCategoryPie({
               </Svg>
               <View style={styles.centerLabel}>
                 <Text style={[styles.centerValue, { color: theme.foreground }]}>
-                  {formatBudgetCurrency(totalSpent, baseCurrency)}
+                  {formatBudgetCurrency(totalSpent)}
                 </Text>
                 <Text style={[styles.centerCaption, { color: theme.mutedForeground }]}>
                   Spent
@@ -176,7 +172,7 @@ export default function BudgetCategoryPie({
                   </Text>
                 </View>
                 <Text style={[styles.tooltipMeta, { color: theme.mutedForeground }]}>
-                  {formatBudgetCurrency(selectedItem.spent, baseCurrency)} / {formatBudgetCurrency(selectedItem.limit, baseCurrency)}
+                  {formatBudgetCurrency(selectedItem.spent)} / {formatBudgetCurrency(selectedItem.limit)}
                 </Text>
                 <Text style={[styles.tooltipMeta, { color: selectedItem.exceeded ? theme.destructive : theme.mutedForeground }]}>
                   {Math.round(selectedItem.usagePercentage)}% usage, {Math.round(selectedItem.sharePercentage)}% of spending
@@ -264,7 +260,7 @@ export default function BudgetCategoryPie({
                     {formatCategory(category.name)}
                   </Text>
                   <Text style={[styles.categoryMeta, { color: theme.mutedForeground }]}>
-                    {formatBudgetCurrency(category.spent, baseCurrency)} / {formatBudgetCurrency(category.limit, baseCurrency)}
+                    {formatBudgetCurrency(category.spent)} / {formatBudgetCurrency(category.limit)}
                   </Text>
                   <View style={[styles.progressTrack, { backgroundColor: theme.muted }]}>
                     <View
