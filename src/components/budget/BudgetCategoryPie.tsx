@@ -9,6 +9,7 @@ import {
 import Svg, { Circle, G, Path } from 'react-native-svg';
 import { FileX } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { useTypedSelector } from '../../store/hooks';
 import type { BudgetCategorySummary } from '../../features/budget/budgetType';
 import { formatCurrency } from '../../lib/formatCurrency';
 import { borderRadius, colors, fontSize, fontWeight, spacing } from '../../theme/colors';
@@ -61,8 +62,8 @@ const arcPath = (startAngle: number, endAngle: number) => {
   return `M ${start.x} ${start.y} A ${RADIUS} ${RADIUS} 0 ${largeArc} 1 ${end.x} ${end.y}`;
 };
 
-const formatBudgetCurrency = (value: number) =>
-  formatCurrency(Math.round(value), { decimalPlaces: 0 });
+// formatBudgetCurrency will be created inside the component so it can use
+// the current user's base currency.
 
 const getUsageColor = (
   category: BudgetCategorySummary & { color: string },
@@ -81,6 +82,10 @@ export default function BudgetCategoryPie({
 }: Props) {
   const { activeTheme } = useTheme();
   const theme = colors[activeTheme];
+  const { user } = useTypedSelector((state) => state.auth);
+  const userBaseCurrency = user?.baseCurrency || 'USD';
+  const formatBudgetCurrency = (value: number) =>
+    formatCurrency(Math.round(value), { decimalPlaces: 0, currency: userBaseCurrency });
   const { width } = useWindowDimensions();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const isWide = width >= 760;

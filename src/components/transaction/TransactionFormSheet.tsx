@@ -532,7 +532,7 @@ export default function TransactionFormSheet({
                     style={[
                       styles.radioCircle,
                       type === TRANSACTION_TYPE.INCOME &&
-                        styles.radioCircleActive,
+                      styles.radioCircleActive,
                     ]}
                   >
                     {type === TRANSACTION_TYPE.INCOME && (
@@ -543,7 +543,7 @@ export default function TransactionFormSheet({
                     style={[
                       styles.typeButtonText,
                       type === TRANSACTION_TYPE.INCOME &&
-                        styles.typeButtonTextActive,
+                      styles.typeButtonTextActive,
                     ]}
                   >
                     Income
@@ -554,7 +554,7 @@ export default function TransactionFormSheet({
                   style={[
                     styles.typeButton,
                     type === TRANSACTION_TYPE.EXPENSE &&
-                      styles.typeButtonActive,
+                    styles.typeButtonActive,
                   ]}
                   onPress={() => setType(TRANSACTION_TYPE.EXPENSE)}
                   activeOpacity={0.7}
@@ -564,7 +564,7 @@ export default function TransactionFormSheet({
                     style={[
                       styles.radioCircle,
                       type === TRANSACTION_TYPE.EXPENSE &&
-                        styles.radioCircleActive,
+                      styles.radioCircleActive,
                     ]}
                   >
                     {type === TRANSACTION_TYPE.EXPENSE && (
@@ -575,7 +575,7 @@ export default function TransactionFormSheet({
                     style={[
                       styles.typeButtonText,
                       type === TRANSACTION_TYPE.EXPENSE &&
-                        styles.typeButtonTextActive,
+                      styles.typeButtonTextActive,
                     ]}
                   >
                     Expense
@@ -642,13 +642,19 @@ export default function TransactionFormSheet({
                   dropdownIconColor={themeColors.foreground}
                 >
                   <Picker.Item label="Select a category" value="" />
-                  {CATEGORIES.map((cat) => (
-                    <Picker.Item
-                      key={cat.value}
-                      label={cat.label}
-                      value={cat.value}
-                    />
-                  ))}
+                  {
+                    (() => {
+                      const added = (user as any)?.customCategories || [];
+                      const all = [...CATEGORIES, ...added];
+                      return all.map((cat: any) => (
+                        <Picker.Item
+                          key={cat.value}
+                          label={cat.label}
+                          value={cat.value}
+                        />
+                      ));
+                    })()
+                  }
                 </Picker>
               </View>
             </View>
