@@ -24,6 +24,7 @@ import {
   Lock,
   ChevronRight,
   LogOut,
+  Tag,
 } from "lucide-react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { useTypedSelector, useAppDispatch } from "../../store/hooks";
@@ -63,6 +64,17 @@ const sections: Section[] = [
         subtitle: "Update profile and avatar",
         screen: "Account",
         icon: User,
+      },
+    ],
+  },
+  {
+    title: "Customization",
+    items: [
+      {
+        title: "Categories",
+        subtitle: "Create and manage custom transaction categories",
+        screen: "CategorySettings",
+        icon: Tag,
       },
     ],
   },
