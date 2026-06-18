@@ -13,6 +13,7 @@ import {
   ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFloatingTabBarSpace } from "../../navigation/tabBarLayout";
 import { RouteProp } from "@react-navigation/native";
 import {
   useGetAllTransactionsQuery,
@@ -50,7 +51,6 @@ import { Ionicons } from "@expo/vector-icons";
 import {
   Search,
   Filter,
-  Plus,
   Upload,
   MoreVertical,
   Trash2,
@@ -71,6 +71,7 @@ interface TransactionsScreenProps {
 export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const tabBarSpace = useFloatingTabBarSpace();
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const { voiceData, setVoiceData } = useVoiceRecording();
@@ -210,11 +211,6 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
     }
   };
 
-  const handleAddNew = () => {
-    setEditingTransactionId(undefined);
-    setShowFormSheet(true);
-  };
-
   const handleCloseForm = () => {
     setShowFormSheet(false);
     setEditingTransactionId(undefined);
@@ -301,8 +297,6 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   const totalPages = data?.pagination?.totalPages || 0;
   const totalCount = data?.pagination?.totalCount || 0;
   const items = data?.transactions || [];
-  const showingFrom = items.length ? (page - 1) * pageSize + 1 : 0;
-  const showingTo = items.length ? Math.min(page * pageSize, totalCount) : 0;
 
   const hasActiveFilters =
     search || typeFilter !== "ALL" || recurringFilter !== "ALL";
@@ -703,6 +697,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
         data={items}
         keyExtractor={(item) => item._id}
         renderItem={renderTransactionCard}
+        style={styles.list}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl refreshing={isLoading} onRefresh={refetch} />
@@ -730,6 +725,8 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
           {
             backgroundColor: themeColors.card,
             borderTopColor: themeColors.border,
+            // Lift the pinned footer clear of the floating tab bar.
+            marginBottom: tabBarSpace,
           },
         ]}
       >
@@ -1375,9 +1372,14 @@ const createStyles = (theme: typeof colors.light) =>
       fontFamily: fontFamily.semibold,
       fontSize: 13,
     },
+    list: {
+      flex: 1,
+    },
     listContent: {
       paddingHorizontal: spacing.lg,
-      paddingBottom: 120,
+      // Footer is a separate pinned bar below the list, so the list only needs
+      // a little breathing room at the end of its scroll content.
+      paddingBottom: spacing.md,
     },
     transactionCard: {
       borderRadius: borderRadius.xl,

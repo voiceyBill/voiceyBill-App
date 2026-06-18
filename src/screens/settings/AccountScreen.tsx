@@ -11,6 +11,7 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFloatingTabBarSpace } from "../../navigation/tabBarLayout";
 import { useNavigation } from "@react-navigation/native";
 import { User, Camera, ChevronLeft } from "lucide-react-native";
 import { useTheme } from "../../context/ThemeContext";
@@ -39,6 +40,7 @@ export default function AccountScreen() {
   const themeColors = colors[activeTheme];
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
+  const tabBarSpace = useFloatingTabBarSpace();
   const dispatch = useAppDispatch();
   const user = useTypedSelector((state) => state.auth.user);
 
@@ -168,7 +170,7 @@ export default function AccountScreen() {
   return (
     <SafeAreaView style={styles.container} edges={[]}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: spacing.xxxl }}
+        contentContainerStyle={{ paddingBottom: tabBarSpace }}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFloatingTabBarSpace } from '../../navigation/tabBarLayout';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
@@ -11,13 +12,14 @@ export default function AppearanceScreen() {
   const { theme, setTheme, activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const insets = useSafeAreaInsets();
+  const tabBarSpace = useFloatingTabBarSpace();
   const [selectedTheme, setSelectedTheme] = React.useState<'light' | 'dark' | 'system'>(theme);
 
   const styles = createStyles(themeColors);
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingBottom: tabBarSpace }} showsVerticalScrollIndicator={false}>
         <View style={[styles.screenHeader, { paddingTop: Math.max(insets.top, spacing.sm) }]}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}

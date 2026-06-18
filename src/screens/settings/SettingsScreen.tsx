@@ -15,6 +15,7 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFloatingTabBarSpace } from "../../navigation/tabBarLayout";
 import { useNavigation } from "@react-navigation/native";
 import {
   User,
@@ -110,6 +111,7 @@ export default function SettingsScreen() {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const insets = useSafeAreaInsets();
+  const tabBarSpace = useFloatingTabBarSpace();
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const dispatch = useAppDispatch();
@@ -201,7 +203,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingBottom: tabBarSpace }} showsVerticalScrollIndicator={false}>
         {/* User card — taps into Account settings */}
         {user && (
           <TouchableOpacity

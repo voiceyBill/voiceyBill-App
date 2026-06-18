@@ -11,6 +11,7 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFloatingTabBarSpace } from "../../navigation/tabBarLayout";
 import { useNavigation } from "@react-navigation/native";
 import { Eye, EyeOff, ChevronLeft } from "lucide-react-native";
 import { useTheme } from "../../context/ThemeContext";
@@ -58,6 +59,7 @@ export default function ChangePasswordScreen() {
   const themeColors = colors[activeTheme];
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
+  const tabBarSpace = useFloatingTabBarSpace();
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -147,7 +149,7 @@ export default function ChangePasswordScreen() {
         style={styles.keyboardAvoiding}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.scrollContainer, { paddingBottom: tabBarSpace }]} showsVerticalScrollIndicator={false}>
           <View
             style={[styles.header, { paddingTop: Math.max(insets.top, spacing.sm) }]}
           >
