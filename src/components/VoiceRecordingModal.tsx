@@ -10,7 +10,7 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '../theme/colors';
@@ -25,7 +25,8 @@ interface VoiceRecordingModalProps {
 const VoiceRecordingModal: React.FC<VoiceRecordingModalProps> = ({ isVisible, onClose }) => {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
-  const { onVoiceComplete } = useVoiceRecording();
+  const insets = useSafeAreaInsets();
+  const { onVoiceComplete, isAutoStart } = useVoiceRecording();
 
   const [isVoiceProcessing, setIsVoiceProcessing] = React.useState(false);
 
@@ -56,7 +57,7 @@ const VoiceRecordingModal: React.FC<VoiceRecordingModalProps> = ({ isVisible, on
           styles.container,
           { backgroundColor: themeColors.background },
         ]}
-        edges={['top', 'left', 'right']}
+        edges={['left', 'right']}
       >
         {/* Header */}
         <View
@@ -64,6 +65,7 @@ const VoiceRecordingModal: React.FC<VoiceRecordingModalProps> = ({ isVisible, on
             styles.header,
             {
               borderBottomColor: themeColors.border,
+              paddingTop: Math.max(insets.top, spacing.md),
             },
           ]}
         >
@@ -94,6 +96,7 @@ const VoiceRecordingModal: React.FC<VoiceRecordingModalProps> = ({ isVisible, on
             loadingChange={isVoiceProcessing}
             onLoadingChange={setIsVoiceProcessing}
             onVoiceComplete={handleVoiceComplete}
+            autoStart={isAutoStart}
           />
         </ScrollView>
       </SafeAreaView>

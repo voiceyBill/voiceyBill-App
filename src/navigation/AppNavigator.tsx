@@ -32,13 +32,19 @@ function AppContent() {
 
     const register = async () => {
       const result = await registerForPushNotificationsAsync();
-      if (!isMounted || result.status !== "granted" || !result.token) return;
+      if (!isMounted) return;
+      if (result.status !== "granted" || !result.token) {
+        console.warn(
+          `[push-notifications] registration skipped (status: ${result.status})`,
+        );
+        return;
+      }
       if (lastTokenRef.current === result.token) return;
 
       lastTokenRef.current = result.token;
       await registerPushToken({
         token: result.token,
-        platform: "ANDROID",
+        platform: Platform.OS === "ios" ? "IOS" : "ANDROID",
       });
     };
 

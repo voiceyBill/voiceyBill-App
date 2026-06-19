@@ -25,6 +25,7 @@ import {
   CheckCircle2,
 } from "lucide-react-native";
 import { useTheme } from "../../context/ThemeContext";
+import { useToast } from "../../context/NotificationContext";
 import {
   colors,
   spacing,
@@ -42,15 +43,18 @@ interface VoiceRecorderProps {
   loadingChange: boolean;
   onLoadingChange: (loading: boolean) => void;
   onVoiceComplete: (data: any) => void;
+  autoStart?: boolean;
 }
 
 const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   loadingChange,
   onLoadingChange,
   onVoiceComplete,
+  autoStart = false,
 }) => {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { showToast } = useToast();
 
   const user = useTypedSelector((state) => state.auth.user);
   const baseCurrency = user?.baseCurrency || "USD";
@@ -91,11 +95,17 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     }
   }, [isRecording, pulseAnim]);
 
+  useEffect(() => {
+    if (autoStart) {
+      startRecording();
+    }
+  }, [autoStart]);
+
   const startRecording = async () => {
     try {
       const { status } = await Audio.requestPermissionsAsync();
       if (status !== "granted") {
-        alert("Microphone permission is required");
+        showToast({ type: "warning", title: "Permission needed", message: "Microphone permission is required." });
         return;
       }
       await Audio.setAudioModeAsync({
@@ -118,7 +128,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         1000,
       );
     } catch {
-      alert("Failed to start recording");
+      showToast({ type: "error", title: "Recording failed", message: "Failed to start recording." });
     }
   };
 
@@ -258,7 +268,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
 
   const processVoiceRecording = async () => {
     if (!recordedUri) {
-      alert("No recording found");
+      showToast({ type: "warning", title: "No recording", message: "No recording found." });
       return;
     }
     let uploadUri = recordedUri;
@@ -295,10 +305,11 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         throw new Error("Failed to process voice");
       }
     } catch (error: any) {
-      alert(
-        error?.message ||
-          "Failed to process voice recording. Please try again.",
-      );
+      showToast({
+        type: "error",
+        title: "Processing failed",
+        message: error?.message || "Failed to process voice recording. Please try again.",
+      });
     } finally {
       onLoadingChange(false);
     }

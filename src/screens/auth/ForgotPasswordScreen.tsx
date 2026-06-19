@@ -4,32 +4,39 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   KeyboardAvoidingView,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { ArrowLeft } from 'lucide-react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useForgotPasswordMutation } from '../../features/auth/authAPI';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, borderRadius, fontSize, fontWeight } from '../../theme/colors';
+import { colors } from '../../theme/colors';
+import { createAuthStyles } from '../../theme/authStyles';
 import Logo from '../../components/common/Logo';
+import { useToast } from '../../context/NotificationContext';
 
 export default function ForgotPasswordScreen() {
   const navigation = useNavigation();
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { showToast } = useToast();
 
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [forgotPassword, { isLoading }] = useForgotPasswordMutation();
 
   const validate = () => {
-    if (!email) { setEmailError('Email is required'); return false; }
-    if (!/\S+@\S+\.\S+/.test(email)) { setEmailError('Invalid email address'); return false; }
+    if (!email.trim()) {
+      setEmailError('Email is required');
+      return false;
+    }
+    if (!/\S+@\S+\.\S+/.test(email.trim())) {
+      setEmailError('Invalid email address');
+      return false;
+    }
     setEmailError('');
     return true;
   };
@@ -37,14 +44,19 @@ export default function ForgotPasswordScreen() {
   const handleSubmit = async () => {
     if (!validate()) return;
     try {
-      await forgotPassword({ email }).unwrap();
-      (navigation as any).navigate('VerifyResetOtp', { email });
+      await forgotPassword({ email: email.trim() }).unwrap();
+      (navigation as any).navigate('VerifyResetOtp', { email: email.trim() });
     } catch (error: any) {
-      Alert.alert('Error', error?.data?.message || 'Failed to send reset code. Please try again.');
+      showToast({
+        type: 'error',
+        title: 'Could not send code',
+        message: error?.data?.message || 'Failed to send reset code. Please try again.',
+      });
     }
   };
 
-  const styles = createStyles(themeColors);
+  const styles = createAuthStyles(themeColors);
+  const canSubmit = !isLoading && email.trim() !== '';
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -55,7 +67,7 @@ export default function ForgotPasswordScreen() {
           showsVerticalScrollIndicator={false}
         >
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <ArrowLeft size={20} color={themeColors.foreground} />
+            <Ionicons name="arrow-back" size={18} color={themeColors.foreground} />
           </TouchableOpacity>
 
           <View style={styles.content}>
@@ -63,7 +75,7 @@ export default function ForgotPasswordScreen() {
               <Logo size="lg" />
               <Text style={styles.title}>Forgot password</Text>
               <Text style={styles.subtitle}>
-                Enter your email and we'll send a reset code.
+                Enter your email and we'll send a 6-digit reset code.
               </Text>
             </View>
 
@@ -75,36 +87,39 @@ export default function ForgotPasswordScreen() {
                   placeholder="you@example.com"
                   placeholderTextColor={themeColors.mutedForeground}
                   value={email}
-                  onChangeText={(v) => { setEmail(v); setEmailError(''); }}
+                  onChangeText={(v) => {
+                    setEmail(v);
+                    setEmailError('');
+                  }}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   editable={!isLoading}
                   returnKeyType="done"
                   onSubmitEditing={handleSubmit}
                 />
-                {!!emailError && <Text style={styles.error}>{emailError}</Text>}
+                {emailError ? <Text style={styles.fieldError}>{emailError}</Text> : null}
               </View>
 
               <TouchableOpacity
-                style={[styles.button, isLoading && styles.buttonDisabled]}
+                style={[styles.button, !canSubmit && styles.buttonDisabled]}
                 onPress={handleSubmit}
-                disabled={isLoading}
+                disabled={!canSubmit}
               >
-                {isLoading
-                  ? <ActivityIndicator color={themeColors.primaryForeground} />
-                  : <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>Send reset code</Text>
-                }
+                {isLoading ? (
+                  <ActivityIndicator color={themeColors.primaryForeground} />
+                ) : (
+                  <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>
+                    Send reset code
+                  </Text>
+                )}
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.linkRow}
                 onPress={() => (navigation as any).navigate('SignIn')}
               >
-                <Text style={[styles.linkText, { color: themeColors.mutedForeground }]}>
-                  Remember your password?{' '}
-                  <Text style={{ color: themeColors.foreground, fontWeight: fontWeight.semibold, textDecorationLine: 'underline' }}>
-                    Sign in
-                  </Text>
+                <Text style={styles.linkText}>
+                  Remember your password? <Text style={styles.link}>Sign in</Text>
                 </Text>
               </TouchableOpacity>
             </View>
@@ -114,45 +129,3 @@ export default function ForgotPasswordScreen() {
     </SafeAreaView>
   );
 }
-
-const createStyles = (theme: typeof colors.light) =>
-  StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.background },
-    scrollContent: { padding: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
-    backBtn: { marginBottom: spacing.lg, alignSelf: 'flex-start', padding: spacing.xs },
-    content: { maxWidth: 400, width: '100%', alignSelf: 'center' },
-    header: { marginBottom: spacing.xl, alignItems: 'center', gap: spacing.sm },
-    title: {
-      fontSize: fontSize['2xl'],
-      fontWeight: fontWeight.bold,
-      color: theme.foreground,
-      marginTop: spacing.sm,
-      textAlign: 'center',
-    },
-    subtitle: { fontSize: fontSize.sm, color: theme.mutedForeground, textAlign: 'center' },
-    form: { gap: spacing.md },
-    inputGroup: { gap: spacing.sm },
-    label: { fontSize: fontSize.sm, color: theme.foreground, fontWeight: fontWeight.medium },
-    input: {
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: borderRadius.md,
-      padding: spacing.md,
-      fontSize: fontSize.md,
-      color: theme.foreground,
-      backgroundColor: theme.card,
-    },
-    inputError: { borderColor: theme.destructive },
-    error: { fontSize: fontSize.xs, color: theme.destructive },
-    button: {
-      backgroundColor: theme.primary,
-      padding: spacing.md,
-      borderRadius: borderRadius.md,
-      alignItems: 'center',
-      marginTop: spacing.sm,
-    },
-    buttonDisabled: { opacity: 0.6 },
-    buttonText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold },
-    linkRow: { alignItems: 'center' },
-    linkText: { fontSize: fontSize.sm, textAlign: 'center' },
-  });

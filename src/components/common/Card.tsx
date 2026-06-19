@@ -47,15 +47,15 @@ const styles = StyleSheet.create({
 const createStyles = (theme: typeof colors.light, variant: 'default' | 'stats' | 'glass') =>
   StyleSheet.create({
     card: {
-      backgroundColor: variant === 'glass' 
-        ? 'rgba(255, 255, 255, 0.05)' 
-        : variant === 'stats'
-        ? 'rgba(255, 255, 255, 0.05)'
-        : theme.card,
+      backgroundColor: theme.card,
       borderRadius: borderRadius.lg,
       padding: spacing.md,
       borderWidth: variant === 'glass' || variant === 'stats' ? 0 : 1,
       borderColor: theme.border,
-      ...shadows.sm,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.05,
+      shadowRadius: 24,
+      elevation: 4,
     },
   });

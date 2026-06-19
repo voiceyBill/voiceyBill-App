@@ -7,7 +7,6 @@ import {
   ScrollView,
   Image,
   Modal,
-  Alert,
   TextInput,
   ActivityIndicator,
   TouchableWithoutFeedback,
@@ -15,7 +14,7 @@ import {
   Keyboard,
   Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import {
   User,
@@ -26,6 +25,8 @@ import {
   LogOut,
 } from "lucide-react-native";
 import { useTheme } from "../../context/ThemeContext";
+import { useToast } from "../../context/NotificationContext";
+import { useConfirm } from "../../context/ConfirmContext";
 import { useTypedSelector, useAppDispatch } from "../../store/hooks";
 import { logout } from "../../features/auth/authSlice";
 import {
@@ -40,6 +41,9 @@ import {
   fontSize,
   fontWeight,
   borderRadius,
+  fontFamily,
+  shadows,
+  cardRadius,
 } from "../../theme/colors";
 
 type Section = {
@@ -105,22 +109,24 @@ export default function SettingsScreen() {
   const navigation = useNavigation();
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const insets = useSafeAreaInsets();
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const dispatch = useAppDispatch();
   const user = useTypedSelector((s) => s.auth.user);
 
-  const handleLogout = () => {
-    Alert.alert("Log out", "Are you sure you want to log out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Log out",
-        style: "destructive",
-        onPress: async () => {
-          await deleteRefreshToken();
-          dispatch(logout());
-          dispatch(apiClient.util.resetApiState());
-        },
-      },
-    ]);
+  const handleLogout = async () => {
+    const confirmed = await confirm({
+      title: "Log out",
+      message: "Are you sure you want to log out?",
+      confirmText: "Log out",
+      destructive: true,
+    });
+    if (!confirmed) return;
+
+    await deleteRefreshToken();
+    dispatch(logout());
+    dispatch(apiClient.util.resetApiState());
   };
 
   const [sendDeleteAccountOtp] = useSendDeleteAccountOtpMutation();
@@ -135,15 +141,17 @@ export default function SettingsScreen() {
     try {
       setIsSendingOtp(true);
       await sendDeleteAccountOtp().unwrap();
-      Alert.alert(
-        "OTP sent",
-        "A verification code has been sent to your email.",
-      );
+      showToast({
+        type: "success",
+        title: "OTP sent",
+        message: "A verification code has been sent to your email.",
+      });
     } catch (err: any) {
-      Alert.alert(
-        "Failed to send OTP",
-        err?.data?.message || "Unable to send verification code",
-      );
+      showToast({
+        type: "error",
+        title: "Failed to send OTP",
+        message: err?.data?.message || "Unable to send verification code",
+      });
     } finally {
       setIsSendingOtp(false);
     }
@@ -151,15 +159,20 @@ export default function SettingsScreen() {
 
   const handleDelete = async () => {
     if (confirmText.trim() !== "DELETE") {
-      Alert.alert(
-        "Confirmation required",
-        "Type DELETE to confirm account deletion",
-      );
+      showToast({
+        type: "warning",
+        title: "Confirmation required",
+        message: 'Type DELETE to confirm account deletion.',
+      });
       return;
     }
 
     if (!deleteOtp.trim()) {
-      Alert.alert("OTP required", "Enter the 6-digit OTP sent to your email");
+      showToast({
+        type: "warning",
+        title: "OTP required",
+        message: "Enter the 6-digit OTP sent to your email.",
+      });
       return;
     }
 
@@ -169,12 +182,13 @@ export default function SettingsScreen() {
       await deleteRefreshToken();
       dispatch(logout());
       dispatch(apiClient.util.resetApiState());
-      Alert.alert("Deleted", "Your account has been deleted");
+      showToast({ type: "success", title: "Account deleted", message: "Your account has been deleted." });
     } catch (err: any) {
-      Alert.alert(
-        "Deletion failed",
-        err?.data?.message || "Could not delete account",
-      );
+      showToast({
+        type: "error",
+        title: "Deletion failed",
+        message: err?.data?.message || "Could not delete account",
+      });
     } finally {
       setIsDeleting(false);
       setShowDeleteModal(false);
@@ -187,19 +201,18 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxxl }}>
-        {/* Header */}
-        <View style={styles.navbar}>
-          <Text style={styles.navbarTitle}>Settings</Text>
-          <Text style={styles.navbarSubtitle}>
-            Manage your account settings and set e-mail preferences.
-          </Text>
-        </View>
-
+      <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         {/* User card — taps into Account settings */}
         {user && (
           <TouchableOpacity
-            style={styles.userCard}
+            style={[
+              styles.userCard,
+              {
+                backgroundColor: themeColors.card,
+                borderColor: themeColors.border,
+                marginTop: Math.max(insets.top, spacing.sm),
+              },
+            ]}
             onPress={() => navigation.navigate("Account" as never)}
             activeOpacity={0.7}
           >
@@ -212,13 +225,13 @@ export default function SettingsScreen() {
               <View
                 style={[
                   styles.userAvatar,
-                  { backgroundColor: themeColors.muted },
+                  { backgroundColor: themeColors.primary + "18" },
                 ]}
               >
                 <Text
                   style={[
                     styles.userInitial,
-                    { color: themeColors.foreground },
+                    { color: themeColors.primary },
                   ]}
                 >
                   {user.name?.charAt(0)?.toUpperCase() || "U"}
@@ -228,6 +241,7 @@ export default function SettingsScreen() {
             <View style={styles.userInfo}>
               <Text
                 style={[styles.userName, { color: themeColors.foreground }]}
+                numberOfLines={1}
               >
                 {user.name}
               </Text>
@@ -236,11 +250,17 @@ export default function SettingsScreen() {
                   styles.userEmail,
                   { color: themeColors.mutedForeground },
                 ]}
+                numberOfLines={1}
               >
                 {user.email}
               </Text>
+              <Text
+                style={[styles.userEditHint, { color: themeColors.primary }]}
+              >
+                Edit profile
+              </Text>
             </View>
-            <ChevronRight size={16} color={themeColors.mutedForeground} />
+            <ChevronRight size={18} color={themeColors.mutedForeground} />
           </TouchableOpacity>
         )}
 
@@ -628,86 +648,73 @@ export default function SettingsScreen() {
 const createStyles = (theme: typeof colors.light) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
-    navbar: {
-      backgroundColor: theme.navbar,
-      padding: spacing.lg,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.xl,
-    },
-    navbarTitle: {
-      fontSize: fontSize["2xl"],
-      fontWeight: fontWeight.bold,
-      color: theme.navbarForeground,
-    },
-    navbarSubtitle: {
-      fontSize: fontSize.sm,
-      color: theme.navbarForeground,
-      opacity: 0.8,
-      marginTop: spacing.xs,
-    },
     userCard: {
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.md,
       marginHorizontal: spacing.lg,
-      marginTop: spacing.lg,
+      marginBottom: spacing.lg,
       padding: spacing.md,
-      borderRadius: borderRadius.lg,
-      backgroundColor: theme.card,
-      borderWidth: 1,
-      borderColor: theme.border,
+      borderRadius: cardRadius,
+      borderWidth: StyleSheet.hairlineWidth,
+      ...shadows.card,
     },
     userAvatarImage: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
+      width: 52,
+      height: 52,
+      borderRadius: 26,
       resizeMode: "cover",
     },
     userAvatar: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
+      width: 52,
+      height: 52,
+      borderRadius: 26,
       alignItems: "center",
       justifyContent: "center",
     },
-    userInitial: { fontSize: fontSize.xl, fontWeight: fontWeight.bold },
-    userInfo: { flex: 1 },
-    userName: { fontSize: fontSize.md, fontWeight: fontWeight.semibold },
-    userEmail: { fontSize: fontSize.sm, marginTop: 2 },
-    content: { padding: spacing.lg, gap: spacing.lg },
+    userInitial: { fontFamily: fontFamily.bold, fontSize: 20 },
+    userInfo: { flex: 1, minWidth: 0 },
+    userName: { fontFamily: fontFamily.semibold, fontSize: 16, letterSpacing: -0.2 },
+    userEmail: { fontFamily: fontFamily.regular, fontSize: 13, marginTop: 2 },
+    userEditHint: { fontFamily: fontFamily.medium, fontSize: 12, marginTop: 4 },
+    content: { paddingHorizontal: spacing.lg, gap: spacing.lg },
     section: { gap: spacing.sm },
     sectionTitle: {
-      fontSize: fontSize.xs,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
+      fontSize: 11,
       textTransform: "uppercase",
       letterSpacing: 0.8,
       paddingHorizontal: spacing.xs,
     },
     sectionCard: {
-      borderRadius: borderRadius.lg,
-      borderWidth: 1,
+      borderRadius: cardRadius,
+      borderWidth: StyleSheet.hairlineWidth,
       overflow: "hidden",
+      ...shadows.card,
     },
     menuItem: {
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.md,
-      padding: spacing.md,
+      paddingVertical: spacing.sm + 4,
+      paddingHorizontal: spacing.md,
     },
     menuIconWrap: {
-      width: 36,
-      height: 36,
-      borderRadius: borderRadius.md,
+      width: 34,
+      height: 34,
+      borderRadius: 10,
       alignItems: "center",
       justifyContent: "center",
     },
-    menuText: { flex: 1 },
-    menuTitle: { fontSize: fontSize.md, fontWeight: fontWeight.medium },
-    menuSubtitle: { fontSize: fontSize.xs, marginTop: 2 },
+    menuText: { flex: 1, minWidth: 0 },
+    menuTitle: { fontFamily: fontFamily.medium, fontSize: 14 },
+    menuSubtitle: { fontFamily: fontFamily.regular, fontSize: 12, marginTop: 1 },
     version: {
-      fontSize: fontSize.xs,
+      fontFamily: fontFamily.regular,
+      fontSize: 11,
       textAlign: "center",
       marginTop: spacing.md,
+      opacity: 0.6,
     },
     deleteModalOverlay: {
       position: "absolute",
@@ -739,27 +746,27 @@ const createStyles = (theme: typeof colors.light) =>
       borderBottomColor: "rgba(0, 0, 0, 0.06)",
     },
     deleteModalTitle: {
-      fontSize: 22,
-      fontWeight: "800",
+      fontFamily: fontFamily.bold,
+      fontSize: 18,
       marginBottom: spacing.xs,
     },
-    deleteModalDesc: { fontSize: fontSize.md, lineHeight: 20 },
+    deleteModalDesc: { fontFamily: fontFamily.regular, fontSize: 13, lineHeight: 19 },
     deleteModalBody: {
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.lg,
     },
     deleteInputLabel: {
-      fontSize: fontSize.sm,
-      fontWeight: "700",
+      fontFamily: fontFamily.medium,
+      fontSize: 13,
       marginBottom: spacing.xs,
     },
     deleteInput: {
-      borderWidth: 1.5,
-      borderRadius: 10,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: borderRadius.xl,
       paddingHorizontal: spacing.md,
-      paddingVertical: 12,
-      fontSize: fontSize.md,
-      fontWeight: "500",
+      paddingVertical: spacing.sm + 4,
+      fontFamily: fontFamily.regular,
+      fontSize: 15,
     },
     deleteOtpSection: {
       marginTop: spacing.lg,
@@ -772,19 +779,19 @@ const createStyles = (theme: typeof colors.light) =>
       marginTop: spacing.xs,
     },
     deleteSendOtpBtn: {
-      paddingVertical: 12,
-      borderRadius: 10,
+      paddingVertical: spacing.sm + 4,
+      borderRadius: borderRadius.full,
       alignItems: "center",
       marginBottom: spacing.md,
     },
-    deleteSendOtpText: { fontWeight: "700", fontSize: fontSize.md },
+    deleteSendOtpText: { fontFamily: fontFamily.semibold, fontSize: 14 },
     deleteOtpInput: {
-      borderWidth: 1.5,
-      borderRadius: 10,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: borderRadius.xl,
       paddingHorizontal: spacing.md,
-      paddingVertical: 12,
+      paddingVertical: spacing.sm + 4,
+      fontFamily: fontFamily.semibold,
       fontSize: 18,
-      fontWeight: "600",
       textAlign: "center",
       letterSpacing: 4,
     },
@@ -797,24 +804,24 @@ const createStyles = (theme: typeof colors.light) =>
     },
     deleteBtnCancel: {
       flex: 1,
-      paddingVertical: 12,
-      borderRadius: 10,
-      borderWidth: 1.5,
+      paddingVertical: spacing.sm + 4,
+      borderRadius: borderRadius.full,
+      borderWidth: StyleSheet.hairlineWidth,
       alignItems: "center",
       justifyContent: "center",
     },
-    deleteBtnCancelText: { fontWeight: "700", fontSize: fontSize.md },
+    deleteBtnCancelText: { fontFamily: fontFamily.semibold, fontSize: 14 },
     deleteBtnConfirm: {
       flex: 1,
-      paddingVertical: 12,
-      borderRadius: 10,
+      paddingVertical: spacing.sm + 4,
+      borderRadius: borderRadius.full,
       backgroundColor: "#ff3b30",
       alignItems: "center",
       justifyContent: "center",
     },
     deleteBtnConfirmText: {
-      fontWeight: "700",
-      fontSize: fontSize.md,
+      fontFamily: fontFamily.semibold,
+      fontSize: 14,
       color: "#fff",
     },
   });

@@ -12,14 +12,17 @@ import {
   KeyboardAvoidingView,
   StatusBar,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../context/ThemeContext";
+import { useToast } from "../../context/NotificationContext";
 import {
   colors,
   spacing,
   fontSize,
   fontWeight,
   borderRadius,
+  fontFamily,
+  shadows,
 } from "../../theme/colors";
 import {
   useCreateTransactionMutation,
@@ -59,6 +62,7 @@ interface TransactionFormSheetProps {
   transactionId?: string;
   isEdit?: boolean;
   initialMode?: "VOICE" | "SCAN" | "MANUAL";
+  initialType?: "INCOME" | "EXPENSE";
 }
 
 export default function TransactionFormSheet({
@@ -66,10 +70,13 @@ export default function TransactionFormSheet({
   onClose,
   transactionId,
   isEdit = false,
-  initialMode = "MANUAL",
+  initialMode = "VOICE",
+  initialType = "EXPENSE",
 }: TransactionFormSheetProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { showToast } = useToast();
+  const insets = useSafeAreaInsets();
 
   const user = useTypedSelector((state) => state.auth.user);
   const userBaseCurrency = user?.baseCurrency || "USD";
@@ -90,6 +97,9 @@ export default function TransactionFormSheet({
     TRANSACTION_FREQUENCY.MONTHLY,
   );
   const [description, setDescription] = React.useState("");
+
+  // Dirty state: true when form differs from original transaction (edit mode)
+  const [isDirty, setIsDirty] = React.useState(false);
 
   const { data: currenciesData } = useGetSupportedCurrenciesQuery();
 
@@ -123,9 +133,10 @@ export default function TransactionFormSheet({
       setMode(initialMode);
       if (!isEdit) {
         setCurrency(userBaseCurrency);
+        setType(initialType);
       }
     }
-  }, [isVisible, initialMode, isEdit, userBaseCurrency]);
+  }, [isVisible, initialMode, isEdit, userBaseCurrency, initialType]);
 
   // API hooks
   const { data: transactionData } = useGetSingleTransactionQuery(
@@ -143,6 +154,8 @@ export default function TransactionFormSheet({
   React.useEffect(() => {
     if (isEdit && transactionData?.transaction) {
       const tx = transactionData.transaction;
+      // store original transaction for change-detection
+      originalTransactionRef.current = tx;
       setTitle(tx.title);
       setAmount(
         tx.originalAmount != null
@@ -159,8 +172,39 @@ export default function TransactionFormSheet({
         (tx as any).recurringInterval || TRANSACTION_FREQUENCY.MONTHLY,
       );
       setDescription(tx.description || "");
+      // ensure dirty flag resets after loading original transaction
+      setTimeout(() => setIsDirty(false), 0);
     }
   }, [isEdit, transactionData, userBaseCurrency]);
+
+  const originalTransactionRef = React.useRef<any>(null);
+
+  const isSameTransaction = (existing: any, payload: any) => {
+    if (!existing) return false;
+    const existingAmount =
+      existing.originalAmount != null ? Number(existing.originalAmount) : Number(existing.amount);
+    const existingCurrency = existing.originalCurrency || existing.currency || undefined;
+    const existingCategory = existing.category?.toLowerCase() || "";
+    const existingDate = new Date(existing.date).toISOString();
+
+    const payloadAmount = Number(payload.amount);
+    const payloadCurrency = payload.currency || undefined;
+    const payloadCategory = (payload.category || "").toLowerCase();
+    const payloadDate = new Date(payload.date).toISOString();
+
+    return (
+      (existing.title || "") === (payload.title || "") &&
+      existingAmount === payloadAmount &&
+      (existingCurrency || undefined) === (payloadCurrency || undefined) &&
+      existing.type === payload.type &&
+      existingCategory === payloadCategory &&
+      existingDate === payloadDate &&
+      (existing.paymentMethod || "") === (payload.paymentMethod || "") &&
+      Boolean(existing.isRecurring) === Boolean(payload.isRecurring) &&
+      (existing.recurringInterval || null) === (payload.recurringInterval || null) &&
+      (existing.description || "") === (payload.description || "")
+    );
+  };
 
   // Reset form
   const resetForm = () => {
@@ -178,10 +222,49 @@ export default function TransactionFormSheet({
     setIsScanning(false);
   };
 
+  // Determine if current form values differ from the original transaction
+  React.useEffect(() => {
+    if (!isEdit || !originalTransactionRef.current) {
+      // For create mode or when original not loaded, consider form as dirty
+      setIsDirty(!isEdit);
+      return;
+    }
+
+    const payloadForCompare = {
+      title,
+      amount: parseFloat(amount || "0"),
+      currency: currency.trim() ? currency : undefined,
+      type,
+      category: category.trim().toLowerCase(),
+      date: date.toISOString(),
+      paymentMethod,
+      isRecurring,
+      recurringInterval: isRecurring ? frequency : null,
+      description,
+    };
+
+    const existing = originalTransactionRef.current;
+    const same = isSameTransaction(existing, payloadForCompare);
+    setIsDirty(!same);
+  }, [
+    title,
+    amount,
+    currency,
+    type,
+    category,
+    date,
+    paymentMethod,
+    isRecurring,
+    frequency,
+    description,
+    isEdit,
+    transactionData,
+  ]);
+
   // Handle submit
   const handleSubmit = async () => {
     if (!title || !amount || !category || !paymentMethod) {
-      alert("Please fill in all required fields");
+      showToast({ type: "warning", title: "Missing fields", message: "Please fill in all required fields." });
       return;
     }
 
@@ -200,10 +283,15 @@ export default function TransactionFormSheet({
 
     try {
       if (isEdit && transactionId) {
-        await updateTransaction({
-          id: transactionId,
-          transaction: payload,
-        }).unwrap();
+        // prevent sending update when there are no changes
+        const existing = originalTransactionRef.current;
+        if (isSameTransaction(existing, payload)) {
+          alert("No changes detected");
+          onClose();
+          return;
+        }
+
+        await updateTransaction({ id: transactionId, transaction: payload }).unwrap();
       } else {
         await createTransaction(payload).unwrap();
       }
@@ -211,7 +299,7 @@ export default function TransactionFormSheet({
       onClose();
     } catch (error) {
       console.error("Failed to save transaction:", error);
-      alert("Failed to save transaction");
+      showToast({ type: "error", title: "Save failed", message: "Failed to save transaction." });
     }
   };
 
@@ -226,7 +314,7 @@ export default function TransactionFormSheet({
     >
       <SafeAreaView
         style={{ flex: 1, backgroundColor: themeColors.background }}
-        edges={["top", "bottom"]}
+        edges={["bottom"]}
       >
         <StatusBar
           barStyle={activeTheme === "dark" ? "light-content" : "dark-content"}
@@ -236,7 +324,7 @@ export default function TransactionFormSheet({
           style={{ flex: 1 }}
         >
           {/* Header */}
-          <View style={styles.header}>
+          <View style={[styles.header, { paddingTop: Math.max(insets.top, spacing.lg) }]}>
             <View>
               <Text style={styles.headerTitle}>
                 {isEdit ? "Edit Transaction" : "Add Transaction"}
@@ -252,14 +340,14 @@ export default function TransactionFormSheet({
             </TouchableOpacity>
           </View>
 
-          {/* Tab Selector: Voice | AI Scan | Manual */}
+          {/* Tab Selector: AI Scan | Voice | Manual */}
           {!isEdit && (
             <View style={styles.tabsContainer}>
               <View style={styles.tabsBackground}>
                 {(
                   [
-                    { key: "VOICE", label: "Voice", Icon: Mic },
                     { key: "SCAN", label: "AI Scan", Icon: ScanText },
+                    { key: "VOICE", label: "Voice", Icon: Mic },
                     { key: "MANUAL", label: "Manual", Icon: FileText },
                   ] as const
                 ).map((tab) => {
@@ -405,7 +493,7 @@ export default function TransactionFormSheet({
                           }
                         }
                       } catch {
-                        alert("Failed to scan receipt");
+                        showToast({ type: "error", title: "Scan failed", message: "Failed to scan receipt." });
                       } finally {
                         setIsScanning(false);
                       }
@@ -487,7 +575,7 @@ export default function TransactionFormSheet({
                           }
                         }
                       } catch (e) {
-                        alert("Failed to scan receipt");
+                        showToast({ type: "error", title: "Scan failed", message: "Failed to scan receipt." });
                       } finally {
                         setIsScanning(false);
                       }
@@ -771,10 +859,11 @@ export default function TransactionFormSheet({
             <TouchableOpacity
               style={[
                 styles.submitButton,
-                (isCreating || isUpdating) && styles.submitButtonDisabled,
+                (isCreating || isUpdating || (isEdit && !isDirty)) &&
+                styles.submitButtonDisabled,
               ]}
               onPress={handleSubmit}
-              disabled={isCreating || isUpdating}
+              disabled={isCreating || isUpdating || (isEdit && !isDirty)}
             >
               <Text style={styles.submitButtonText}>
                 {isCreating || isUpdating
@@ -802,13 +891,14 @@ const createStyles = (theme: typeof colors.light) =>
       paddingBottom: spacing.md,
     },
     headerTitle: {
-      fontSize: fontSize.xl,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
+      fontSize: 18,
       color: theme.foreground,
       marginBottom: spacing.xs,
     },
     headerSubtitle: {
-      fontSize: fontSize.sm,
+      fontFamily: fontFamily.regular,
+      fontSize: 12,
       color: theme.mutedForeground,
     },
     closeButton: {
@@ -821,7 +911,7 @@ const createStyles = (theme: typeof colors.light) =>
     tabsBackground: {
       flexDirection: "row",
       backgroundColor: theme.muted,
-      borderRadius: borderRadius.lg,
+      borderRadius: borderRadius.full,
       padding: spacing.xs,
       gap: spacing.xs,
     },
@@ -833,7 +923,7 @@ const createStyles = (theme: typeof colors.light) =>
       gap: spacing.xs,
       paddingVertical: spacing.sm,
       paddingHorizontal: spacing.sm,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.full,
     },
     tabActive: {
       backgroundColor: theme.background,
@@ -844,8 +934,8 @@ const createStyles = (theme: typeof colors.light) =>
       elevation: 2,
     },
     tabText: {
-      fontSize: fontSize.xs,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
+      fontSize: 12,
       color: theme.mutedForeground,
     },
     tabTextActive: {
@@ -886,7 +976,8 @@ const createStyles = (theme: typeof colors.light) =>
       paddingVertical: spacing.sm + 2,
     },
     helpText: {
-      fontSize: fontSize.xs,
+      fontFamily: fontFamily.regular,
+      fontSize: 11,
       marginTop: spacing.xs,
       color: theme.mutedForeground,
     },
@@ -894,8 +985,8 @@ const createStyles = (theme: typeof colors.light) =>
       marginBottom: spacing.md,
     },
     label: {
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.normal,
+      fontFamily: fontFamily.medium,
+      fontSize: 13,
       color: theme.foreground,
       marginBottom: spacing.sm,
     },
@@ -903,9 +994,10 @@ const createStyles = (theme: typeof colors.light) =>
       backgroundColor: theme.background,
       borderWidth: 1,
       borderColor: theme.border,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.xl,
       padding: spacing.md,
-      fontSize: fontSize.sm,
+      fontFamily: fontFamily.regular,
+      fontSize: 14,
       color: theme.foreground,
     },
     textArea: {
@@ -925,7 +1017,7 @@ const createStyles = (theme: typeof colors.light) =>
       backgroundColor: theme.background,
       borderWidth: 1,
       borderColor: theme.border,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.xl,
       padding: spacing.md,
       paddingVertical: spacing.sm + 2,
       shadowColor: "#000",
@@ -958,12 +1050,12 @@ const createStyles = (theme: typeof colors.light) =>
       backgroundColor: theme.primary,
     },
     typeButtonText: {
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.normal,
+      fontFamily: fontFamily.regular,
+      fontSize: 14,
       color: theme.foreground,
     },
     typeButtonTextActive: {
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
       color: theme.foreground,
     },
     amountContainer: {
@@ -972,29 +1064,31 @@ const createStyles = (theme: typeof colors.light) =>
       backgroundColor: theme.background,
       borderWidth: 1,
       borderColor: theme.border,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.xl,
       paddingHorizontal: spacing.md,
     },
     currencySymbol: {
-      fontSize: fontSize.lg,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
+      fontSize: 16,
       color: theme.foreground,
       marginRight: spacing.xs,
     },
     amountInput: {
       flex: 1,
       padding: spacing.md,
-      fontSize: fontSize.md,
+      fontFamily: fontFamily.medium,
+      fontSize: 15,
       color: theme.foreground,
     },
     pickerContainer: {
       backgroundColor: theme.background,
       borderWidth: 1,
       borderColor: theme.border,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.xl,
       overflow: "hidden",
     },
     picker: {
+      fontFamily: fontFamily.regular,
       color: theme.foreground,
     },
     segmentRow: {
@@ -1018,12 +1112,12 @@ const createStyles = (theme: typeof colors.light) =>
     },
     segmentText: {
       color: theme.foreground,
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.normal,
+      fontFamily: fontFamily.regular,
+      fontSize: 13,
     },
     segmentTextActive: {
       color: "#ffffff",
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
     },
     dateButton: {
       flexDirection: "row",
@@ -1032,11 +1126,12 @@ const createStyles = (theme: typeof colors.light) =>
       backgroundColor: theme.background,
       borderWidth: 1,
       borderColor: theme.border,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.xl,
       padding: spacing.md,
     },
     dateText: {
-      fontSize: fontSize.sm,
+      fontFamily: fontFamily.regular,
+      fontSize: 14,
       color: theme.foreground,
     },
     recurringContainer: {
@@ -1046,33 +1141,35 @@ const createStyles = (theme: typeof colors.light) =>
       backgroundColor: theme.background,
       borderWidth: 1,
       borderColor: theme.border,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.xl,
       padding: spacing.md,
     },
     recurringLeft: {
       flex: 1,
     },
     recurringSubtext: {
-      fontSize: fontSize.xs,
+      fontFamily: fontFamily.regular,
+      fontSize: 11,
       color: theme.mutedForeground,
       marginTop: spacing.xs,
     },
     submitButton: {
       backgroundColor: theme.primary,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.full,
       paddingVertical: spacing.md + 2,
       paddingHorizontal: spacing.lg,
       alignItems: "center",
       justifyContent: "center",
       marginTop: spacing.lg,
       marginBottom: spacing.xl,
+      ...shadows.md,
     },
     submitButtonDisabled: {
       opacity: 0.5,
     },
     submitButtonText: {
-      fontSize: fontSize.md,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
+      fontSize: 15,
       color: "#ffffff",
     },
   });
