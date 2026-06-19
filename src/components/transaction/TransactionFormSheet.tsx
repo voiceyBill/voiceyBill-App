@@ -31,6 +31,10 @@ import {
   useGetSingleTransactionQuery,
   useAiScanReceiptMutation,
 } from "../../features/transaction/transactionAPI";
+import {
+  useCreateCategoryMutation,
+  useGetCategoriesQuery,
+} from "../../features/category/categoryAPI";
 import { useTypedSelector } from "../../store/hooks";
 import { useGetSupportedCurrenciesQuery } from "../../features/currency/currencyAPI";
 import {
@@ -90,6 +94,14 @@ export default function TransactionFormSheet({
     TRANSACTION_TYPE.EXPENSE,
   );
   const [category, setCategory] = React.useState("");
+  const [newCategoryName, setNewCategoryName] = React.useState("");
+  const [newCategoryColor, setNewCategoryColor] = React.useState("#6B7280");
+  const [saveCategoryPermanently, setSaveCategoryPermanently] =
+    React.useState(true);
+  const [isCreatingPersistentCategory, setIsCreatingPersistentCategory] =
+    React.useState(false);
+
+  const NEW_CATEGORY_KEY = "__new_category__";
   const [date, setDate] = React.useState(new Date());
   const [showDatePicker, setShowDatePicker] = React.useState(false);
   const [paymentMethod, setPaymentMethod] = React.useState("");
@@ -117,7 +129,6 @@ export default function TransactionFormSheet({
     );
     return found ? found.symbol : currency;
   }, [currenciesData, currency]);
-
   // AI Scan Receipt state
   const [receiptName, setReceiptName] =
     React.useState<string>("No file chosen");
@@ -151,6 +162,37 @@ export default function TransactionFormSheet({
   const [updateTransaction, { isLoading: isUpdating }] =
     useUpdateTransactionMutation();
   const [aiScanReceipt] = useAiScanReceiptMutation();
+
+  const { data: categoriesResponse, isFetching: isFetchingCategories } =
+    useGetCategoriesQuery();
+  const [createCategory] = useCreateCategoryMutation();
+
+  const categoryOptions = React.useMemo(() => {
+    const apiCategories =
+      categoriesResponse?.data?.map((category) => ({
+        value: category.name,
+        label: category.name,
+        isDefault: category.isDefault,
+      })) ?? [];
+
+    if (!apiCategories.length) {
+      return CATEGORIES.map((cat) => ({
+        value: cat.value,
+        label: cat.label,
+        isDefault: true,
+      }));
+    }
+
+    return apiCategories.sort((a, b) => {
+      if (a.isDefault === b.isDefault) return a.label.localeCompare(b.label);
+      return a.isDefault ? -1 : 1;
+    });
+  }, [categoriesResponse]);
+
+  const selectedCategoryOption = categoryOptions.find(
+    (item) => item.value === category,
+  );
+
   // Load existing transaction data for edit
   React.useEffect(() => {
     if (isEdit && transactionData?.transaction) {
@@ -269,19 +311,41 @@ export default function TransactionFormSheet({
       return;
     }
 
+    const resolvedCategory =
+      category === NEW_CATEGORY_KEY ? newCategoryName.trim() : category.trim();
+
+    if (!resolvedCategory) {
+      alert("Please choose or enter a category");
+      return;
+    }
+
+    if (category === NEW_CATEGORY_KEY && saveCategoryPermanently) {
+      try {
+        setIsCreatingPersistentCategory(true);
+        await createCategory({
+          name: resolvedCategory,
+          color: newCategoryColor,
+        }).unwrap();
+      } catch (error: any) {
+        alert(error?.data?.message || "Failed to save category permanently");
+        return;
+      } finally {
+        setIsCreatingPersistentCategory(false);
+      }
+    }
+
     const payload = {
       title,
       amount: parseFloat(amount),
       currency: currency.trim() ? currency : undefined,
       type,
-      category: category.trim().toLowerCase(),
+      category: resolvedCategory,
       date: date.toISOString(),
       paymentMethod,
       isRecurring,
       recurringInterval: isRecurring ? frequency : null,
       description,
     };
-
     try {
       if (isEdit && transactionId) {
         // prevent sending update when there are no changes
@@ -473,7 +537,9 @@ export default function TransactionFormSheet({
                           if (scanned.title) setTitle(scanned.title);
                           setType(TRANSACTION_TYPE.EXPENSE);
                           if (scanned.paymentMethod) {
-                            setPaymentMethod(scanned.paymentMethod.toUpperCase());
+                            setPaymentMethod(
+                              scanned.paymentMethod.toUpperCase(),
+                            );
                           }
                           if (scanned.amount != null)
                             setAmount(String(scanned.amount));
@@ -555,7 +621,9 @@ export default function TransactionFormSheet({
                           if (scanned.title) setTitle(scanned.title);
                           setType(TRANSACTION_TYPE.EXPENSE);
                           if (scanned.paymentMethod) {
-                            setPaymentMethod(scanned.paymentMethod.toUpperCase());
+                            setPaymentMethod(
+                              scanned.paymentMethod.toUpperCase(),
+                            );
                           }
                           if (scanned.amount != null)
                             setAmount(String(scanned.amount));
@@ -721,7 +789,7 @@ export default function TransactionFormSheet({
             </View>
 
             {/* Category */}
-            <View style={styles.fieldContainer}>
+            {/* <View style={styles.fieldContainer}>
               <Text style={styles.label}>Category *</Text>
               <View style={styles.pickerContainer}>
                 <Picker
@@ -740,6 +808,95 @@ export default function TransactionFormSheet({
                   ))}
                 </Picker>
               </View>
+            </View> */}
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Category *</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={category}
+                  onValueChange={(value) => {
+                    setCategory(value);
+                    if (value !== NEW_CATEGORY_KEY) {
+                      setNewCategoryName("");
+                    }
+                  }}
+                  style={styles.picker}
+                  dropdownIconColor={themeColors.foreground}
+                >
+                  <Picker.Item label="Select a category" value="" />
+                  {categoryOptions.map((cat) => (
+                    <Picker.Item
+                      key={cat.value}
+                      label={cat.label}
+                      value={cat.value}
+                    />
+                  ))}
+                  <Picker.Item
+                    label="+ Add new category..."
+                    value={NEW_CATEGORY_KEY}
+                  />
+                  {category &&
+                    !selectedCategoryOption &&
+                    category !== NEW_CATEGORY_KEY && (
+                      <Picker.Item
+                        key={category}
+                        label={category}
+                        value={category}
+                      />
+                    )}
+                </Picker>
+              </View>
+
+              {(category === NEW_CATEGORY_KEY ||
+                (!selectedCategoryOption && category)) && (
+                <View style={styles.newCategorySection}>
+                  <Text style={styles.label}>New category name</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. Freelance Supplies"
+                    placeholderTextColor={themeColors.mutedForeground}
+                    value={
+                      category === NEW_CATEGORY_KEY ? newCategoryName : category
+                    }
+                    onChangeText={setNewCategoryName}
+                  />
+
+                  <Text style={[styles.label, { marginTop: spacing.md }]}>
+                    Save category permanently?
+                  </Text>
+                  <View style={styles.switchRow}>
+                    <Text style={styles.switchLabel}>
+                      Save for future transactions
+                    </Text>
+                    <RNSwitch
+                      value={saveCategoryPermanently}
+                      onValueChange={setSaveCategoryPermanently}
+                      trackColor={{
+                        false: themeColors.muted,
+                        true: themeColors.primary,
+                      }}
+                      thumbColor={themeColors.foreground}
+                    />
+                  </View>
+
+                  {saveCategoryPermanently && (
+                    <>
+                      <Text style={styles.label}>Category color</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="#6B7280"
+                        placeholderTextColor={themeColors.mutedForeground}
+                        value={newCategoryColor}
+                        onChangeText={setNewCategoryColor}
+                      />
+                      <Text style={styles.helpText}>
+                        Optional color for the saved category.
+                      </Text>
+                    </>
+                  )}
+                </View>
+              )}
             </View>
 
             {/* Date */}
@@ -1147,6 +1304,26 @@ const createStyles = (theme: typeof colors.light) =>
       fontSize: 11,
       color: theme.mutedForeground,
       marginTop: spacing.xs,
+    },
+    newCategorySection: {
+      marginTop: spacing.md,
+      padding: spacing.md,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: borderRadius.md,
+      backgroundColor: theme.background,
+    },
+
+    switchRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginTop: spacing.sm,
+    },
+
+    switchLabel: {
+      fontSize: fontSize.sm,
+      color: theme.foreground,
     },
     submitButton: {
       backgroundColor: theme.primary,

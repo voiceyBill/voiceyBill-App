@@ -26,6 +26,7 @@ import {
   ChevronRight,
   LogOut,
   Trash2,
+  Tag,
 } from "lucide-react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { useToast } from "../../context/NotificationContext";
@@ -72,6 +73,18 @@ const sections: Section[] = [
         screen: "Account",
         icon: User,
         accent: "#3b82f6",
+      },
+    ],
+  },
+  {
+    title: "Customization",
+    items: [
+      {
+        title: "Categories",
+        subtitle: "Create and manage custom transaction categories",
+        screen: "CategorySettings",
+        icon: Tag,
+        accent: "#06b6d4",
       },
     ],
   },
