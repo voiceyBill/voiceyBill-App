@@ -3,24 +3,25 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   KeyboardAvoidingView,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { RefreshCw, Mail } from 'lucide-react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Mail } from 'lucide-react-native';
 import { useVerifyOtpMutation, useResendOtpMutation } from '../../features/auth/authAPI';
 import { useAppDispatch } from '../../store/hooks';
 import { setCredentials } from '../../features/auth/authSlice';
 import { setRefreshToken } from '../../lib/tokenStorage';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, borderRadius, fontSize, fontWeight } from '../../theme/colors';
+import { colors, fontFamily } from '../../theme/colors';
+import { createAuthStyles } from '../../theme/authStyles';
 import OtpInput from '../../components/common/OtpInput';
 import Logo from '../../components/common/Logo';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
+import { useToast } from '../../context/NotificationContext';
 
 type VerifyOtpRouteProp = RouteProp<AuthStackParamList, 'VerifyOtp'>;
 
@@ -31,39 +32,58 @@ export default function VerifyOtpScreen() {
   const dispatch = useAppDispatch();
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { showToast } = useToast();
 
   const [otp, setOtp] = useState('');
+  const [otpError, setOtpError] = useState('');
   const [verifyOtp, { isLoading }] = useVerifyOtpMutation();
   const [resendOtp, { isLoading: isResending }] = useResendOtpMutation();
 
   const handleVerify = async () => {
     if (otp.length !== 6) {
-      Alert.alert('Invalid code', 'Please enter the 6-digit code from your email.');
+      setOtpError('Enter the 6-digit code from your email');
       return;
     }
+    setOtpError('');
     try {
       const result = await verifyOtp({ email, otp }).unwrap();
       await setRefreshToken(result.data.refreshToken);
-      dispatch(setCredentials({
-        user: result.data.user,
-        accessToken: result.data.accessToken,
-        reportSetting: result.data.reportSetting,
-      }));
+      dispatch(
+        setCredentials({
+          user: result.data.user,
+          accessToken: result.data.accessToken,
+          reportSetting: result.data.reportSetting,
+        }),
+      );
+      showToast({ type: 'success', title: 'Email verified', message: 'Welcome to VoiceyBill!' });
     } catch (error: any) {
-      Alert.alert('Verification failed', error?.data?.message || 'Invalid or expired code. Please try again.');
+      setOtpError(error?.data?.message || 'Invalid or expired code. Please try again.');
+      showToast({
+        type: 'error',
+        title: 'Verification failed',
+        message: error?.data?.message || 'Invalid or expired code. Please try again.',
+      });
     }
   };
 
   const handleResend = async () => {
     try {
       const result = await resendOtp({ email }).unwrap();
-      Alert.alert('Code sent', result.message || 'A new verification code has been sent to your email.');
+      showToast({
+        type: 'success',
+        title: 'Code sent',
+        message: result.message || 'A new verification code has been sent to your email.',
+      });
     } catch (error: any) {
-      Alert.alert('Error', error?.data?.message || 'Failed to resend code. Please try again.');
+      showToast({
+        type: 'error',
+        title: 'Could not resend',
+        message: error?.data?.message || 'Failed to resend code. Please try again.',
+      });
     }
   };
 
-  const styles = createStyles(themeColors);
+  const styles = createAuthStyles(themeColors);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -76,42 +96,47 @@ export default function VerifyOtpScreen() {
           <View style={styles.content}>
             <View style={styles.header}>
               <Logo size="lg" />
-              <View style={[styles.iconWrap, { backgroundColor: themeColors.muted }]}>
+              <View style={styles.iconWrap}>
                 <Mail size={28} color={themeColors.foreground} strokeWidth={1.5} />
               </View>
               <Text style={styles.title}>Verify your email</Text>
               <Text style={styles.subtitle}>
                 Enter the 6-digit code sent to{'\n'}
-                <Text style={{ color: themeColors.foreground, fontWeight: fontWeight.semibold }}>
+                <Text style={{ color: themeColors.foreground, fontFamily: fontFamily.semibold }}>
                   {email}
                 </Text>
               </Text>
             </View>
 
             <View style={styles.form}>
-              <OtpInput value={otp} onChange={setOtp} disabled={isLoading} />
+              <OtpInput value={otp} onChange={(v) => { setOtp(v); setOtpError(''); }} disabled={isLoading} />
+              {otpError ? <Text style={styles.otpHint}>{otpError}</Text> : null}
 
               <TouchableOpacity
                 style={[styles.button, (isLoading || otp.length !== 6) && styles.buttonDisabled]}
                 onPress={handleVerify}
                 disabled={isLoading || otp.length !== 6}
               >
-                {isLoading
-                  ? <ActivityIndicator color={themeColors.primaryForeground} />
-                  : <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>Verify email</Text>
-                }
+                {isLoading ? (
+                  <ActivityIndicator color={themeColors.primaryForeground} />
+                ) : (
+                  <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>
+                    Verify email
+                  </Text>
+                )}
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.outlineButton, { borderColor: themeColors.border }]}
+                style={styles.outlineButton}
                 onPress={handleResend}
                 disabled={isResending}
               >
-                {isResending
-                  ? <ActivityIndicator size="small" color={themeColors.foreground} />
-                  : <RefreshCw size={16} color={themeColors.foreground} />
-                }
-                <Text style={[styles.outlineButtonText, { color: themeColors.foreground }]}>
+                {isResending ? (
+                  <ActivityIndicator size="small" color={themeColors.foreground} />
+                ) : (
+                  <Ionicons name="refresh" size={16} color={themeColors.foreground} />
+                )}
+                <Text style={styles.outlineButtonText}>
                   {isResending ? 'Sending...' : 'Resend code'}
                 </Text>
               </TouchableOpacity>
@@ -120,11 +145,8 @@ export default function VerifyOtpScreen() {
                 style={styles.linkRow}
                 onPress={() => (navigation as any).navigate('SignIn')}
               >
-                <Text style={[styles.linkText, { color: themeColors.mutedForeground }]}>
-                  Already verified?{' '}
-                  <Text style={{ color: themeColors.foreground, fontWeight: fontWeight.semibold, textDecorationLine: 'underline' }}>
-                    Sign in
-                  </Text>
+                <Text style={styles.linkText}>
+                  Already verified? <Text style={styles.link}>Sign in</Text>
                 </Text>
               </TouchableOpacity>
             </View>
@@ -134,53 +156,3 @@ export default function VerifyOtpScreen() {
     </SafeAreaView>
   );
 }
-
-const createStyles = (theme: typeof colors.light) =>
-  StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.background },
-    scrollContent: { padding: spacing.lg, paddingTop: spacing.xxl, paddingBottom: spacing.xxl },
-    content: { maxWidth: 400, width: '100%', alignSelf: 'center' },
-    header: { marginBottom: spacing.xl, alignItems: 'center', gap: spacing.md },
-    iconWrap: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: spacing.md,
-    },
-    title: {
-      fontSize: fontSize['2xl'],
-      fontWeight: fontWeight.bold,
-      color: theme.foreground,
-      textAlign: 'center',
-    },
-    subtitle: {
-      fontSize: fontSize.sm,
-      color: theme.mutedForeground,
-      textAlign: 'center',
-      lineHeight: 22,
-    },
-    form: { gap: spacing.md },
-    button: {
-      backgroundColor: theme.primary,
-      padding: spacing.md,
-      borderRadius: borderRadius.md,
-      alignItems: 'center',
-      marginTop: spacing.sm,
-    },
-    buttonDisabled: { opacity: 0.5 },
-    buttonText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold },
-    outlineButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.sm,
-      padding: spacing.md,
-      borderRadius: borderRadius.md,
-      borderWidth: 1,
-    },
-    outlineButtonText: { fontSize: fontSize.md, fontWeight: fontWeight.medium },
-    linkRow: { alignItems: 'center', marginTop: spacing.xs },
-    linkText: { fontSize: fontSize.sm, textAlign: 'center' },
-  });

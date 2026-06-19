@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -12,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import { Ionicons } from '@expo/vector-icons';
 import {
   Car,
   CircleDollarSign,
@@ -32,13 +32,18 @@ import {
   X,
 } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { useNotification } from '../../context/NotificationContext';
+import { useNotification, useToast } from '../../context/NotificationContext';
+import { useConfirm } from '../../context/ConfirmContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   borderRadius,
   colors,
   fontSize,
   fontWeight,
   spacing,
+  fontFamily,
+  shadows,
+  cardRadius,
 } from '../../theme/colors';
 import { CATEGORIES } from '../../constants/transaction';
 import { formatCurrency } from '../../lib/formatCurrency';
@@ -158,6 +163,9 @@ const BudgetScreen = () => {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const { showNotification } = useNotification();
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
+  const insets = useSafeAreaInsets();
   const isBudgetFocused = useIsFocused();
   const { user } = useTypedSelector((state) => state.auth);
   const { data: currencyData } = useGetSupportedCurrenciesQuery();
@@ -477,56 +485,55 @@ const BudgetScreen = () => {
     }
   };
 
-  const handleDeleteBudget = () => {
-    Alert.alert(
-      'Delete budget',
-      'Are you sure you want to delete this monthly budget?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteBudget({ month, year }).unwrap();
-              Alert.alert('Budget deleted', 'Budget deleted successfully.');
-              refetch();
-            } catch (error: any) {
-              Alert.alert(
-                'Delete failed',
-                error?.data?.message || 'Unable to delete budget.',
-              );
-            }
-          },
-        },
-      ],
-    );
+  const handleDeleteBudget = async () => {
+    const confirmed = await confirm({
+      title: 'Delete budget',
+      message: 'Are you sure you want to delete this monthly budget?',
+      confirmText: 'Delete',
+      destructive: true,
+    });
+    if (!confirmed) return;
+
+    try {
+      await deleteBudget({ month, year }).unwrap();
+      showToast({ type: 'success', title: 'Budget deleted', message: 'Your monthly budget was removed.' });
+      refetch();
+    } catch (error: any) {
+      showToast({
+        type: 'error',
+        title: 'Delete failed',
+        message: error?.data?.message || 'Unable to delete budget.',
+      });
+    }
   };
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={[styles.title, { color: themeColors.foreground }]}>Budget</Text>
-          <Text style={[styles.subtitle, { color: themeColors.mutedForeground }]}>Manage monthly limits and spending.</Text>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.contentHeader}>
+          <View style={styles.headerTextWrap}>
+            <Text style={[styles.headerTitle, { color: themeColors.foreground }]}>Budget</Text>
+            <Text style={[styles.headerSubtitle, { color: themeColors.mutedForeground }]} numberOfLines={1}>
+              Track your monthly spending limits
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => setIsMonthPickerVisible(true)}
+            style={[styles.monthButton, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="calendar-outline" size={15} color={themeColors.foreground} style={{ marginRight: 6 }} />
+            <Text
+              style={[styles.monthButtonText, { color: themeColors.foreground }]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {selectedMonthLabel}
+            </Text>
+            <Ionicons name="chevron-down" size={13} color={themeColors.mutedForeground} style={{ marginLeft: 4 }} />
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          onPress={() => setIsMonthPickerVisible(true)}
-          style={[styles.monthButton, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
-          activeOpacity={0.8}
-        >
-          <Text
-            style={[styles.monthButtonText, { color: themeColors.foreground }]}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {selectedMonthLabel}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.content}>
         {isLoading && (
           <View style={[styles.infoCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
             <Text style={[styles.loadingText, { color: themeColors.mutedForeground }]}>Loading budget...</Text>
@@ -548,7 +555,7 @@ const BudgetScreen = () => {
                   style={[styles.summaryCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
                 >
                   <Text style={[styles.summaryLabel, { color: themeColors.mutedForeground }]}>{item.label}</Text>
-                  <Text style={[styles.summaryValue, { color: themeColors.foreground }]}>{item.value}</Text>
+                  <Text style={[styles.summaryValue, { color: themeColors.foreground }]} numberOfLines={1} adjustsFontSizeToFit>{item.value}</Text>
                   <View style={styles.progressTrack}>
                     <View
                       style={[
@@ -668,7 +675,7 @@ const BudgetScreen = () => {
           style={[styles.modalScreen, { backgroundColor: themeColors.background }]}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={[styles.modalHeader, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+          <View style={[styles.modalHeader, { backgroundColor: themeColors.card, borderColor: themeColors.border, paddingTop: Math.max(insets.top, spacing.lg) }]}>
             <View>
               <Text style={[styles.modalTitle, { color: themeColors.foreground }]}> {budget?.hasBudget ? 'Update Budget' : 'Set Budget'}</Text>
               <Text style={[styles.modalDescription, { color: themeColors.mutedForeground }]}>Choose voice or manual budget entry.</Text>
@@ -798,87 +805,83 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    padding: spacing.lg,
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-  },
-  headerLeft: {
-    flex: 1,
-    minWidth: 0,
-    paddingRight: spacing.sm,
-  },
-  title: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-  },
-  subtitle: {
-    marginTop: spacing.xs,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.normal,
-  },
   monthButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    maxWidth: 140,
-    minWidth: 110,
-    alignSelf: 'flex-start',
-    marginLeft: spacing.xs,
+    borderRadius: borderRadius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    maxWidth: 150,
+    flexShrink: 0,
     overflow: 'hidden',
+    ...shadows.card,
   },
   monthButtonText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
     flexShrink: 1,
   },
   content: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xxxl,
+    paddingBottom: 120,
   },
+  contentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+    marginTop: spacing.xs,
+  },
+  headerTextWrap: { flex: 1, minWidth: 0 },
+  headerTitle: { fontFamily: fontFamily.bold, fontSize: 22, letterSpacing: -0.4 },
+  headerSubtitle: { fontFamily: fontFamily.regular, fontSize: 13, marginTop: 2 },
   infoCard: {
-    borderWidth: 1,
-    borderRadius: borderRadius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: cardRadius,
     padding: spacing.lg,
     marginBottom: spacing.lg,
+    ...shadows.card,
   },
   loadingText: {
-    fontSize: fontSize.base,
+    fontFamily: fontFamily.regular,
+    fontSize: 14,
   },
   errorText: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.medium,
+    fontSize: 14,
   },
   summaryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
   },
   summaryCard: {
     width: '48%',
-    borderWidth: 1,
-    borderRadius: borderRadius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: cardRadius,
     padding: spacing.md,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadows.card,
   },
   summaryLabel: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.medium,
+    fontSize: 12,
     marginBottom: spacing.xs,
   },
   summaryValue: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.bold,
+    fontSize: 18,
     marginBottom: spacing.sm,
+    letterSpacing: -0.3,
   },
   progressTrack: {
     width: '100%',
     height: 6,
     borderRadius: borderRadius.full,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: 'rgba(120,120,128,0.16)',
     overflow: 'hidden',
   },
   progressFill: {
@@ -886,62 +889,70 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
   emptyStateIcon: {
-    marginBottom: spacing.sm,
-    padding: spacing.sm,
+    marginBottom: spacing.md,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(120,120,128,0.12)',
     alignSelf: 'flex-start',
   },
   infoTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.semibold,
+    fontSize: 16,
     marginBottom: spacing.xs,
   },
   infoDescription: {
-    fontSize: fontSize.sm,
-    marginBottom: spacing.md,
+    fontFamily: fontFamily.regular,
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: spacing.lg,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.sm + 4,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.full,
+    gap: spacing.xs,
+    alignSelf: 'flex-start',
   },
   actionButtonText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    marginLeft: spacing.xs,
+    fontFamily: fontFamily.semibold,
+    fontSize: 14,
   },
   actionsRow: {
     flexDirection: 'row',
-    borderTopWidth: 1,
+    gap: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: spacing.lg,
+    marginTop: spacing.xs,
   },
   primaryAction: {
     flex: 1,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.sm + 4,
+    borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.sm,
   },
   primaryActionText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.semibold,
+    fontSize: 14,
   },
   destructiveAction: {
     flex: 1,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.sm + 4,
+    borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
+    gap: spacing.xs,
   },
   destructiveActionText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    marginLeft: spacing.xs,
+    fontFamily: fontFamily.semibold,
+    fontSize: 14,
   },
   modalOverlay: {
     flex: 1,
@@ -966,8 +977,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   modalTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.semibold,
+    fontSize: 17,
   },
   modalScreen: {
     flex: 1,
@@ -977,30 +988,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: spacing.lg,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   modalDescription: {
     marginTop: spacing.xs,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.normal,
+    fontFamily: fontFamily.regular,
+    fontSize: 13,
   },
   modeSwitch: {
     flexDirection: 'row',
+    gap: spacing.sm,
     padding: spacing.lg,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   modeButton: {
     flex: 1,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: borderRadius.full,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.sm,
   },
   modeButtonText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
   },
   modalContent: {
     padding: spacing.lg,
@@ -1009,42 +1020,47 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   sectionLabel: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.semibold,
+    fontSize: 14,
     marginBottom: spacing.xs,
   },
   sectionDescription: {
-    fontSize: fontSize.xs,
+    fontFamily: fontFamily.regular,
+    fontSize: 12,
+    lineHeight: 17,
     marginBottom: spacing.lg,
   },
   formSection: {
     marginBottom: spacing.lg,
   },
   input: {
-    borderWidth: 1,
-    borderRadius: borderRadius.lg,
-    padding: spacing.sm,
-    fontSize: fontSize.base,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 4,
+    fontFamily: fontFamily.medium,
+    fontSize: 15,
     marginTop: spacing.sm,
   },
   categorySection: {
     marginBottom: spacing.md,
   },
   categorySummarySection: {
-    borderWidth: 1,
-    borderRadius: borderRadius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: cardRadius,
     padding: spacing.md,
     marginBottom: spacing.lg,
+    ...shadows.card,
   },
   categorySummaryHeader: {
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   categorySummaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
-    borderRadius: borderRadius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: borderRadius.xl,
     marginBottom: spacing.sm,
     overflow: 'hidden',
   },
@@ -1075,15 +1091,16 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   categorySummaryTitle: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
   },
   categorySummaryValue: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
   },
   categorySummaryMeta: {
-    fontSize: fontSize.xs,
+    fontFamily: fontFamily.regular,
+    fontSize: 11,
     marginTop: spacing.xs,
   },
   categorySummaryStats: {
@@ -1094,43 +1111,45 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   categoryRow: {
-    borderWidth: 1,
-    borderRadius: borderRadius.lg,
-    padding: spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: borderRadius.xl,
+    padding: spacing.md,
     marginBottom: spacing.md,
   },
   categoryLabel: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.medium,
+    fontSize: 13,
     marginBottom: spacing.xs,
   },
   categoryInput: {
-    borderWidth: 1,
-    borderRadius: borderRadius.lg,
-    padding: spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
     marginTop: spacing.xs,
-    fontSize: fontSize.base,
+    fontFamily: fontFamily.medium,
+    fontSize: 15,
   },
   fieldErrorText: {
     marginTop: spacing.xs,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.medium,
+    fontSize: 11,
   },
   modalFooter: {
     padding: spacing.lg,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   saveButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.full,
+    gap: spacing.xs,
   },
   saveButtonText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    marginLeft: spacing.xs,
+    fontFamily: fontFamily.semibold,
+    fontSize: 15,
   },
 });
 

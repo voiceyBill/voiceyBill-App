@@ -4,26 +4,28 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   KeyboardAvoidingView,
   ScrollView,
   ActivityIndicator,
-  Alert,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { Eye, EyeOff, ArrowLeft } from 'lucide-react-native';
+import { Eye, EyeOff } from 'lucide-react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useResetPasswordMutation } from '../../features/auth/authAPI';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, borderRadius, fontSize, fontWeight } from '../../theme/colors';
+import { colors } from '../../theme/colors';
+import { createAuthStyles } from '../../theme/authStyles';
 import Logo from '../../components/common/Logo';
+import PasswordRequirements from '../../components/auth/PasswordRequirements';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import {
-  getPasswordRules,
   getPasswordValidationMessage,
+  isPasswordValid,
   mapAuthApiErrors,
 } from '../../features/auth/authValidation';
+import { useToast } from '../../context/NotificationContext';
 
 type SetNewPasswordRouteProp = RouteProp<AuthStackParamList, 'SetNewPassword'>;
 
@@ -33,6 +35,7 @@ export default function SetNewPasswordScreen() {
   const { email, otp } = route.params;
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { showToast } = useToast();
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -42,7 +45,6 @@ export default function SetNewPasswordScreen() {
   const [resetPassword, { isLoading }] = useResetPasswordMutation();
   const scrollRef = useRef<ScrollView>(null);
   const confirmPasswordRef = useRef<TextInput>(null);
-  const rules = getPasswordRules(password);
 
   const scrollToFormEnd = () => {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 250);
@@ -65,21 +67,29 @@ export default function SetNewPasswordScreen() {
 
     try {
       await resetPassword({ email, otp, password }).unwrap();
-      Alert.alert('Password reset', 'Your password has been reset successfully. Please sign in.', [
-        { text: 'Sign in', onPress: () => (navigation as any).navigate('SignIn') },
-      ]);
+      showToast({
+        type: 'success',
+        title: 'Password reset',
+        message: 'Your password has been updated. Please sign in.',
+      });
+      (navigation as any).navigate('SignIn');
     } catch (error: any) {
       setErrors(mapAuthApiErrors(error, 'Failed to reset password. Please try again.', 'password'));
+      showToast({
+        type: 'error',
+        title: 'Reset failed',
+        message: error?.data?.message || 'Failed to reset password. Please try again.',
+      });
     }
   };
 
-  const styles = createStyles(themeColors);
+  const styles = createAuthStyles(themeColors);
   const canSubmit =
     !isLoading &&
     password !== '' &&
     confirmPassword !== '' &&
     password === confirmPassword &&
-    !getPasswordValidationMessage(password);
+    isPasswordValid(password);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -97,14 +107,14 @@ export default function SetNewPasswordScreen() {
           showsVerticalScrollIndicator={false}
         >
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <ArrowLeft size={20} color={themeColors.foreground} />
+            <Ionicons name="arrow-back" size={18} color={themeColors.foreground} />
           </TouchableOpacity>
 
           <View style={styles.content}>
             <View style={styles.header}>
               <Logo size="lg" />
               <Text style={styles.title}>Create new password</Text>
-              <Text style={styles.subtitle}>Enter your new password below.</Text>
+              <Text style={styles.subtitle}>Choose a strong password for your account.</Text>
             </View>
 
             <View style={styles.form}>
@@ -113,7 +123,7 @@ export default function SetNewPasswordScreen() {
                 <View style={[styles.passwordWrap, errors.password ? styles.inputError : null]}>
                   <TextInput
                     style={styles.passwordInput}
-                    placeholder="At least 8 characters"
+                    placeholder="Create a strong password"
                     placeholderTextColor={themeColors.mutedForeground}
                     value={password}
                     onChangeText={(v) => {
@@ -138,26 +148,19 @@ export default function SetNewPasswordScreen() {
                     )}
                   </TouchableOpacity>
                 </View>
-                {!!errors.password && <Text style={styles.error}>{errors.password}</Text>}
-                <View style={styles.passwordRules}>
-                  <Text style={[styles.passwordRule, rules.length && styles.passwordRuleValid]}>
-                    - At least 8 characters
-                  </Text>
-                  <Text style={[styles.passwordRule, rules.uppercase && styles.passwordRuleValid]}>
-                    - One uppercase letter
-                  </Text>
-                  <Text style={[styles.passwordRule, rules.number && styles.passwordRuleValid]}>
-                    - One number
-                  </Text>
-                  <Text style={[styles.passwordRule, rules.special && styles.passwordRuleValid]}>
-                    - One special character
-                  </Text>
-                </View>
+                {errors.password ? <Text style={styles.fieldError}>{errors.password}</Text> : null}
+                <PasswordRequirements
+                  password={password}
+                  themeColors={themeColors}
+                  alwaysShowRules
+                />
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Confirm password</Text>
-                <View style={[styles.passwordWrap, errors.confirmPassword ? styles.inputError : null]}>
+                <View
+                  style={[styles.passwordWrap, errors.confirmPassword ? styles.inputError : null]}
+                >
                   <TextInput
                     ref={confirmPasswordRef}
                     style={styles.passwordInput}
@@ -185,7 +188,9 @@ export default function SetNewPasswordScreen() {
                     )}
                   </TouchableOpacity>
                 </View>
-                {!!errors.confirmPassword && <Text style={styles.error}>{errors.confirmPassword}</Text>}
+                {errors.confirmPassword ? (
+                  <Text style={styles.fieldError}>{errors.confirmPassword}</Text>
+                ) : null}
               </View>
 
               <TouchableOpacity
@@ -196,9 +201,15 @@ export default function SetNewPasswordScreen() {
                 {isLoading ? (
                   <ActivityIndicator color={themeColors.primaryForeground} />
                 ) : (
-                  <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>Reset password</Text>
+                  <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>
+                    Reset password
+                  </Text>
                 )}
               </TouchableOpacity>
+
+              {!canSubmit && password.length > 0 && !isPasswordValid(password) ? (
+                <Text style={styles.otpHint}>Complete all password requirements to continue</Text>
+              ) : null}
             </View>
           </View>
         </ScrollView>
@@ -206,57 +217,3 @@ export default function SetNewPasswordScreen() {
     </SafeAreaView>
   );
 }
-
-const createStyles = (theme: typeof colors.light) =>
-  StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.background },
-    scrollContent: {
-      flexGrow: 1,
-      padding: spacing.lg,
-      paddingTop: spacing.lg,
-      paddingBottom: spacing.xxxl,
-    },
-    backBtn: { marginBottom: spacing.lg, alignSelf: 'flex-start', padding: spacing.xs },
-    content: { maxWidth: 400, width: '100%', alignSelf: 'center' },
-    header: { marginBottom: spacing.xl, alignItems: 'center', gap: spacing.sm },
-    title: {
-      fontSize: fontSize['2xl'],
-      fontWeight: fontWeight.bold,
-      color: theme.foreground,
-      marginTop: spacing.sm,
-      textAlign: 'center',
-    },
-    subtitle: { fontSize: fontSize.sm, color: theme.mutedForeground, textAlign: 'center' },
-    form: { gap: spacing.md },
-    inputGroup: { gap: spacing.sm },
-    label: { fontSize: fontSize.sm, color: theme.foreground, fontWeight: fontWeight.medium },
-    passwordWrap: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: borderRadius.md,
-      paddingHorizontal: spacing.md,
-      backgroundColor: theme.card,
-    },
-    passwordInput: {
-      flex: 1,
-      paddingVertical: spacing.md,
-      fontSize: fontSize.md,
-      color: theme.foreground,
-    },
-    inputError: { borderColor: theme.destructive },
-    error: { fontSize: fontSize.xs, color: theme.destructive },
-    passwordRules: { marginTop: spacing.xs, gap: spacing.xs },
-    passwordRule: { fontSize: fontSize.xs, color: theme.mutedForeground },
-    passwordRuleValid: { color: theme.incomeText },
-    button: {
-      backgroundColor: theme.primary,
-      padding: spacing.md,
-      borderRadius: borderRadius.md,
-      alignItems: 'center',
-      marginTop: spacing.sm,
-    },
-    buttonDisabled: { opacity: 0.6 },
-    buttonText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold },
-  });

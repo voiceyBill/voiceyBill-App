@@ -6,15 +6,16 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   RefreshControl,
   Modal,
   Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { Calendar, FileText, Mail, Send, X, CheckCircle, Clock, AlertCircle, MinusCircle } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme/colors';
+import { useToast } from '../../context/NotificationContext';
+import { colors, spacing, fontSize, fontWeight, borderRadius, fontFamily, shadows, cardRadius } from '../../theme/colors';
 import {
   useGetAllReportsQuery,
   useUpdateReportSettingMutation,
@@ -28,6 +29,7 @@ import { format } from 'date-fns';
 export default function ReportsScreen() {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { showToast } = useToast();
   const dispatch = useAppDispatch();
   const user = useTypedSelector((s) => s.auth.user);
   const reportSetting = useTypedSelector((s) => s.auth.reportSetting);
@@ -58,14 +60,14 @@ export default function ReportsScreen() {
       await updateReportSetting({ isEnabled: scheduleEnabled }).unwrap();
       dispatch(updateCredentials({ reportSetting: { isEnabled: scheduleEnabled } }));
       setShowScheduleModal(false);
-      Alert.alert('Saved', 'Report schedule updated successfully');
+      showToast({ type: 'success', title: 'Saved', message: 'Report schedule updated successfully.' });
     } catch (error) {
       console.warn('[ReportSettings] save failed:', error);
       const message =
         (error as { data?: { message?: string }; error?: string; status?: number | string })?.data?.message ||
         (error as { error?: string })?.error ||
         `Failed to update report schedule (status ${(error as { status?: number | string })?.status ?? 'unknown'})`;
-      Alert.alert('Error', message);
+      showToast({ type: 'error', title: 'Error', message });
     } finally {
       setIsSavingSchedule(false);
     }
@@ -76,13 +78,13 @@ export default function ReportsScreen() {
     setResendingReportId(reportId);
     try {
       await resendReport(reportId).unwrap();
-      Alert.alert('Sent', 'Report re-sent to your email');
+      showToast({ type: 'success', title: 'Sent', message: 'Report re-sent to your email.' });
     } catch (error) {
       const message =
         (error as { data?: { message?: string }; message?: string })?.data?.message ||
         (error as { message?: string })?.message ||
         'Failed to resend report';
-      Alert.alert('Error', message);
+      showToast({ type: 'error', title: 'Error', message });
     } finally {
       setResendingReportId(null);
     }
@@ -116,24 +118,24 @@ export default function ReportsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={[]}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: spacing.xl }}
+        contentContainerStyle={{ paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} />}
       >
-        {/* Header */}
-        <View style={styles.navbar}>
-          <View style={styles.navbarTop}>
-            <View style={styles.navbarTextWrap}>
-              <Text style={styles.navbarTitle} numberOfLines={1}>Report History</Text>
-              <Text style={styles.navbarSubtitle} numberOfLines={2}>View and manage your financial reports</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.scheduleButton}
-              onPress={() => setShowScheduleModal(true)}
-            >
-              <Calendar size={16} color={themeColors.navbarForeground} />
-              <Text style={styles.scheduleButtonText} numberOfLines={1}>Report Settings</Text>
-            </TouchableOpacity>
+        <View style={styles.contentHeader}>
+          <View style={styles.headerTextWrap}>
+            <Text style={[styles.headerTitle, { color: themeColors.foreground }]}>Reports</Text>
+            <Text style={[styles.headerSubtitle, { color: themeColors.mutedForeground }]} numberOfLines={1}>
+              Your monthly financial summaries
+            </Text>
           </View>
+          <TouchableOpacity
+            style={[styles.settingsIconBtn, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+            onPress={() => setShowScheduleModal(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="settings-outline" size={18} color={themeColors.foreground} />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.content}>
@@ -184,52 +186,51 @@ export default function ReportsScreen() {
                   >
                     <View style={styles.reportTop}>
                       <View style={[styles.reportIconWrap, { backgroundColor: themeColors.muted }]}>
-                        <FileText size={20} color={themeColors.foreground} strokeWidth={1.5} />
+                        <FileText size={18} color={themeColors.foreground} strokeWidth={1.75} />
                       </View>
                       <View style={styles.reportInfo}>
-                        <Text style={[styles.reportTitle, { color: themeColors.foreground }]}>
+                        <Text style={[styles.reportTitle, { color: themeColors.foreground }]} numberOfLines={1}>
                           {report.period || 'Financial Report'}
                         </Text>
                         <View style={styles.dateRow}>
                           <Calendar size={12} color={themeColors.mutedForeground} />
-                          <Text style={[styles.reportDate, { color: themeColors.mutedForeground }]}>
+                          <Text style={[styles.reportDate, { color: themeColors.mutedForeground }]} numberOfLines={1}>
                             {report.sentDate ? `Sent ${formatDate(report.sentDate)}` : formatDate(report.createdAt)}
                           </Text>
                         </View>
                       </View>
                       <View style={[styles.statusBadge, { backgroundColor: status.bgColor }]}>
-                        <StatusIcon size={12} color={status.color} strokeWidth={2} />
+                        <StatusIcon size={11} color={status.color} strokeWidth={2.25} />
                         <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
                       </View>
                     </View>
-                    <View style={[styles.reportFooter, { borderTopColor: themeColors.border }]}>
-                      <TouchableOpacity
+                    <TouchableOpacity
+                      style={[
+                        styles.resendBtn,
+                        { borderTopColor: themeColors.border },
+                        (isResendDisabled || isResending) && styles.resendBtnDisabled,
+                      ]}
+                      onPress={() => handleResend(report._id)}
+                      disabled={isResendDisabled || isResending}
+                      activeOpacity={0.7}
+                    >
+                      {isResending ? (
+                        <ActivityIndicator size="small" color={themeColors.primary} />
+                      ) : (
+                        <Send
+                          size={14}
+                          color={isResendDisabled ? themeColors.mutedForeground : themeColors.primary}
+                        />
+                      )}
+                      <Text
                         style={[
-                          styles.resendBtn,
-                          { borderColor: themeColors.border, backgroundColor: themeColors.muted },
-                          (isResendDisabled || isResending) && styles.resendBtnDisabled,
+                          styles.resendBtnText,
+                          { color: isResendDisabled ? themeColors.mutedForeground : themeColors.primary },
                         ]}
-                        onPress={() => handleResend(report._id)}
-                        disabled={isResendDisabled || isResending}
                       >
-                        {isResending ? (
-                          <ActivityIndicator size="small" color={themeColors.foreground} />
-                        ) : (
-                          <Send
-                            size={14}
-                            color={isResendDisabled ? themeColors.mutedForeground : themeColors.foreground}
-                          />
-                        )}
-                        <Text
-                          style={[
-                            styles.resendBtnText,
-                            { color: isResendDisabled ? themeColors.mutedForeground : themeColors.foreground },
-                          ]}
-                        >
-                          {isResending ? 'Sending…' : 'Resend'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
+                        {isResending ? 'Sending…' : 'Resend report'}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 );
               })}
@@ -370,41 +371,34 @@ export default function ReportsScreen() {
 const createStyles = (theme: typeof colors.light) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
-    navbar: {
-      backgroundColor: theme.navbar,
-      paddingHorizontal: spacing.lg,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.xl,
-    },
-    navbarTop: {
+    content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs },
+    contentHeader: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.xs,
+      paddingBottom: spacing.md,
       gap: spacing.md,
     },
-    navbarTextWrap: { flex: 1, minWidth: 0 },
-    navbarTitle: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: theme.navbarForeground },
-    navbarSubtitle: { fontSize: fontSize.sm, color: theme.navbarForeground, opacity: 0.8, marginTop: spacing.xs },
-    scheduleButton: {
-      flexDirection: 'row',
+    headerTextWrap: { flex: 1, minWidth: 0 },
+    headerTitle: { fontFamily: fontFamily.bold, fontSize: 22, letterSpacing: -0.4 },
+    headerSubtitle: { fontFamily: fontFamily.regular, fontSize: 13, marginTop: 2 },
+    settingsIconBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      borderWidth: StyleSheet.hairlineWidth,
       alignItems: 'center',
-      gap: spacing.xs,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: borderRadius.md,
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.25)',
-      backgroundColor: 'rgba(255,255,255,0.1)',
-      flexShrink: 0,
+      justifyContent: 'center',
+      ...shadows.card,
     },
-    scheduleButtonText: { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: theme.navbarForeground },
-    content: { padding: spacing.lg },
     centerState: { paddingVertical: spacing.xxxl, alignItems: 'center', gap: spacing.md },
-    stateText: { fontSize: fontSize.md },
-    emptyState: { paddingVertical: spacing.xxxl, alignItems: 'center', gap: spacing.md },
+    stateText: { fontFamily: fontFamily.regular, fontSize: 14 },
+    emptyState: { paddingVertical: spacing.xxxl, alignItems: 'center', gap: spacing.sm },
     emptyIconWrap: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
-    emptyTitle: { fontSize: fontSize.xl, fontWeight: fontWeight.bold },
-    emptyText: { fontSize: fontSize.sm, textAlign: 'center', lineHeight: 22, paddingHorizontal: spacing.xl },
+    emptyTitle: { fontFamily: fontFamily.semibold, fontSize: 17 },
+    emptyText: { fontFamily: fontFamily.regular, fontSize: 13, textAlign: 'center', lineHeight: 20, paddingHorizontal: spacing.xl },
     scheduleHintBtn: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -412,81 +406,74 @@ const createStyles = (theme: typeof colors.light) =>
       marginTop: spacing.md,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.full,
       borderWidth: 1,
     },
-    scheduleHintText: { fontSize: fontSize.sm },
+    scheduleHintText: { fontFamily: fontFamily.medium, fontSize: 13 },
     list: { gap: spacing.md },
     reportCard: {
-      borderRadius: borderRadius.lg,
-      borderWidth: 1,
+      borderRadius: cardRadius,
+      borderWidth: StyleSheet.hairlineWidth,
       overflow: 'hidden',
+      ...shadows.card,
     },
     reportTop: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
+      alignItems: 'center',
       padding: spacing.md,
       gap: spacing.md,
     },
     reportIconWrap: {
       width: 40,
       height: 40,
-      borderRadius: borderRadius.md,
+      borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
     },
-    reportInfo: { flex: 1 },
-    reportTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, marginBottom: spacing.xs },
+    reportInfo: { flex: 1, minWidth: 0 },
+    reportTitle: { fontFamily: fontFamily.semibold, fontSize: 14, marginBottom: 3 },
     dateRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-    reportDate: { fontSize: fontSize.xs },
+    reportDate: { fontFamily: fontFamily.regular, fontSize: 12 },
     statusBadge: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
       paddingHorizontal: spacing.sm,
-      paddingVertical: 4,
-      borderRadius: borderRadius.sm,
+      paddingVertical: 5,
+      borderRadius: borderRadius.full,
       flexShrink: 0,
     },
-    statusText: { fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
-    reportFooter: {
-      flexDirection: 'row',
-      justifyContent: 'flex-end',
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderTopWidth: 1,
-    },
+    statusText: { fontFamily: fontFamily.semibold, fontSize: 11 },
     resendBtn: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: spacing.xs,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: borderRadius.md,
-      borderWidth: 1,
+      paddingVertical: spacing.sm + 2,
+      borderTopWidth: StyleSheet.hairlineWidth,
     },
     resendBtnDisabled: {
       opacity: 0.5,
     },
-    resendBtnText: { fontSize: fontSize.sm, fontWeight: fontWeight.medium },
+    resendBtnText: { fontFamily: fontFamily.semibold, fontSize: 13 },
     pagination: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       marginTop: spacing.xl,
       paddingTop: spacing.lg,
-      borderTopWidth: 1,
+      borderTopWidth: StyleSheet.hairlineWidth,
     },
     pageBtn: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: borderRadius.md,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm + 2,
+      borderRadius: borderRadius.full,
       borderWidth: 1,
     },
     pageBtnDisabled: { opacity: 0.4 },
-    pageBtnText: { fontSize: fontSize.sm, fontWeight: fontWeight.medium },
-    pageInfo: { fontSize: fontSize.sm },
+    pageBtnText: { fontFamily: fontFamily.semibold, fontSize: 13 },
+    pageInfo: { fontFamily: fontFamily.medium, fontSize: 13 },
     modalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.5)',
@@ -506,22 +493,22 @@ const createStyles = (theme: typeof colors.light) =>
       padding: spacing.lg,
       borderBottomWidth: 1,
     },
-    modalTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold },
-    modalSubtitle: { fontSize: fontSize.sm, marginTop: 2 },
+    modalTitle: { fontFamily: fontFamily.semibold, fontSize: 17 },
+    modalSubtitle: { fontFamily: fontFamily.regular, fontSize: 13, marginTop: 2 },
     modalContent: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxxl },
     settingRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       padding: spacing.md,
-      borderRadius: borderRadius.lg,
+      borderRadius: borderRadius.xl,
       borderWidth: 1,
     },
     settingRowLeft: { flex: 1, gap: 4 },
-    settingLabel: { fontSize: fontSize.base, fontWeight: fontWeight.medium },
-    settingDesc: { fontSize: fontSize.sm },
+    settingLabel: { fontFamily: fontFamily.medium, fontSize: 14 },
+    settingDesc: { fontFamily: fontFamily.regular, fontSize: 13 },
     formField: { gap: spacing.xs },
-    fieldLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.medium },
+    fieldLabel: { fontFamily: fontFamily.medium, fontSize: 13 },
     fieldInput: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -531,7 +518,7 @@ const createStyles = (theme: typeof colors.light) =>
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.md,
     },
-    fieldValue: { fontSize: fontSize.md, flex: 1 },
+    fieldValue: { fontFamily: fontFamily.regular, fontSize: 14, flex: 1 },
     disabledOverlay: {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: 'rgba(255,255,255,0.5)',
@@ -539,15 +526,15 @@ const createStyles = (theme: typeof colors.light) =>
     },
     summaryBox: {
       padding: spacing.md,
-      borderRadius: borderRadius.lg,
+      borderRadius: borderRadius.xl,
       gap: spacing.xs,
     },
-    summaryTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-    summaryText: { fontSize: fontSize.sm, lineHeight: 20 },
+    summaryTitle: { fontFamily: fontFamily.semibold, fontSize: 13 },
+    summaryText: { fontFamily: fontFamily.regular, fontSize: 13, lineHeight: 20 },
     saveBtn: {
-      padding: spacing.md,
-      borderRadius: borderRadius.md,
+      paddingVertical: spacing.md,
+      borderRadius: borderRadius.full,
       alignItems: 'center',
     },
-    saveBtnText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold },
+    saveBtnText: { fontFamily: fontFamily.semibold, fontSize: 15, color: '#fff' },
   });

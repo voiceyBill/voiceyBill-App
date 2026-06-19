@@ -1,34 +1,46 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { CreditCard, Sparkles } from 'lucide-react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { CreditCard, Sparkles, ChevronLeft } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme/colors';
+import { colors, spacing, borderRadius, fontFamily, shadows, cardRadius } from '../../theme/colors';
 
 export default function BillingScreen() {
+  const navigation = useNavigation();
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const insets = useSafeAreaInsets();
   const styles = createStyles(themeColors);
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxxl }}>
-        <View style={styles.navbar}>
-          <Text style={styles.navbarTitle}>Settings</Text>
-          <Text style={styles.navbarSubtitle}>Manage your account settings and set e-mail preferences.</Text>
+      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxxl }} showsVerticalScrollIndicator={false}>
+        <View style={[styles.screenHeader, { paddingTop: Math.max(insets.top, spacing.sm) }]}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={[styles.backBtn, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+            activeOpacity={0.7}
+          >
+            <ChevronLeft size={20} color={themeColors.foreground} />
+          </TouchableOpacity>
+          <View style={styles.headerTextWrap}>
+            <Text style={[styles.screenTitle, { color: themeColors.foreground }]}>Billing</Text>
+            <Text style={[styles.screenSubtitle, { color: themeColors.mutedForeground }]}>Subscription & payments</Text>
+          </View>
         </View>
 
         <View style={styles.content}>
           <View style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
             <View style={styles.placeholder}>
               <View style={[styles.iconWrap, { backgroundColor: themeColors.muted }]}>
-                <CreditCard size={28} color={themeColors.foreground} strokeWidth={1.5} />
+                <CreditCard size={24} color={themeColors.foreground} strokeWidth={1.75} />
               </View>
               <Text style={[styles.placeholderTitle, { color: themeColors.foreground }]}>
-                No active subscription
+                Free & open source
               </Text>
               <Text style={[styles.placeholderText, { color: themeColors.mutedForeground }]}>
-                VoiceyBill is free and open source. Subscription features will be available in a future release.
+                VoiceyBill is free. Premium subscription features may arrive in a future release.
               </Text>
 
               <View style={[styles.featureList, { borderColor: themeColors.border }]}>
@@ -39,8 +51,8 @@ export default function BillingScreen() {
                   'Multi-currency support',
                 ].map((feature) => (
                   <View key={feature} style={styles.featureRow}>
-                    <Sparkles size={14} color={themeColors.mutedForeground} strokeWidth={1.5} />
-                    <Text style={[styles.featureText, { color: themeColors.mutedForeground }]}>
+                    <Sparkles size={14} color={themeColors.primary} strokeWidth={1.75} />
+                    <Text style={[styles.featureText, { color: themeColors.foreground }]}>
                       {feature}
                     </Text>
                   </View>
@@ -57,42 +69,50 @@ export default function BillingScreen() {
 const createStyles = (theme: typeof colors.light) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.background },
-    navbar: {
-      backgroundColor: theme.navbar,
-      padding: spacing.lg,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.xl,
+    screenHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.md,
     },
-    navbarTitle: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: theme.navbarForeground },
-    navbarSubtitle: { fontSize: fontSize.sm, color: theme.navbarForeground, opacity: 0.8, marginTop: spacing.xs },
-    content: { padding: spacing.lg },
-    card: {
-      borderRadius: borderRadius.lg,
-      borderWidth: 1,
-      padding: spacing.lg,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    placeholder: { alignItems: 'center', paddingVertical: spacing.xl, gap: spacing.md },
-    iconWrap: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: StyleSheet.hairlineWidth,
       alignItems: 'center',
       justifyContent: 'center',
+      ...shadows.card,
     },
-    placeholderTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, textAlign: 'center' },
-    placeholderText: { fontSize: fontSize.sm, textAlign: 'center', lineHeight: 22, paddingHorizontal: spacing.md },
+    headerTextWrap: { flex: 1 },
+    screenTitle: { fontFamily: fontFamily.bold, fontSize: 20, letterSpacing: -0.3 },
+    screenSubtitle: { fontFamily: fontFamily.regular, fontSize: 13, marginTop: 2 },
+    content: { paddingHorizontal: spacing.lg },
+    card: {
+      borderRadius: cardRadius,
+      borderWidth: StyleSheet.hairlineWidth,
+      padding: spacing.lg,
+      ...shadows.card,
+    },
+    placeholder: { alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm },
+    iconWrap: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.xs,
+    },
+    placeholderTitle: { fontFamily: fontFamily.semibold, fontSize: 16, textAlign: 'center' },
+    placeholderText: { fontFamily: fontFamily.regular, fontSize: 13, textAlign: 'center', lineHeight: 19, paddingHorizontal: spacing.md },
     featureList: {
       width: '100%',
-      marginTop: spacing.sm,
+      marginTop: spacing.md,
       paddingTop: spacing.lg,
-      borderTopWidth: 1,
-      gap: spacing.md,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      gap: spacing.sm,
     },
-    featureRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    featureText: { fontSize: fontSize.sm },
+    featureRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 2 },
+    featureText: { fontFamily: fontFamily.medium, fontSize: 13, flex: 1 },
   });

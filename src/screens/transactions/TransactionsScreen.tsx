@@ -7,7 +7,6 @@ import {
   StyleSheet,
   TextInput,
   RefreshControl,
-  Alert,
   Modal,
   ActivityIndicator,
   Pressable,
@@ -32,23 +31,27 @@ import {
   fontWeight,
   borderRadius,
   shadows,
+  fontFamily,
 } from "../../theme/colors";
 import { Transaction } from "../../types/transaction";
 import TransactionFormSheet from "../../components/transaction/TransactionFormSheet";
+import ActionSheet from "../../components/common/ActionSheet";
+import { useToast } from "../../context/NotificationContext";
+import { useConfirm } from "../../context/ConfirmContext";
 import { TRANSACTION_TYPE } from "../../constants/transaction";
 import { MainTabParamList } from "../../navigation/MainNavigator";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import { format } from "date-fns";
 import { formatCurrency } from "../../lib/formatCurrency";
+import { getCategoryVisual } from "../../lib/categoryVisuals";
 import { useTypedSelector } from "../../store/hooks";
+import { Ionicons } from "@expo/vector-icons";
 import {
   Search,
   Filter,
   Plus,
   Upload,
-  ArrowUpRight,
-  ArrowDownRight,
   MoreVertical,
   Trash2,
   X,
@@ -68,6 +71,8 @@ interface TransactionsScreenProps {
 export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const { voiceData, setVoiceData } = useVoiceRecording();
 
   const user = useTypedSelector((state) => state.auth.user);
@@ -82,7 +87,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
     useState<RecurringFilter>("ALL");
   const [showFormSheet, setShowFormSheet] = useState(false);
   const [initialMode, setInitialMode] = useState<"VOICE" | "SCAN" | "MANUAL">(
-    "MANUAL",
+    "VOICE",
   );
   const [editingTransactionId, setEditingTransactionId] = useState<
     string | undefined
@@ -91,6 +96,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   const [showRowsModal, setShowRowsModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showDetailsSheet, setShowDetailsSheet] = useState(false);
+  const [actionMenuItem, setActionMenuItem] = useState<Transaction | null>(null);
   const [detailsTransactionId, setDetailsTransactionId] = useState<
     string | null
   >(null);
@@ -170,26 +176,22 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   }, [showDetailsSheet, detailsTransactionId, refetchDetails]);
 
   const handleDelete = async (id: string) => {
-    Alert.alert(
-      "Delete Transaction",
-      "Are you sure you want to delete this transaction?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteTransaction(id).unwrap();
-              refetch();
-            } catch (error) {
-              console.error("Failed to delete transaction:", error);
-              Alert.alert("Error", "Failed to delete transaction");
-            }
-          },
-        },
-      ],
-    );
+    const confirmed = await confirm({
+      title: "Delete transaction",
+      message: "Are you sure you want to delete this transaction?",
+      confirmText: "Delete",
+      destructive: true,
+    });
+    if (!confirmed) return;
+
+    try {
+      await deleteTransaction(id).unwrap();
+      showToast({ type: "success", title: "Deleted", message: "Transaction removed." });
+      refetch();
+    } catch (error) {
+      console.error("Failed to delete transaction:", error);
+      showToast({ type: "error", title: "Error", message: "Failed to delete transaction." });
+    }
   };
 
   const handleEdit = (id: string) => {
@@ -201,10 +203,10 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
     try {
       await duplicateTransaction(id).unwrap();
       refetch();
-      Alert.alert("Success", "Transaction duplicated successfully");
+      showToast({ type: "success", title: "Duplicated", message: "Transaction duplicated successfully." });
     } catch (error) {
       console.error("Failed to duplicate transaction:", error);
-      Alert.alert("Error", "Failed to duplicate transaction");
+      showToast({ type: "error", title: "Error", message: "Failed to duplicate transaction." });
     }
   };
 
@@ -231,22 +233,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   };
 
   const showActionMenu = (item: Transaction) => {
-    Alert.alert("Transaction Actions", item.title, [
-      {
-        text: "Edit",
-        onPress: () => handleEdit(item._id),
-      },
-      {
-        text: "Duplicate",
-        onPress: () => handleDuplicate(item._id),
-      },
-      {
-        text: "Delete",
-        onPress: () => handleDelete(item._id),
-        style: "destructive",
-      },
-      { text: "Cancel", style: "cancel" },
-    ]);
+    setActionMenuItem(item);
   };
 
   const toggleSelect = (id: string) => {
@@ -269,24 +256,22 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0 || isBulkDeleting) return;
-    Alert.alert(
-      "Delete Selected",
-      `Delete ${selectedIds.size} selected transaction(s)?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await bulkDelete(Array.from(selectedIds)).unwrap();
-              setSelectedIds(new Set());
-              refetch();
-            } catch (e) { }
-          },
-        },
-      ],
-    );
+    const confirmed = await confirm({
+      title: "Delete selected",
+      message: `Delete ${selectedIds.size} selected transaction(s)?`,
+      confirmText: "Delete",
+      destructive: true,
+    });
+    if (!confirmed) return;
+
+    try {
+      await bulkDelete(Array.from(selectedIds)).unwrap();
+      setSelectedIds(new Set());
+      showToast({ type: "success", title: "Deleted", message: "Selected transactions removed." });
+      refetch();
+    } catch {
+      showToast({ type: "error", title: "Error", message: "Failed to delete selected transactions." });
+    }
   };
 
   const handleBulkImport = async () => {
@@ -300,14 +285,14 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
       const content = await FileSystem.readAsStringAsync(fileUri);
       const parsed = JSON.parse(content);
       if (!Array.isArray(parsed)) {
-        Alert.alert("Invalid file", "Expected a JSON array of transactions");
+        showToast({ type: "error", title: "Invalid file", message: "Expected a JSON array of transactions." });
         return;
       }
       await bulkImport({ transactions: parsed }).unwrap();
-      Alert.alert("Imported", "Transactions imported successfully");
+      showToast({ type: "success", title: "Imported", message: "Transactions imported successfully." });
       refetch();
-    } catch (e) {
-      Alert.alert("Import failed", "Could not import transactions");
+    } catch {
+      showToast({ type: "error", title: "Import failed", message: "Could not import transactions." });
     }
   };
 
@@ -363,7 +348,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
     const accentColor = isIncome
       ? themeColors.incomeText
       : themeColors.expenseText;
-    const iconBg = isIncome ? themeColors.incomeBg : themeColors.expenseBg;
+    const visual = getCategoryVisual(item.category);
 
     const metaLine1Parts = [
       formatLabel(item.category),
@@ -388,14 +373,6 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
           },
         ]}
       >
-        {/* Left accent bar */}
-        <View
-          style={[
-            styles.accentBar,
-            { backgroundColor: selected ? themeColors.primary : accentColor },
-          ]}
-        />
-
         {/* Card body */}
         <View style={styles.cardContent}>
           {/* Left: Icon + Info */}
@@ -405,26 +382,17 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
               activeOpacity={0.7}
               style={[
                 styles.iconCircle,
-                { backgroundColor: selected ? themeColors.primary : iconBg },
+                { backgroundColor: selected ? themeColors.primary : visual.bgColor },
               ]}
             >
               {selected ? (
-                <Text
-                  style={[
-                    styles.selectedCheckText,
-                    { color: themeColors.primaryForeground },
-                  ]}
-                >
-                  ✓
-                </Text>
-              ) : isIncome ? (
-                <ArrowUpRight size={20} color={accentColor} strokeWidth={2.5} />
-              ) : (
-                <ArrowDownRight
+                <Ionicons
+                  name="checkmark"
                   size={20}
-                  color={accentColor}
-                  strokeWidth={2.5}
+                  color={themeColors.primaryForeground}
                 />
+              ) : (
+                <Ionicons name={visual.icon} size={20} color={visual.color} />
               )}
             </TouchableOpacity>
 
@@ -460,26 +428,16 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
 
           {/* Right: Amount + Actions */}
           <View style={styles.cardRight}>
-            <Text style={[styles.cardAmount, { color: accentColor }]}>
+            <Text
+              style={[styles.cardAmount, { color: accentColor }]}
+              numberOfLines={1}
+            >
               {formatCurrency(item.amount, {
                 currency: item.baseCurrencyAtTime || baseCurrency,
                 showSign: true,
                 isExpense: !isIncome,
               })}
             </Text>
-            {item.originalCurrency && item.originalCurrency !== (item.baseCurrencyAtTime || baseCurrency) && (
-              <View style={{ alignItems: "flex-end", gap: 1 }}>
-                <Text style={{ fontSize: 10, color: themeColors.mutedForeground }}>
-                  ({formatCurrency(item.originalAmount || item.amount, { currency: item.originalCurrency })})
-                </Text>
-                {item.rateSource === "cached" && (
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
-                    <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: "#f59e0b" }} />
-                    <Text style={{ fontSize: 9, color: "#f59e0b", fontWeight: "600" }}>Cached Rate</Text>
-                  </View>
-                )}
-              </View>
-            )}
             <TouchableOpacity
               onPress={() => showActionMenu(item)}
               style={styles.moreButton}
@@ -495,60 +453,51 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      {/* Dark Header Section - Always dark like dashboard */}
-      <View style={styles.darkHeaderSection}>
-        <View style={styles.navbar}>
-          <Text style={styles.navbarTitle}>All Transactions</Text>
-          <Text style={styles.navbarSubtitle}>
-            Showing {totalCount} transaction{totalCount !== 1 ? "s" : ""}
+      {/* Content header */}
+      <View style={styles.contentHeader}>
+        <View style={styles.headerTextWrap}>
+          <Text style={[styles.headerTitle, { color: themeColors.foreground }]}>Transactions</Text>
+          <Text style={[styles.headerSubtitle, { color: themeColors.mutedForeground }]} numberOfLines={1}>
+            {totalCount > 0 ? `${totalCount} total` : "All your activity"}
           </Text>
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              onPress={handleBulkImport}
-              style={styles.importButton}
-              disabled={isBulkImporting}
-            >
-              <Upload size={18} color={themeColors.navbarForeground} />
-              <Text style={styles.importButtonText}>Import</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleAddNew}
-              style={[
-                styles.addButton,
-                { backgroundColor: themeColors.primary },
-              ]}
-            >
-              <Plus size={18} color={themeColors.primaryForeground} />
-              <Text style={styles.addButtonText}>Add Transaction</Text>
-            </TouchableOpacity>
-          </View>
         </View>
+        <TouchableOpacity
+          onPress={handleBulkImport}
+          style={[styles.headerIconBtn, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+          disabled={isBulkImporting}
+          activeOpacity={0.7}
+        >
+          <Upload size={18} color={themeColors.foreground} />
+        </TouchableOpacity>
       </View>
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <View
-          style={[
-            styles.searchBox,
-            {
-              backgroundColor: themeColors.card,
-              borderColor: themeColors.border,
-            },
-          ]}
-        >
-          <Search size={18} color={themeColors.mutedForeground} />
-          <TextInput
-            placeholder="Search transactions..."
-            placeholderTextColor={themeColors.mutedForeground}
-            value={search}
-            onChangeText={setSearch}
-            style={[styles.searchInput, { color: themeColors.foreground }]}
-          />
-          {search ? (
-            <TouchableOpacity onPress={() => setSearch("")}>
-              <X size={18} color={themeColors.mutedForeground} />
-            </TouchableOpacity>
-          ) : null}
+        <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
+          <View
+            style={[
+              styles.searchBox,
+              {
+                flex: 1,
+                backgroundColor: themeColors.card,
+                borderColor: themeColors.border,
+              },
+            ]}
+          >
+            <Search size={18} color={themeColors.mutedForeground} />
+            <TextInput
+              placeholder="Search transactions..."
+              placeholderTextColor={themeColors.mutedForeground}
+              value={search}
+              onChangeText={setSearch}
+              style={[styles.searchInput, { color: themeColors.foreground }]}
+            />
+            {search ? (
+              <TouchableOpacity onPress={() => setSearch("")}>
+                <X size={18} color={themeColors.mutedForeground} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
         </View>
       </View>
 
@@ -1246,6 +1195,25 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
         isEdit={!!editingTransactionId}
         initialMode={initialMode}
       />
+
+      <ActionSheet
+        visible={!!actionMenuItem}
+        title={actionMenuItem?.title}
+        onClose={() => setActionMenuItem(null)}
+        options={
+          actionMenuItem
+            ? [
+                { label: "Edit", onPress: () => handleEdit(actionMenuItem._id) },
+                { label: "Duplicate", onPress: () => handleDuplicate(actionMenuItem._id) },
+                {
+                  label: "Delete",
+                  destructive: true,
+                  onPress: () => handleDelete(actionMenuItem._id),
+                },
+              ]
+            : []
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -1256,65 +1224,50 @@ const createStyles = (theme: typeof colors.light) =>
       flex: 1,
       backgroundColor: theme.background,
     },
-    darkHeaderSection: {
-      backgroundColor: theme.navbar,
-      paddingBottom: spacing.lg,
-    },
-    navbar: {
-      paddingHorizontal: spacing.lg,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.md,
-    },
-    navbarTitle: {
-      fontSize: fontSize["2xl"],
-      fontWeight: fontWeight.bold,
-      color: theme.navbarForeground,
-    },
-    navbarSubtitle: {
-      fontSize: fontSize.sm,
-      color: theme.navbarForeground,
-      opacity: 0.8,
-      marginTop: spacing.xs,
-    },
-    headerActions: {
-      flexDirection: "row",
-      gap: spacing.md,
-      marginTop: spacing.md,
-    },
-    importButton: {
+    contentHeader: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "center",
-      gap: spacing.xs,
-      backgroundColor: theme.card,
-      paddingHorizontal: spacing.md,
-      height: 40,
-      borderRadius: borderRadius.md,
-      borderWidth: 1,
-      borderColor: theme.border,
+      justifyContent: "space-between",
+      gap: spacing.md,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.xs,
+      paddingBottom: spacing.sm,
     },
-    importButtonText: {
-      color: theme.navbarForeground,
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.medium,
+    headerTextWrap: { flex: 1, minWidth: 0 },
+    headerTitle: { fontFamily: fontFamily.bold, fontSize: 22, letterSpacing: -0.4 },
+    headerSubtitle: { fontFamily: fontFamily.regular, fontSize: 13, marginTop: 2 },
+    headerIconBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      borderWidth: StyleSheet.hairlineWidth,
+      alignItems: "center",
+      justifyContent: "center",
+      ...shadows.card,
+    },
+    iconButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: theme.muted,
+      alignItems: "center",
+      justifyContent: "center",
     },
     addButton: {
-      flexDirection: "row",
+      width: 42,
+      height: 42,
+      borderRadius: 21,
       alignItems: "center",
       justifyContent: "center",
-      gap: spacing.xs,
-      paddingHorizontal: spacing.md,
-      height: 40,
-      borderRadius: borderRadius.md,
     },
     addButtonText: {
       color: theme.primaryForeground,
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
+      fontSize: 13,
     },
     searchContainer: {
       paddingHorizontal: spacing.lg,
-      paddingTop: spacing.lg,
+      paddingTop: spacing.sm,
       paddingBottom: spacing.sm,
     },
     searchBox: {
@@ -1322,13 +1275,14 @@ const createStyles = (theme: typeof colors.light) =>
       alignItems: "center",
       gap: spacing.sm,
       borderWidth: 1,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.full,
       paddingHorizontal: spacing.md,
-      height: 44,
+      height: 46,
     },
     searchInput: {
       flex: 1,
-      fontSize: fontSize.md,
+      fontFamily: fontFamily.regular,
+      fontSize: 14,
     },
     filterBar: {
       flexDirection: "row",
@@ -1343,12 +1297,12 @@ const createStyles = (theme: typeof colors.light) =>
       gap: spacing.xs,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.full,
       borderWidth: 1,
     },
     filterButtonText: {
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
+      fontSize: 13,
     },
     resetButton: {
       flexDirection: "row",
@@ -1357,12 +1311,13 @@ const createStyles = (theme: typeof colors.light) =>
       paddingHorizontal: spacing.sm,
     },
     resetButtonText: {
-      fontSize: fontSize.sm,
+      fontFamily: fontFamily.medium,
+      fontSize: 13,
     },
     filtersPanel: {
       marginHorizontal: spacing.lg,
       marginBottom: spacing.sm,
-      borderRadius: borderRadius.md,
+      borderRadius: borderRadius.lg,
       borderWidth: 1,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.md,
@@ -1372,8 +1327,8 @@ const createStyles = (theme: typeof colors.light) =>
       gap: spacing.sm,
     },
     filterGroupLabel: {
-      fontSize: fontSize.xs,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.semibold,
+      fontSize: 11,
       textTransform: "uppercase",
       letterSpacing: 0.5,
     },
@@ -1391,20 +1346,22 @@ const createStyles = (theme: typeof colors.light) =>
       alignItems: "center",
     },
     pillText: {
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
+      fontSize: 13,
     },
     bulkActionsBar: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      paddingHorizontal: spacing.lg,
+      marginHorizontal: spacing.lg,
+      paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
       marginBottom: spacing.sm,
+      borderRadius: borderRadius.lg,
     },
     bulkActionsText: {
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
+      fontSize: 13,
     },
     bulkDeleteButton: {
       flexDirection: "row",
@@ -1415,32 +1372,28 @@ const createStyles = (theme: typeof colors.light) =>
       borderRadius: borderRadius.md,
     },
     bulkDeleteText: {
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
+      fontSize: 13,
     },
     listContent: {
       paddingHorizontal: spacing.lg,
-      paddingBottom: spacing.lg,
+      paddingBottom: 120,
     },
     transactionCard: {
-      borderRadius: borderRadius.lg,
+      borderRadius: borderRadius.xl,
       marginBottom: spacing.sm,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       overflow: "hidden",
       flexDirection: "row",
       alignItems: "stretch",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 1,
+      ...shadows.card,
     },
     accentBar: {
       width: 3,
     },
     selectedCheckText: {
       fontSize: 15,
-      fontWeight: fontWeight.bold,
+      fontFamily: fontFamily.bold,
     },
     cardContent: {
       flex: 1,
@@ -1457,21 +1410,21 @@ const createStyles = (theme: typeof colors.light) =>
       gap: spacing.sm,
     },
     iconCircle: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 42,
+      height: 42,
+      borderRadius: 21,
       alignItems: "center",
       justifyContent: "center",
       flexShrink: 0,
     },
     infoColumn: {
       flex: 1,
-      gap: 3,
+      gap: 2,
       minWidth: 0,
     },
     cardTitle: {
-      fontSize: fontSize.md,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
+      fontSize: 14,
     },
     metaRow: {
       flexDirection: "row",
@@ -1479,17 +1432,20 @@ const createStyles = (theme: typeof colors.light) =>
       gap: spacing.xs,
     },
     metaText: {
-      fontSize: fontSize.xs,
+      fontFamily: fontFamily.regular,
+      fontSize: 11,
     },
     cardRight: {
       alignItems: "flex-end",
+      flexDirection: "row",
       gap: spacing.xs,
       marginLeft: spacing.sm,
       flexShrink: 0,
+      maxWidth: 140,
     },
     cardAmount: {
-      fontSize: fontSize.lg,
-      fontWeight: fontWeight.bold,
+      fontFamily: fontFamily.bold,
+      fontSize: 15,
     },
     moreButton: {
       padding: spacing.xs,
@@ -1500,8 +1456,8 @@ const createStyles = (theme: typeof colors.light) =>
       gap: spacing.md,
     },
     emptyText: {
-      fontSize: fontSize.md,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
+      fontSize: 15,
     },
     footerBar: {
       flexDirection: "row",
@@ -1517,17 +1473,18 @@ const createStyles = (theme: typeof colors.light) =>
       gap: spacing.sm,
     },
     footerText: {
-      fontSize: fontSize.sm,
+      fontFamily: fontFamily.regular,
+      fontSize: 13,
     },
     footerButton: {
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.xs,
-      borderWidth: 1,
-      borderRadius: borderRadius.sm,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs + 2,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: borderRadius.full,
     },
     footerButtonText: {
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
+      fontSize: 13,
     },
     paginationContainer: {
       flexDirection: "row",

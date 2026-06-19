@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   KeyboardAvoidingView,
   ScrollView,
   ActivityIndicator,
@@ -12,16 +11,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Check, Circle, Eye, EyeOff } from 'lucide-react-native';
+import { Eye, EyeOff } from 'lucide-react-native';
 import { useRegisterMutation } from '../../features/auth/authAPI';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, borderRadius, fontSize, fontWeight } from '../../theme/colors';
+import { colors } from '../../theme/colors';
+import { createAuthStyles } from '../../theme/authStyles';
 import Logo from '../../components/common/Logo';
-import {
-  getPasswordRules,
-  mapAuthApiErrors,
-} from '../../features/auth/authValidation';
+import { getPasswordRules, mapAuthApiErrors } from '../../features/auth/authValidation';
 import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
+import PasswordRequirements from '../../components/auth/PasswordRequirements';
 import { useGoogleAuth } from '../../features/auth/hooks/useGoogleAuth';
 
 export default function SignUpScreen() {
@@ -46,25 +44,16 @@ export default function SignUpScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
-  const rules = getPasswordRules(password);
+
   const signupRules = {
-    ...rules,
+    ...getPasswordRules(password),
     lowercase: /[a-z]/.test(password),
   };
-  const passwordRequirements = [
-    { label: 'At least 8 characters', met: signupRules.length },
-    { label: 'One uppercase letter', met: signupRules.uppercase },
-    { label: 'One lowercase letter', met: signupRules.lowercase },
-    { label: 'One number', met: signupRules.number },
-    { label: 'One special character', met: signupRules.special },
-  ];
-  const isSignupPasswordValid = passwordRequirements.every((requirement) => requirement.met);
+  const isSignupPasswordValid = Object.values(signupRules).every(Boolean);
 
   const getSignupPasswordError = () => {
     if (!password) return 'Password is required';
-    if (!isSignupPasswordValid) {
-      return 'Password must contain at least 8 characters, uppercase, lowercase, number, and special character';
-    }
+    if (!isSignupPasswordValid) return 'Complete all password requirements below';
     return undefined;
   };
 
@@ -93,17 +82,23 @@ export default function SignUpScreen() {
       await register({ name: name.trim(), email: email.trim(), password }).unwrap();
       (navigation as any).navigate('VerifyOtp', { email: email.trim() });
     } catch (error: any) {
-      setErrors(mapAuthApiErrors(error, getSignupPasswordError() || 'Registration failed. Please try again.', 'password'));
+      setErrors(
+        mapAuthApiErrors(
+          error,
+          getSignupPasswordError() || 'Registration failed. Please try again.',
+          'password',
+        ),
+      );
     }
   };
 
-  const styles = createStyles(themeColors);
+  const styles = createAuthStyles(themeColors);
   const canSubmit =
     !isLoading &&
     name.trim() !== '' &&
     email.trim() !== '' &&
     password !== '' &&
-    !getSignupPasswordError();
+    isSignupPasswordValid;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -145,7 +140,7 @@ export default function SignUpScreen() {
                   submitBehavior="submit"
                   onSubmitEditing={() => emailRef.current?.focus()}
                 />
-                {!!errors.name && <Text style={styles.error}>{errors.name}</Text>}
+                {errors.name ? <Text style={styles.fieldError}>{errors.name}</Text> : null}
               </View>
 
               <View style={styles.inputGroup}>
@@ -168,7 +163,7 @@ export default function SignUpScreen() {
                   onFocus={scrollToFormEnd}
                   onSubmitEditing={() => passwordRef.current?.focus()}
                 />
-                {!!errors.email && <Text style={styles.error}>{errors.email}</Text>}
+                {errors.email ? <Text style={styles.fieldError}>{errors.email}</Text> : null}
               </View>
 
               <View style={styles.inputGroup}>
@@ -176,15 +171,14 @@ export default function SignUpScreen() {
                 <View
                   style={[
                     styles.passwordWrap,
-                    isPasswordFocused && styles.passwordWrapFocused,
-                    password !== '' && isSignupPasswordValid && styles.passwordWrapFocused,
+                    (isPasswordFocused || isSignupPasswordValid) && styles.passwordWrapFocused,
                     errors.password && styles.inputError,
                   ]}
                 >
                   <TextInput
                     ref={passwordRef}
                     style={styles.passwordInput}
-                    placeholder="At least 8 characters"
+                    placeholder="Create a strong password"
                     placeholderTextColor={themeColors.mutedForeground}
                     value={password}
                     onChangeText={(v) => {
@@ -212,21 +206,13 @@ export default function SignUpScreen() {
                     )}
                   </TouchableOpacity>
                 </View>
-                {!!errors.password && <Text style={styles.error}>{errors.password}</Text>}
-                <View style={styles.passwordRules}>
-                  {passwordRequirements.map((requirement) => (
-                    <View key={requirement.label} style={styles.passwordRuleRow}>
-                      {requirement.met ? (
-                        <Check size={13} color={themeColors.incomeText} strokeWidth={2.4} />
-                      ) : (
-                        <Circle size={12} color={themeColors.foreground} strokeWidth={1.8} />
-                      )}
-                      <Text style={[styles.passwordRule, requirement.met && styles.passwordRuleValid]}>
-                        {requirement.label}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
+                {errors.password ? <Text style={styles.fieldError}>{errors.password}</Text> : null}
+                <PasswordRequirements
+                  password={password}
+                  themeColors={themeColors}
+                  includeLowercase
+                  alwaysShowRules
+                />
               </View>
 
               <TouchableOpacity
@@ -237,9 +223,15 @@ export default function SignUpScreen() {
                 {isLoading ? (
                   <ActivityIndicator color={themeColors.primaryForeground} />
                 ) : (
-                  <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>Create account</Text>
+                  <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>
+                    Create account
+                  </Text>
                 )}
               </TouchableOpacity>
+
+              {!canSubmit && password.length > 0 && !isSignupPasswordValid ? (
+                <Text style={styles.otpHint}>Finish the password requirements to continue</Text>
+              ) : null}
 
               <View style={styles.dividerRow}>
                 <View style={styles.dividerLine} />
@@ -253,7 +245,7 @@ export default function SignUpScreen() {
                 isLoading={isGoogleLoading}
                 disabled={isLoading || isGoogleLoading || !isGoogleReady}
               />
-              {!!googleError && <Text style={styles.error}>{googleError}</Text>}
+              {googleError ? <Text style={styles.fieldError}>{googleError}</Text> : null}
 
               <View style={styles.footer}>
                 <Text style={styles.footerText}>Already have an account? </Text>
@@ -268,84 +260,3 @@ export default function SignUpScreen() {
     </SafeAreaView>
   );
 }
-
-const createStyles = (theme: typeof colors.light) =>
-  StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.background },
-    scrollContent: {
-      flexGrow: 1,
-      padding: spacing.lg,
-      paddingTop: spacing.xxl,
-      paddingBottom: spacing.xxxl,
-    },
-    content: { maxWidth: 400, width: '100%', alignSelf: 'center' },
-    header: { marginBottom: spacing.xl, alignItems: 'center' },
-    title: {
-      fontSize: fontSize['2xl'],
-      fontWeight: fontWeight.bold,
-      color: theme.foreground,
-      marginTop: spacing.md,
-      marginBottom: spacing.xs,
-      textAlign: 'center',
-    },
-    subtitle: { fontSize: fontSize.sm, color: theme.mutedForeground, textAlign: 'center' },
-    form: { gap: spacing.md },
-    inputGroup: { gap: spacing.sm },
-    label: { fontSize: fontSize.sm, color: theme.foreground, fontWeight: fontWeight.medium },
-    input: {
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: borderRadius.md,
-      padding: spacing.md,
-      fontSize: fontSize.md,
-      color: theme.foreground,
-      backgroundColor: theme.card,
-    },
-    inputError: { borderColor: theme.destructive },
-    passwordWrapFocused: { borderColor: theme.primary },
-    passwordWrap: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: borderRadius.md,
-      paddingHorizontal: spacing.md,
-      backgroundColor: theme.card,
-    },
-    passwordInput: {
-      flex: 1,
-      paddingVertical: spacing.md,
-      fontSize: fontSize.md,
-      color: theme.foreground,
-    },
-    error: { fontSize: fontSize.xs, color: theme.destructive },
-    passwordRules: { marginTop: spacing.xs, gap: spacing.sm },
-    passwordRuleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    passwordRule: { fontSize: fontSize.xs, color: theme.foreground },
-    passwordRuleValid: { color: theme.incomeText },
-    button: {
-      backgroundColor: theme.primary,
-      padding: spacing.md,
-      borderRadius: borderRadius.md,
-      alignItems: 'center',
-      marginTop: spacing.sm,
-    },
-    buttonDisabled: { opacity: 0.6 },
-    buttonText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold },
-    dividerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      marginVertical: spacing.xs,
-    },
-    dividerLine: { flex: 1, height: 1, backgroundColor: theme.border },
-    dividerText: { fontSize: fontSize.xs, color: theme.mutedForeground },
-    footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.sm },
-    footerText: { fontSize: fontSize.sm, color: theme.mutedForeground },
-    link: {
-      fontSize: fontSize.sm,
-      color: theme.foreground,
-      fontWeight: fontWeight.semibold,
-      textDecorationLine: 'underline',
-    },
-  });

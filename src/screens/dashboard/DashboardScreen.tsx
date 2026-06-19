@@ -6,8 +6,10 @@ import {
   StyleSheet,
   RefreshControl,
   TouchableOpacity,
+  Dimensions,
 } from "react-native";
-import { Plus } from "lucide-react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   useGetSummaryAnalyticsQuery,
   useGetChartAnalyticsQuery,
@@ -20,23 +22,33 @@ import {
   fontSize,
   fontWeight,
   borderRadius,
+  fontFamily,
 } from "../../theme/colors";
-import StatsCard from "../../components/overview/StatsCard";
+import { useNotification } from "../../context/NotificationContext";
 import DateRangePicker, {
   DateRangePreset,
 } from "../../components/overview/DateRangePicker";
 import TransactionOverviewChart from "../../components/overview/TransactionOverviewChart";
-import ExpenseBreakdownPie from "../../components/overview/ExpenseBreakdownPie";
 import RecentTransactions from "../../components/overview/RecentTransactions";
 import TransactionFormSheet from "../../components/transaction/TransactionFormSheet";
 import { formatCurrency } from "../../lib/formatCurrency";
 import { useTypedSelector } from "../../store/hooks";
 
-export default function DashboardScreen() {
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+export default function DashboardScreen({ navigation }: any) {
   const { activeTheme } = useTheme();
   const theme = colors[activeTheme];
+  const insets = useSafeAreaInsets();
+  const { notifications } = useNotification();
+  const unreadCount = notifications.length;
   const [preset, setPreset] = useState<DateRangePreset>("30days");
+  
+  // Transaction form states
   const [showForm, setShowForm] = useState(false);
+  const [initialType, setInitialType] = useState<"INCOME" | "EXPENSE">("EXPENSE");
+  const [initialMode, setInitialMode] = useState<"VOICE" | "SCAN" | "MANUAL">("VOICE");
+
   const user = useTypedSelector((s) => s.auth.user);
   const baseCurrency = user?.baseCurrency || "USD";
 
@@ -45,128 +57,185 @@ export default function DashboardScreen() {
   const pieQuery = useGetExpensePieChartBreakdownQuery({ preset });
 
   const summary = summaryQuery.data?.data;
+  
+  // Calculate left for saving (available balance or income - expenses depending on context)
+  const income = summary?.totalIncome || 0;
+  const expenses = summary?.totalExpenses || 0;
+  const leftForSaving = summary?.availableBalance || (income - expenses);
 
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, insets);
+
+  const handleAddTransaction = (type: "INCOME" | "EXPENSE", mode: "VOICE" | "SCAN" | "MANUAL" = "VOICE") => {
+    setInitialType(type);
+    setInitialMode(mode);
+    setShowForm(true);
+  };
 
   return (
     <View style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
         refreshControl={
           <RefreshControl
             refreshing={summaryQuery.isFetching}
             onRefresh={summaryQuery.refetch}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
           />
         }
       >
-        {/* Header section - always dark like web */}
-        <View style={styles.darkHeaderSection}>
-          {/* Header text + controls */}
-          <View style={styles.navbar}>
-            <Text style={styles.greeting}>
-              Welcome back{user?.name ? `, ${user.name}` : ""}
+        {/* Hero Balance */}
+        <View style={styles.heroSection}>
+          <Text style={styles.heroLabel}>Available Balance</Text>
+          <View style={styles.heroAmountRow}>
+            <Text style={styles.heroCurrency}>{baseCurrency}</Text>
+            <Text style={styles.heroAmount} numberOfLines={1} adjustsFontSizeToFit>
+              {formatCurrency(summary?.availableBalance || 0, {
+                currency: baseCurrency,
+                showSign: false,
+              }).replace(/[^0-9.,]/g, "").trim()}
             </Text>
-            <Text style={styles.subtitle}>
-              This is your overview report for the selected period
-            </Text>
-            <View style={styles.headerActions}>
-              <DateRangePicker
-                value={preset}
-                onChange={setPreset}
-                isDarkHeader={activeTheme === "dark"}
-              />
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={() => setShowForm(true)}
-                activeOpacity={0.8}
-              >
-                <Plus size={16} color="#0a100c" strokeWidth={2.8} />
-                <Text style={styles.addButtonText}>Add Transaction</Text>
-              </TouchableOpacity>
-            </View>
           </View>
-
-          {/* Stats cards - inside dark section */}
-          <View style={styles.statsSection}>
-            <StatsCard
-              title="Available Balance"
-              value={summary?.availableBalance || 0}
-              cardType="balance"
-              percentageChange={summary?.percentageChange?.balance}
-              dateRangeLabel={summary?.preset?.label || "for Last 30 Days"}
-              isLoading={summaryQuery.isFetching}
-              currency={baseCurrency}
-            />
-            <StatsCard
-              title="Total Income"
-              value={summary?.totalIncome || 0}
-              cardType="income"
-              percentageChange={summary?.percentageChange?.income}
-              dateRangeLabel={summary?.preset?.label || "for Last 30 Days"}
-              isLoading={summaryQuery.isFetching}
-              currency={baseCurrency}
-            />
-            <StatsCard
-              title="Total Expenses"
-              value={summary?.totalExpenses || 0}
-              cardType="expenses"
-              percentageChange={summary?.percentageChange?.expenses}
-              dateRangeLabel={summary?.preset?.label || "for Last 30 Days"}
-              isLoading={summaryQuery.isFetching}
-              currency={baseCurrency}
-            />
-            <StatsCard
-              title="Savings Rate"
-              value={summary?.savingRate?.percentage || 0}
-              cardType="savings"
-              expenseRatio={summary?.savingRate?.expenseRatio}
-              dateRangeLabel={summary?.preset?.label || "for Last 30 Days"}
-              isLoading={summaryQuery.isFetching}
-              currency={baseCurrency}
+          <View style={styles.heroPickerRow}>
+            <DateRangePicker
+              value={preset}
+              onChange={setPreset}
+              isDarkHeader={false}
             />
           </View>
         </View>
 
-        {/* Main content area - light/dark based on theme */}
-        <View style={styles.contentSection}>
-          {/* Transaction Overview */}
-          <View style={{ marginTop: spacing.lg }}>
+        {/* Quick Actions */}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: theme.primary }]}
+            activeOpacity={0.85}
+            onPress={() => handleAddTransaction("INCOME")}
+          >
+            <Ionicons name="arrow-down" size={18} color={theme.primaryForeground} />
+            <Text style={[styles.actionText, { color: theme.primaryForeground }]}>Income</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: theme.secondary }]}
+            activeOpacity={0.85}
+            onPress={() => handleAddTransaction("EXPENSE")}
+          >
+            <Ionicons name="arrow-up" size={18} color={theme.secondaryForeground} />
+            <Text style={[styles.actionText, { color: theme.secondaryForeground }]}>Expense</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Chart Card */}
+        <View style={styles.section}>
+          <View style={styles.chartCard}>
+            <View style={styles.chartHeader}>
+              <Text style={styles.cardTitle}>Cash Flow</Text>
+              <View style={styles.legend}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: theme.primary }]} />
+                  <Text style={styles.legendText}>Income</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: theme.destructive }]} />
+                  <Text style={styles.legendText}>Expense</Text>
+                </View>
+              </View>
+            </View>
             <TransactionOverviewChart
               data={chartQuery.data?.data?.chartData || []}
               totalIncomeCount={chartQuery.data?.data?.totalIncomeCount || 0}
               totalExpenseCount={chartQuery.data?.data?.totalExpenseCount || 0}
               periodLabel={summary?.preset?.label || "Past 30 Days"}
               baseCurrency={baseCurrency}
+              hideHeader={true}
+              transparentBackground={true}
+              height={180}
             />
-          </View>
-
-          {/* Expenses Breakdown */}
-          <View style={{ marginTop: spacing.lg }}>
-            <ExpenseBreakdownPie
-              breakdown={pieQuery.data?.data?.breakdown || []}
-              total={pieQuery.data?.data?.totalSpent || 0}
-              periodLabel={summary?.preset?.label}
-              baseCurrency={baseCurrency}
-            />
-          </View>
-
-          {/* Recent Transactions */}
-          <View style={{ marginTop: spacing.lg }}>
-            <RecentTransactions />
           </View>
         </View>
+
+        {/* Summary List Card */}
+        <View style={styles.section}>
+          <View style={styles.summaryListCard}>
+            <TouchableOpacity style={styles.summaryRow} activeOpacity={0.7} onPress={() => handleAddTransaction("INCOME")}>
+              <View style={styles.summaryRowLeft}>
+                <View style={[styles.summaryDot, { backgroundColor: theme.primary }]} />
+                <Text style={styles.summaryLabel}>Income</Text>
+              </View>
+              <View style={styles.summaryRowRight}>
+                <Text style={styles.summaryAmount}>
+                  {formatCurrency(income, { currency: baseCurrency, showSign: false })}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={theme.mutedForeground} />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.summaryRow} activeOpacity={0.7} onPress={() => handleAddTransaction("EXPENSE")}>
+              <View style={styles.summaryRowLeft}>
+                <View style={[styles.summaryDot, { backgroundColor: theme.destructive }]} />
+                <Text style={styles.summaryLabel}>Expense</Text>
+              </View>
+              <View style={styles.summaryRowRight}>
+                <Text style={styles.summaryAmount}>
+                  {formatCurrency(expenses, { currency: baseCurrency, showSign: false })}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={theme.mutedForeground} />
+              </View>
+            </TouchableOpacity>
+
+            <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}>
+              <View style={styles.summaryRowLeft}>
+                <View style={[styles.summaryDot, { backgroundColor: theme.foreground }]} />
+                <Text style={styles.summaryLabel}>Left for Saving</Text>
+              </View>
+              <View style={styles.summaryRowRight}>
+                <Text style={styles.summaryAmount}>
+                  {formatCurrency(leftForSaving > 0 ? leftForSaving : 0, { currency: baseCurrency, showSign: false })}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={theme.mutedForeground} />
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Insights Card */}
+        <View style={styles.section}>
+          <View style={styles.insightCard}>
+            <View style={styles.insightIconWrapper}>
+              <Ionicons name="bulb-outline" size={20} color={theme.foreground} />
+            </View>
+            <View style={styles.insightTextWrapper}>
+              <Text style={styles.insightTitle}>Insight</Text>
+              <Text style={styles.insightDesc}>
+                {leftForSaving > 0
+                  ? `You saved ${formatCurrency(leftForSaving, { currency: baseCurrency, showSign: false })} this period`
+                  : `You spent more than you earned this period`}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Recent Transactions */}
+        <View style={styles.section}>
+          <RecentTransactions />
+        </View>
+
+        <View style={{ height: 120 }} />
       </ScrollView>
 
       {/* Add Transaction Sheet */}
       <TransactionFormSheet
         isVisible={showForm}
         onClose={() => setShowForm(false)}
+        initialType={initialType}
       />
     </View>
   );
 }
 
-const createStyles = (theme: typeof colors.light) =>
+const createStyles = (theme: typeof colors.light, insets: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -174,88 +243,191 @@ const createStyles = (theme: typeof colors.light) =>
     },
     scrollContainer: {
       flexGrow: 1,
-    },
-    // Dark header section - always dark like web navbar
-    darkHeaderSection: {
-      backgroundColor: theme.navbar,
-      paddingBottom: spacing.xl,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: "rgba(255, 255, 255, 0.08)",
-    },
-    navbar: {
-      paddingHorizontal: spacing.lg,
       paddingTop: spacing.md,
-      paddingBottom: spacing.md,
     },
-    greeting: {
-      fontSize: 22,
-      fontWeight: fontWeight.extrabold,
-      color: theme.navbarForeground,
-      letterSpacing: -0.4,
+    // Hero balance
+    heroSection: {
+      alignItems: "center",
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.lg,
     },
-    subtitle: {
-      fontSize: 12,
-      color: theme.navbarForeground,
-      opacity: 0.7,
-      marginTop: spacing.xs,
-      fontWeight: fontWeight.medium,
+    heroLabel: {
+      fontFamily: fontFamily.medium,
+      fontSize: 14,
+      color: theme.mutedForeground,
+      marginBottom: spacing.sm,
     },
-    headerActions: {
-      marginTop: spacing.lg,
+    heroAmountRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "center",
+      marginBottom: spacing.md,
+    },
+    heroCurrency: {
+      fontFamily: fontFamily.bold,
+      fontSize: 20,
+      color: theme.foreground,
+      marginTop: 8,
+      marginRight: 4,
+    },
+    heroAmount: {
+      fontFamily: fontFamily.extrabold,
+      fontSize: 52,
+      color: theme.foreground,
+      letterSpacing: -1.5,
+    },
+    heroPickerRow: {
+      alignItems: "center",
+    },
+    // Quick actions
+    actionsRow: {
+      flexDirection: "row",
+      paddingHorizontal: spacing.lg,
+      gap: spacing.sm,
+      marginBottom: spacing.xl,
+    },
+    actionButton: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: spacing.sm + 4,
+      borderRadius: 100,
+      gap: spacing.xs,
+    },
+    actionText: {
+      fontFamily: fontFamily.semibold,
+      fontSize: 14,
+    },
+    // Chart card
+    chartCard: {
+      backgroundColor: theme.card,
+      borderRadius: 20,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.sm,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.border,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.04,
+      shadowRadius: 20,
+      elevation: 3,
+      overflow: "hidden",
+    },
+    chartHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    cardTitle: {
+      fontFamily: fontFamily.semibold,
+      fontSize: 15,
+      color: theme.foreground,
+    },
+    legend: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+    },
+    legendItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    legendDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    legendText: {
+      fontFamily: fontFamily.medium,
+      fontSize: 11,
+      color: theme.mutedForeground,
+    },
+    summaryListCard: {
+      backgroundColor: theme.card,
+      borderRadius: 20,
+      padding: spacing.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.border,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.04,
+      shadowRadius: 20,
+      elevation: 3,
+    },
+    summaryRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    summaryRowLeft: {
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.sm,
     },
-    addButton: {
+    summaryDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    summaryLabel: {
+      fontFamily: fontFamily.medium,
+      fontSize: 14,
+      color: theme.foreground,
+    },
+    summaryRowRight: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "center",
       gap: spacing.xs,
-      paddingHorizontal: spacing.lg,
+    },
+    summaryAmount: {
+      fontFamily: fontFamily.bold,
+      fontSize: 14,
+      color: theme.foreground,
+    },
+    insightCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.muted,
+      padding: spacing.md,
+      borderRadius: 16,
+      gap: spacing.md,
+    },
+    insightIconWrapper: {
+      width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: theme.primary,
-      shadowColor: theme.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 8,
-      elevation: 3,
+      backgroundColor: theme.card,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      elevation: 1,
     },
-    addButtonText: {
-      fontSize: 13,
-      fontWeight: fontWeight.bold,
-      color: theme.primaryForeground,
+    insightTextWrapper: {
+      flex: 1,
     },
-    // Stats section - inside dark header
-    statsSection: {
-      paddingHorizontal: spacing.lg,
-      paddingTop: spacing.md,
-      gap: spacing.md,
-    },
-    // Content section - uses theme background
-    contentSection: {
-      backgroundColor: theme.background,
-      padding: spacing.lg,
-      paddingBottom: spacing.xxl,
-    },
-    row: {
-      marginTop: spacing.lg,
-      gap: spacing.md,
-    },
-    colLeft: {
-      width: "100%",
-    },
-    colRight: {
-      width: "100%",
-    },
-    countRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      paddingHorizontal: spacing.xs,
-      marginBottom: spacing.sm,
-    },
-    countItem: {
-      fontSize: fontSize.sm,
+    insightTitle: {
+      fontFamily: fontFamily.semibold,
+      fontSize: 14,
       color: theme.foreground,
+      marginBottom: 2,
+    },
+    insightDesc: {
+      fontFamily: fontFamily.regular,
+      fontSize: 12,
+      color: theme.mutedForeground,
+    },
+    section: {
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.lg,
     },
   });

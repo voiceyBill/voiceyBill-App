@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { Search, X, Check } from "lucide-react-native";
 import { useTheme } from "../../context/ThemeContext";
-import { colors, spacing, fontSize, fontWeight, borderRadius } from "../../theme/colors";
+import { colors, spacing, fontSize, fontWeight, borderRadius, fontFamily } from "../../theme/colors";
 import { getFlagUrl } from "../../lib/currency-flag";
 
 interface SupportedCurrency {
@@ -236,8 +236,8 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   label: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.medium,
+    fontSize: 13,
     marginBottom: spacing.sm,
   },
   selectorButton: {
@@ -265,8 +265,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   selectorText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.medium,
+    fontSize: 14,
   },
   modalContainer: {
     flex: 1,
@@ -280,8 +280,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   modalTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.semibold,
+    fontSize: 18,
   },
   closeButton: {
     width: 36,
@@ -307,7 +307,8 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: "100%",
-    fontSize: fontSize.sm,
+    fontFamily: fontFamily.regular,
+    fontSize: 14,
     paddingVertical: 0,
   },
   itemRow: {
@@ -341,11 +342,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   itemCode: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.semibold,
+    fontSize: 15,
   },
   itemName: {
-    fontSize: fontSize.xs,
+    fontFamily: fontFamily.regular,
+    fontSize: 12,
   },
   itemRight: {
     flexDirection: "row",
@@ -353,14 +355,15 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   itemSymbol: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.semibold,
+    fontSize: 15,
   },
   emptyContainer: {
     padding: spacing.xl,
     alignItems: "center",
   },
   emptyText: {
-    fontSize: fontSize.sm,
+    fontFamily: fontFamily.regular,
+    fontSize: 14,
   },
 });
