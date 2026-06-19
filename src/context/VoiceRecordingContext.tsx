@@ -51,6 +51,7 @@ export const VoiceRecordingProvider: React.FC<{ children: ReactNode }> = ({ chil
     <VoiceRecordingContext.Provider
       value={{
         isVisible,
+        isAutoStart,
         openVoiceRecording,
         closeVoiceRecording,
         onVoiceComplete,
