@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   ScrollView,
-  ActivityIndicator,
 } from 'react-native';
+import Spinner from '../../components/common/Spinner';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Eye, EyeOff } from 'lucide-react-native';
@@ -19,7 +19,8 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../theme/colors';
 import { createAuthStyles } from '../../theme/authStyles';
 import Logo from '../../components/common/Logo';
-import { mapAuthApiErrors } from '../../features/auth/authValidation';
+import { getApiErrorMessage, getServerFieldErrors } from '../../lib/getApiErrorMessage';
+import { useToast } from '../../context/NotificationContext';
 import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
 import { useGoogleAuth } from '../../features/auth/hooks/useGoogleAuth';
 
@@ -28,6 +29,7 @@ export default function SignInScreen() {
   const dispatch = useAppDispatch();
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { showToast } = useToast();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -64,7 +66,19 @@ export default function SignInScreen() {
         (navigation as any).navigate('VerifyOtp', { email: email.trim() });
         return;
       }
-      setErrors(mapAuthApiErrors(error, 'Invalid email or password', 'password'));
+      // Inline errors only when the server actually flags a field; everything
+      // else (bad credentials, network, timeout, server) goes to the toast as a
+      // clear message — never raw transport noise like "Aborted".
+      const fieldErrors = getServerFieldErrors(error);
+      if (fieldErrors.email || fieldErrors.password) {
+        setErrors({ email: fieldErrors.email, password: fieldErrors.password });
+      }
+      showToast({
+        type: 'error',
+        title: 'Sign in failed',
+        message: getApiErrorMessage(error, 'Invalid email or password'),
+        duration: 5000,
+      });
     }
   };
 
@@ -146,7 +160,7 @@ export default function SignInScreen() {
                 disabled={!canSubmit || isGoogleLoading}
               >
                 {isLoading ? (
-                  <ActivityIndicator color={themeColors.primaryForeground} />
+                  <Spinner size={18} color={themeColors.primaryForeground} />
                 ) : (
                   <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>
                     Sign in

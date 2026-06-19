@@ -1,5 +1,6 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Spinner from '../common/Spinner';
 import Svg, { Path } from 'react-native-svg';
 import { borderRadius, fontFamily, fontSize, spacing } from '../../theme/colors';
 
@@ -56,7 +57,7 @@ export default function GoogleAuthButton({
       activeOpacity={0.85}
     >
       {isLoading ? (
-        <ActivityIndicator color={themeColors.foreground} />
+        <Spinner size={18} color={themeColors.foreground} />
       ) : (
         <>
           <View style={styles.iconWrap}>

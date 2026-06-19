@@ -35,6 +35,8 @@ import { useTheme } from '../../context/ThemeContext';
 import { useNotification, useToast } from '../../context/NotificationContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFloatingTabBarSpace } from '../../navigation/tabBarLayout';
+import { getApiErrorMessage } from '../../lib/getApiErrorMessage';
 import {
   borderRadius,
   colors,
@@ -166,6 +168,7 @@ const BudgetScreen = () => {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const insets = useSafeAreaInsets();
+  const tabBarSpace = useFloatingTabBarSpace();
   const isBudgetFocused = useIsFocused();
   const { user } = useTypedSelector((state) => state.auth);
   const { data: currencyData } = useGetSupportedCurrenciesQuery();
@@ -478,7 +481,7 @@ const BudgetScreen = () => {
       showNotification({
         type: 'error',
         title: 'Save Failed',
-        message: error?.data?.message || 'Unable to save budget. Please try again.',
+        message: getApiErrorMessage(error, 'Unable to save budget. Please try again.'),
       });
     } finally {
       setIsSaving(false);
@@ -502,14 +505,14 @@ const BudgetScreen = () => {
       showToast({
         type: 'error',
         title: 'Delete failed',
-        message: error?.data?.message || 'Unable to delete budget.',
+        message: getApiErrorMessage(error, 'Unable to delete budget.'),
       });
     }
   };
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]}>
         <View style={styles.contentHeader}>
           <View style={styles.headerTextWrap}>
             <Text style={[styles.headerTitle, { color: themeColors.foreground }]}>Budget</Text>
@@ -824,7 +827,6 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: 120,
   },
   contentHeader: {
     flexDirection: 'row',

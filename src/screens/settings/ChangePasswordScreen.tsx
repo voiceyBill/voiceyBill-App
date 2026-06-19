@@ -6,10 +6,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import Spinner from "../../components/common/Spinner";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFloatingTabBarSpace } from "../../navigation/tabBarLayout";
 import { useNavigation } from "@react-navigation/native";
@@ -337,7 +337,7 @@ export default function ChangePasswordScreen() {
               ]}
             >
               {isLoading ? (
-                <ActivityIndicator color={themeColors.primaryForeground} />
+                <Spinner size={18} color={themeColors.primaryForeground} />
               ) : (
                 <Text
                   style={[

@@ -5,12 +5,14 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
   Modal,
   Switch,
 } from 'react-native';
+import Spinner from '../../components/common/Spinner';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFloatingTabBarSpace } from '../../navigation/tabBarLayout';
+import { getApiErrorMessage } from '../../lib/getApiErrorMessage';
 import { Ionicons } from '@expo/vector-icons';
 import { Calendar, FileText, Mail, Send, X, CheckCircle, Clock, AlertCircle, MinusCircle } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
@@ -63,10 +65,7 @@ export default function ReportsScreen() {
       showToast({ type: 'success', title: 'Saved', message: 'Report schedule updated successfully.' });
     } catch (error) {
       console.warn('[ReportSettings] save failed:', error);
-      const message =
-        (error as { data?: { message?: string }; error?: string; status?: number | string })?.data?.message ||
-        (error as { error?: string })?.error ||
-        `Failed to update report schedule (status ${(error as { status?: number | string })?.status ?? 'unknown'})`;
+      const message = getApiErrorMessage(error, 'Failed to update report schedule.');
       showToast({ type: 'error', title: 'Error', message });
     } finally {
       setIsSavingSchedule(false);
@@ -80,10 +79,7 @@ export default function ReportsScreen() {
       await resendReport(reportId).unwrap();
       showToast({ type: 'success', title: 'Sent', message: 'Report re-sent to your email.' });
     } catch (error) {
-      const message =
-        (error as { data?: { message?: string }; message?: string })?.data?.message ||
-        (error as { message?: string })?.message ||
-        'Failed to resend report';
+      const message = getApiErrorMessage(error, 'Failed to resend report.');
       showToast({ type: 'error', title: 'Error', message });
     } finally {
       setResendingReportId(null);
@@ -113,12 +109,13 @@ export default function ReportsScreen() {
     }
   };
 
+  const tabBarSpace = useFloatingTabBarSpace();
   const styles = createStyles(themeColors);
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: tabBarSpace }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} />}
       >
@@ -142,7 +139,7 @@ export default function ReportsScreen() {
           {/* Loading */}
           {isLoading && (
             <View style={styles.centerState}>
-              <ActivityIndicator size="large" color={themeColors.primary} />
+              <Spinner size={40} color={themeColors.primary} />
               <Text style={[styles.stateText, { color: themeColors.mutedForeground }]}>Loading reports...</Text>
             </View>
           )}
@@ -215,7 +212,7 @@ export default function ReportsScreen() {
                       activeOpacity={0.7}
                     >
                       {isResending ? (
-                        <ActivityIndicator size="small" color={themeColors.primary} />
+                        <Spinner size={18} color={themeColors.primary} />
                       ) : (
                         <Send
                           size={14}
@@ -355,7 +352,7 @@ export default function ReportsScreen() {
                 disabled={isSavingSchedule}
               >
                 {isSavingSchedule ? (
-                  <ActivityIndicator color={themeColors.primaryForeground} />
+                  <Spinner size={18} color={themeColors.primaryForeground} />
                 ) : (
                   <Text style={[styles.saveBtnText, { color: themeColors.primaryForeground }]}>Save changes</Text>
                 )}

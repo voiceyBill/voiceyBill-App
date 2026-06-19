@@ -5,9 +5,10 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   ScrollView,
-  ActivityIndicator,
 } from 'react-native';
+import Spinner from '../../components/common/Spinner';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getApiErrorMessage } from '../../lib/getApiErrorMessage';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Mail } from 'lucide-react-native';
@@ -57,11 +58,12 @@ export default function VerifyOtpScreen() {
       );
       showToast({ type: 'success', title: 'Email verified', message: 'Welcome to VoiceyBill!' });
     } catch (error: any) {
-      setOtpError(error?.data?.message || 'Invalid or expired code. Please try again.');
+      const message = getApiErrorMessage(error, 'Invalid or expired code. Please try again.');
+      setOtpError(message);
       showToast({
         type: 'error',
         title: 'Verification failed',
-        message: error?.data?.message || 'Invalid or expired code. Please try again.',
+        message,
       });
     }
   };
@@ -78,7 +80,7 @@ export default function VerifyOtpScreen() {
       showToast({
         type: 'error',
         title: 'Could not resend',
-        message: error?.data?.message || 'Failed to resend code. Please try again.',
+        message: getApiErrorMessage(error, 'Failed to resend code. Please try again.'),
       });
     }
   };
@@ -118,7 +120,7 @@ export default function VerifyOtpScreen() {
                 disabled={isLoading || otp.length !== 6}
               >
                 {isLoading ? (
-                  <ActivityIndicator color={themeColors.primaryForeground} />
+                  <Spinner size={18} color={themeColors.primaryForeground} />
                 ) : (
                   <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>
                     Verify email
@@ -132,7 +134,7 @@ export default function VerifyOtpScreen() {
                 disabled={isResending}
               >
                 {isResending ? (
-                  <ActivityIndicator size="small" color={themeColors.foreground} />
+                  <Spinner size={18} color={themeColors.foreground} />
                 ) : (
                   <Ionicons name="refresh" size={16} color={themeColors.foreground} />
                 )}

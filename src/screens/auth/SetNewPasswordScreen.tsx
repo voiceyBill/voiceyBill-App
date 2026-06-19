@@ -6,10 +6,11 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   ScrollView,
-  ActivityIndicator,
   Platform,
 } from 'react-native';
+import Spinner from '../../components/common/Spinner';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getApiErrorMessage } from '../../lib/getApiErrorMessage';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -78,7 +79,7 @@ export default function SetNewPasswordScreen() {
       showToast({
         type: 'error',
         title: 'Reset failed',
-        message: error?.data?.message || 'Failed to reset password. Please try again.',
+        message: getApiErrorMessage(error, 'Failed to reset password. Please try again.'),
       });
     }
   };
@@ -199,7 +200,7 @@ export default function SetNewPasswordScreen() {
                 disabled={!canSubmit}
               >
                 {isLoading ? (
-                  <ActivityIndicator color={themeColors.primaryForeground} />
+                  <Spinner size={18} color={themeColors.primaryForeground} />
                 ) : (
                   <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>
                     Reset password

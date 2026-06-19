@@ -8,11 +8,12 @@ import {
   TextInput,
   RefreshControl,
   Modal,
-  ActivityIndicator,
   Pressable,
   ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Spinner from "../../components/common/Spinner";
+import { getApiErrorMessage } from "../../lib/getApiErrorMessage";
 import { useFloatingTabBarSpace } from "../../navigation/tabBarLayout";
 import { RouteProp } from "@react-navigation/native";
 import {
@@ -191,7 +192,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
       refetch();
     } catch (error) {
       console.error("Failed to delete transaction:", error);
-      showToast({ type: "error", title: "Error", message: "Failed to delete transaction." });
+      showToast({ type: "error", title: "Error", message: getApiErrorMessage(error, "Failed to delete transaction.") });
     }
   };
 
@@ -207,7 +208,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
       showToast({ type: "success", title: "Duplicated", message: "Transaction duplicated successfully." });
     } catch (error) {
       console.error("Failed to duplicate transaction:", error);
-      showToast({ type: "error", title: "Error", message: "Failed to duplicate transaction." });
+      showToast({ type: "error", title: "Error", message: getApiErrorMessage(error, "Failed to duplicate transaction.") });
     }
   };
 
@@ -265,8 +266,8 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
       setSelectedIds(new Set());
       showToast({ type: "success", title: "Deleted", message: "Selected transactions removed." });
       refetch();
-    } catch {
-      showToast({ type: "error", title: "Error", message: "Failed to delete selected transactions." });
+    } catch (error) {
+      showToast({ type: "error", title: "Error", message: getApiErrorMessage(error, "Failed to delete selected transactions.") });
     }
   };
 
@@ -895,7 +896,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
 
             {isDetailsLoading && (
               <View style={styles.sheetState}>
-                <ActivityIndicator size="small" color={themeColors.primary} />
+                <Spinner size={18} color={themeColors.primary} />
                 <Text
                   style={[
                     styles.sheetStateText,

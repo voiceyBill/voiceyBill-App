@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   ScrollView,
-  ActivityIndicator,
   Platform,
 } from 'react-native';
+import Spinner from '../../components/common/Spinner';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Eye, EyeOff } from 'lucide-react-native';
@@ -17,7 +17,9 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../theme/colors';
 import { createAuthStyles } from '../../theme/authStyles';
 import Logo from '../../components/common/Logo';
-import { getPasswordRules, mapAuthApiErrors } from '../../features/auth/authValidation';
+import { getPasswordRules } from '../../features/auth/authValidation';
+import { getApiErrorMessage, getServerFieldErrors } from '../../lib/getApiErrorMessage';
+import { useToast } from '../../context/NotificationContext';
 import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
 import PasswordRequirements from '../../components/auth/PasswordRequirements';
 import { useGoogleAuth } from '../../features/auth/hooks/useGoogleAuth';
@@ -26,6 +28,7 @@ export default function SignUpScreen() {
   const navigation = useNavigation();
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { showToast } = useToast();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -82,13 +85,20 @@ export default function SignUpScreen() {
       await register({ name: name.trim(), email: email.trim(), password }).unwrap();
       (navigation as any).navigate('VerifyOtp', { email: email.trim() });
     } catch (error: any) {
-      setErrors(
-        mapAuthApiErrors(
-          error,
-          getSignupPasswordError() || 'Registration failed. Please try again.',
-          'password',
-        ),
-      );
+      const fieldErrors = getServerFieldErrors(error);
+      if (fieldErrors.name || fieldErrors.email || fieldErrors.password) {
+        setErrors({
+          name: fieldErrors.name,
+          email: fieldErrors.email,
+          password: fieldErrors.password,
+        });
+      }
+      showToast({
+        type: 'error',
+        title: 'Sign up failed',
+        message: getApiErrorMessage(error, 'Registration failed. Please try again.'),
+        duration: 5000,
+      });
     }
   };
 
@@ -221,7 +231,7 @@ export default function SignUpScreen() {
                 disabled={!canSubmit || isGoogleLoading}
               >
                 {isLoading ? (
-                  <ActivityIndicator color={themeColors.primaryForeground} />
+                  <Spinner size={18} color={themeColors.primaryForeground} />
                 ) : (
                   <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>
                     Create account

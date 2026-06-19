@@ -15,6 +15,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../context/ThemeContext";
 import { useToast } from "../../context/NotificationContext";
+import { getApiErrorMessage } from "../../lib/getApiErrorMessage";
 import {
   colors,
   spacing,
@@ -299,7 +300,7 @@ export default function TransactionFormSheet({
       onClose();
     } catch (error) {
       console.error("Failed to save transaction:", error);
-      showToast({ type: "error", title: "Save failed", message: "Failed to save transaction." });
+      showToast({ type: "error", title: "Save failed", message: getApiErrorMessage(error, "Failed to save transaction.") });
     }
   };
 

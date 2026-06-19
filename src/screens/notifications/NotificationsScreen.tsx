@@ -5,8 +5,9 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFloatingTabBarSpace } from '../../navigation/tabBarLayout';
 import { X, Trash2, CheckCheck, AlertTriangle, AlertCircle, CheckCircle, Info } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useNotification } from '../../context/NotificationContext';
@@ -16,6 +17,7 @@ import type { MainTabParamList } from '../../navigation/MainNavigator';
 const NotificationsScreen = ({ navigation, route }: any) => {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const tabBarSpace = useFloatingTabBarSpace();
   const { notifications, removeNotification, clearNotifications } = useNotification();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const returnTo = (route?.params?.returnTo ?? 'Overview') as keyof MainTabParamList;
@@ -151,6 +153,7 @@ const NotificationsScreen = ({ navigation, route }: any) => {
 
   return (
     <SafeAreaView
+      edges={['top']}
       style={[
         styles.container,
         { backgroundColor: themeColors.background },
@@ -201,6 +204,7 @@ const NotificationsScreen = ({ navigation, route }: any) => {
             data={notifications}
             renderItem={renderNotification}
             keyExtractor={(item) => item.id}
+            style={{ flex: 1 }}
             contentContainerStyle={styles.listContainer}
             scrollEnabled
           />
@@ -210,7 +214,7 @@ const NotificationsScreen = ({ navigation, route }: any) => {
             onPress={clearNotifications}
             style={[
               styles.clearButton,
-              { backgroundColor: themeColors.destructive },
+              { backgroundColor: themeColors.destructive, marginBottom: tabBarSpace },
             ]}
           >
             <Text style={styles.clearButtonText}>Clear All Notifications</Text>
