@@ -14,6 +14,7 @@ import {
   Platform,
 } from "react-native";
 import Spinner from "../../components/common/Spinner";
+import { Button } from "../../components/common";
 import { getApiErrorMessage } from "../../lib/getApiErrorMessage";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFloatingTabBarSpace } from "../../navigation/tabBarLayout";
@@ -556,27 +557,13 @@ export default function SettingsScreen() {
                             >
                               Check your email for the code
                             </Text>
-                            <TouchableOpacity
+                            <Button
+                              style={styles.deleteSendOtpBtn}
                               onPress={handleSendOtp}
-                              disabled={isSendingOtp}
-                              style={[
-                                styles.deleteSendOtpBtn,
-                                {
-                                  backgroundColor: themeColors.primary,
-                                  opacity: isSendingOtp ? 0.6 : 1,
-                                },
-                              ]}
-                              activeOpacity={0.8}
-                            >
-                              <Text
-                                style={[
-                                  styles.deleteSendOtpText,
-                                  { color: themeColors.primaryForeground },
-                                ]}
-                              >
-                                {isSendingOtp ? "Sending..." : "Send Code"}
-                              </Text>
-                            </TouchableOpacity>
+                              loading={isSendingOtp}
+                              loadingLabel="Sending…"
+                              label="Send Code"
+                            />
                             <TextInput
                               value={deleteOtp}
                               onChangeText={setDeleteOtp}
@@ -601,55 +588,29 @@ export default function SettingsScreen() {
                             { borderTopColor: themeColors.border },
                           ]}
                         >
-                          <TouchableOpacity
+                          <Button
+                            variant="outline"
+                            fullWidth={false}
+                            style={styles.deleteBtnFlex}
                             onPress={() => {
                               setShowDeleteModal(false);
                               setConfirmText("");
                               setDeleteOtp("");
                             }}
-                            style={[
-                              styles.deleteBtnCancel,
-                              { borderColor: themeColors.border },
-                            ]}
-                            activeOpacity={0.7}
-                          >
-                            <Text
-                              style={[
-                                styles.deleteBtnCancelText,
-                                { color: themeColors.foreground },
-                              ]}
-                            >
-                              Cancel
-                            </Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
+                            label="Cancel"
+                          />
+                          <Button
+                            variant="destructive"
+                            fullWidth={false}
+                            style={styles.deleteBtnFlex}
                             onPress={handleDelete}
+                            loading={isDeleting}
+                            loadingLabel="Deleting…"
                             disabled={
-                              isDeleting ||
-                              confirmText.trim() !== "DELETE" ||
-                              !deleteOtp.trim()
+                              confirmText.trim() !== "DELETE" || !deleteOtp.trim()
                             }
-                            style={[
-                              styles.deleteBtnConfirm,
-                              {
-                                opacity:
-                                  isDeleting ||
-                                  confirmText.trim() !== "DELETE" ||
-                                  !deleteOtp.trim()
-                                    ? 0.5
-                                    : 1,
-                              },
-                            ]}
-                            activeOpacity={0.8}
-                          >
-                            {isDeleting ? (
-                              <Spinner size={18} color="#fff" />
-                            ) : (
-                              <Text style={styles.deleteBtnConfirmText}>
-                                Delete
-                              </Text>
-                            )}
-                          </TouchableOpacity>
+                            label="Delete"
+                          />
                         </View>
                       </View>
                     </ScrollView>
@@ -802,12 +763,8 @@ const createStyles = (theme: typeof colors.light) =>
       marginTop: spacing.xs,
     },
     deleteSendOtpBtn: {
-      paddingVertical: spacing.sm + 4,
-      borderRadius: borderRadius.full,
-      alignItems: "center",
       marginBottom: spacing.md,
     },
-    deleteSendOtpText: { fontFamily: fontFamily.semibold, fontSize: 14 },
     deleteOtpInput: {
       borderWidth: StyleSheet.hairlineWidth,
       borderRadius: borderRadius.xl,
@@ -825,26 +782,7 @@ const createStyles = (theme: typeof colors.light) =>
       paddingVertical: spacing.lg,
       borderTopWidth: 1,
     },
-    deleteBtnCancel: {
+    deleteBtnFlex: {
       flex: 1,
-      paddingVertical: spacing.sm + 4,
-      borderRadius: borderRadius.full,
-      borderWidth: StyleSheet.hairlineWidth,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    deleteBtnCancelText: { fontFamily: fontFamily.semibold, fontSize: 14 },
-    deleteBtnConfirm: {
-      flex: 1,
-      paddingVertical: spacing.sm + 4,
-      borderRadius: borderRadius.full,
-      backgroundColor: theme.destructive,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    deleteBtnConfirmText: {
-      fontFamily: fontFamily.semibold,
-      fontSize: 14,
-      color: "#fff",
     },
   });

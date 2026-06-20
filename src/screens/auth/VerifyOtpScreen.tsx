@@ -7,6 +7,7 @@ import {
   ScrollView,
 } from 'react-native';
 import Spinner from '../../components/common/Spinner';
+import { Button } from '../../components/common';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getApiErrorMessage } from '../../lib/getApiErrorMessage';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -114,19 +115,14 @@ export default function VerifyOtpScreen() {
               <OtpInput value={otp} onChange={(v) => { setOtp(v); setOtpError(''); }} disabled={isLoading} />
               {otpError ? <Text style={styles.otpHint}>{otpError}</Text> : null}
 
-              <TouchableOpacity
-                style={[styles.button, (isLoading || otp.length !== 6) && styles.buttonDisabled]}
+              <Button
+                style={styles.button}
                 onPress={handleVerify}
-                disabled={isLoading || otp.length !== 6}
-              >
-                {isLoading ? (
-                  <Spinner size={18} color={themeColors.primaryForeground} />
-                ) : (
-                  <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>
-                    Verify email
-                  </Text>
-                )}
-              </TouchableOpacity>
+                loading={isLoading}
+                loadingLabel="Verifying…"
+                disabled={otp.length !== 6}
+                label="Verify email"
+              />
 
               <TouchableOpacity
                 style={styles.outlineButton}

@@ -7,6 +7,7 @@ import {
   ScrollView,
 } from 'react-native';
 import Spinner from '../../components/common/Spinner';
+import { Button } from '../../components/common';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getApiErrorMessage } from '../../lib/getApiErrorMessage';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -90,15 +91,12 @@ export default function VerifyResetOtpScreen() {
               <OtpInput value={otp} onChange={(v) => { setOtp(v); setOtpError(''); }} />
               {otpError ? <Text style={styles.otpHint}>{otpError}</Text> : null}
 
-              <TouchableOpacity
-                style={[styles.button, otp.length !== 6 && styles.buttonDisabled]}
+              <Button
+                style={styles.button}
                 onPress={handleContinue}
                 disabled={otp.length !== 6}
-              >
-                <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>
-                  Continue
-                </Text>
-              </TouchableOpacity>
+                label="Continue"
+              />
 
               <TouchableOpacity
                 style={styles.outlineButton}

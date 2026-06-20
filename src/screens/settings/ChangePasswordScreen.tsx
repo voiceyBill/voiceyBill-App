@@ -10,6 +10,7 @@ import {
   Platform,
 } from "react-native";
 import Spinner from "../../components/common/Spinner";
+import { Button } from "../../components/common";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFloatingTabBarSpace } from "../../navigation/tabBarLayout";
 import { useNavigation } from "@react-navigation/native";
@@ -324,31 +325,14 @@ export default function ChangePasswordScreen() {
               </Text>
             ) : null}
 
-            <TouchableOpacity
+            <Button
+              style={styles.button}
               onPress={handleSubmit}
-              activeOpacity={0.85}
+              loading={isLoading}
+              loadingLabel="Updating…"
               disabled={!canSubmit}
-              style={[
-                styles.button,
-                {
-                  backgroundColor: themeColors.primary,
-                  opacity: canSubmit ? 1 : 0.45,
-                },
-              ]}
-            >
-              {isLoading ? (
-                <Spinner size={18} color={themeColors.primaryForeground} />
-              ) : (
-                <Text
-                  style={[
-                    styles.buttonText,
-                    { color: themeColors.primaryForeground },
-                  ]}
-                >
-                  Update password
-                </Text>
-              )}
-            </TouchableOpacity>
+              label="Update password"
+            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -456,15 +440,6 @@ const createStyles = (themeColors: any) =>
       fontSize: 13,
     },
     button: {
-      borderRadius: borderRadius.full,
-      paddingVertical: spacing.md,
-      alignItems: "center",
-      justifyContent: "center",
       marginTop: spacing.sm,
-      ...shadows.md,
-    },
-    buttonText: {
-      fontFamily: fontFamily.semibold,
-      fontSize: 15,
     },
   });

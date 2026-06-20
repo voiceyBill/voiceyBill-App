@@ -10,6 +10,7 @@ import {
   Switch,
 } from 'react-native';
 import Spinner from '../../components/common/Spinner';
+import { Button } from '../../components/common';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFloatingTabBarSpace } from '../../navigation/tabBarLayout';
 import { getApiErrorMessage } from '../../lib/getApiErrorMessage';
@@ -346,17 +347,12 @@ export default function ReportsScreen() {
                 </Text>
               </View>
 
-              <TouchableOpacity
-                style={[styles.saveBtn, { backgroundColor: themeColors.primary }, isSavingSchedule && { opacity: 0.7 }]}
+              <Button
                 onPress={handleSaveSchedule}
-                disabled={isSavingSchedule}
-              >
-                {isSavingSchedule ? (
-                  <Spinner size={18} color={themeColors.primaryForeground} />
-                ) : (
-                  <Text style={[styles.saveBtnText, { color: themeColors.primaryForeground }]}>Save changes</Text>
-                )}
-              </TouchableOpacity>
+                loading={isSavingSchedule}
+                loadingLabel="Saving…"
+                label="Save changes"
+              />
             </ScrollView>
           </View>
         </View>
@@ -528,10 +524,4 @@ const createStyles = (theme: typeof colors.light) =>
     },
     summaryTitle: { fontFamily: fontFamily.semibold, fontSize: 13 },
     summaryText: { fontFamily: fontFamily.regular, fontSize: 13, lineHeight: 20 },
-    saveBtn: {
-      paddingVertical: spacing.md,
-      borderRadius: borderRadius.full,
-      alignItems: 'center',
-    },
-    saveBtnText: { fontFamily: fontFamily.semibold, fontSize: 15, color: '#fff' },
   });

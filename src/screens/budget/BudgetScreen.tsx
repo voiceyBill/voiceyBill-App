@@ -10,10 +10,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
 import {
   Car,
+  Check,
   CircleDollarSign,
   Clapperboard,
   HeartPulse,
@@ -37,6 +37,7 @@ import { useConfirm } from '../../context/ConfirmContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFloatingTabBarSpace } from '../../navigation/tabBarLayout';
 import { getApiErrorMessage } from '../../lib/getApiErrorMessage';
+import { Button } from '../../components/common';
 import {
   borderRadius,
   colors,
@@ -598,36 +599,34 @@ const BudgetScreen = () => {
                 <Text style={[styles.infoTitle, { color: themeColors.foreground }]}>No budget set for this month</Text>
                 <Text style={[styles.infoDescription, { color: themeColors.mutedForeground }]}>Create a monthly budget and category limits to stay on track.</Text>
                 {isCurrentMonth && (
-                  <TouchableOpacity
-                    style={[styles.actionButton, { backgroundColor: themeColors.primary }]}
+                  <Button
+                    style={styles.actionButton}
+                    fullWidth={false}
                     onPress={() => setIsBudgetEditorVisible(true)}
-                    activeOpacity={0.85}
-                  >
-                    <Plus size={16} color={themeColors.primaryForeground} />
-                    <Text style={[styles.actionButtonText, { color: themeColors.primaryForeground }]}>Set Budget</Text>
-                  </TouchableOpacity>
+                    icon={<Plus size={16} color={themeColors.primaryForeground} />}
+                    label="Set Budget"
+                  />
                 )}
               </View>
             ) : (
               <View style={[styles.actionsRow, { borderColor: themeColors.border }]}>
                 {isCurrentMonth ? (
-                  <TouchableOpacity
-                    style={[styles.primaryAction, { backgroundColor: themeColors.primary }]}
+                  <Button
+                    style={styles.rowAction}
+                    fullWidth={false}
                     onPress={() => setIsBudgetEditorVisible(true)}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={[styles.primaryActionText, { color: themeColors.primaryForeground }]}>Update Budget</Text>
-                  </TouchableOpacity>
+                    label="Update Budget"
+                  />
                 ) : null}
                 {isCurrentMonth && (
-                  <TouchableOpacity
-                    style={[styles.destructiveAction, { backgroundColor: themeColors.destructive }]}
+                  <Button
+                    style={styles.rowAction}
+                    fullWidth={false}
+                    variant="destructive"
                     onPress={handleDeleteBudget}
-                    activeOpacity={0.85}
-                  >
-                    <Trash2 size={16} color={themeColors.destructiveForeground} />
-                    <Text style={[styles.destructiveActionText, { color: themeColors.destructiveForeground }]}>Delete Budget</Text>
-                  </TouchableOpacity>
+                    icon={<Trash2 size={16} color={themeColors.destructiveForeground} />}
+                    label="Delete Budget"
+                  />
                 )}
               </View>
             )}
@@ -654,17 +653,39 @@ const BudgetScreen = () => {
                 <X size={20} color={themeColors.foreground} />
               </TouchableOpacity>
             </View>
-            <Picker
-              selectedValue={selectedMonthValue}
-              onValueChange={(value) => {
-                setSelectedMonthValue(String(value));
-                setIsMonthPickerVisible(false);
-              }}
+            <ScrollView
+              style={styles.monthOptionList}
+              contentContainerStyle={{ paddingBottom: spacing.sm }}
+              showsVerticalScrollIndicator={false}
             >
-              {monthOptions.map((option) => (
-                <Picker.Item key={option.value} label={option.label} value={option.value} />
-              ))}
-            </Picker>
+              {monthOptions.map((option) => {
+                const isSelected = String(option.value) === selectedMonthValue;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.monthOptionRow,
+                      isSelected && { backgroundColor: themeColors.secondary },
+                    ]}
+                    onPress={() => {
+                      setSelectedMonthValue(String(option.value));
+                      setIsMonthPickerVisible(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[styles.monthOptionText, { color: themeColors.foreground }]}
+                      numberOfLines={1}
+                    >
+                      {option.label}
+                    </Text>
+                    {isSelected && (
+                      <Check size={18} color={themeColors.primary} strokeWidth={2.5} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -782,21 +803,14 @@ const BudgetScreen = () => {
           </ScrollView>
 
           <View style={[styles.modalFooter, { backgroundColor: themeColors.card, borderTopColor: themeColors.border }]}>
-            <TouchableOpacity
-              style={[
-                styles.saveButton,
-                {
-                  backgroundColor: themeColors.primary,
-                  opacity: hasCategoryLimitError ? 0.6 : 1,
-                },
-              ]}
+            <Button
               onPress={handleSaveBudget}
-              disabled={isSaving || isVoiceProcessing || hasCategoryLimitError}
-              activeOpacity={0.85}
-            >
-              <Plus size={16} color={themeColors.primaryForeground} />
-              <Text style={[styles.saveButtonText, { color: themeColors.primaryForeground }]}>Save Budget</Text>
-            </TouchableOpacity>
+              loading={isSaving || isVoiceProcessing}
+              loadingLabel="Saving…"
+              disabled={hasCategoryLimitError}
+              icon={<Plus size={16} color={themeColors.primaryForeground} />}
+              label="Save Budget"
+            />
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -912,18 +926,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.sm + 4,
-    paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.full,
-    gap: spacing.xs,
-    alignSelf: 'flex-start',
-  },
-  actionButtonText: {
-    fontFamily: fontFamily.semibold,
-    fontSize: 14,
+    alignSelf: 'center',
+    marginTop: spacing.md,
   },
   actionsRow: {
     flexDirection: 'row',
@@ -932,29 +936,8 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     marginTop: spacing.xs,
   },
-  primaryAction: {
+  rowAction: {
     flex: 1,
-    paddingVertical: spacing.sm + 4,
-    borderRadius: borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryActionText: {
-    fontFamily: fontFamily.semibold,
-    fontSize: 14,
-  },
-  destructiveAction: {
-    flex: 1,
-    paddingVertical: spacing.sm + 4,
-    borderRadius: borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  destructiveActionText: {
-    fontFamily: fontFamily.semibold,
-    fontSize: 14,
   },
   modalOverlay: {
     flex: 1,
@@ -981,6 +964,23 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontFamily: fontFamily.semibold,
     fontSize: 17,
+  },
+  monthOptionList: {
+    flexGrow: 0,
+  },
+  monthOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.lg,
+  },
+  monthOptionText: {
+    flex: 1,
+    fontFamily: fontFamily.medium,
+    fontSize: 15,
+    marginRight: spacing.sm,
   },
   modalScreen: {
     flex: 1,
@@ -1140,18 +1140,6 @@ const styles = StyleSheet.create({
   modalFooter: {
     padding: spacing.lg,
     borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  saveButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.full,
-    gap: spacing.xs,
-  },
-  saveButtonText: {
-    fontFamily: fontFamily.semibold,
-    fontSize: 15,
   },
 });
 

@@ -8,6 +8,7 @@ import {
   ScrollView,
 } from 'react-native';
 import Spinner from '../../components/common/Spinner';
+import { Button } from '../../components/common';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Eye, EyeOff } from 'lucide-react-native';
@@ -154,19 +155,14 @@ export default function SignInScreen() {
                 {errors.password ? <Text style={styles.fieldError}>{errors.password}</Text> : null}
               </View>
 
-              <TouchableOpacity
-                style={[styles.button, !canSubmit && styles.buttonDisabled]}
+              <Button
+                style={styles.button}
                 onPress={handleLogin}
+                loading={isLoading}
+                loadingLabel="Signing in…"
                 disabled={!canSubmit || isGoogleLoading}
-              >
-                {isLoading ? (
-                  <Spinner size={18} color={themeColors.primaryForeground} />
-                ) : (
-                  <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>
-                    Sign in
-                  </Text>
-                )}
-              </TouchableOpacity>
+                label="Sign in"
+              />
 
               <View style={styles.dividerRow}>
                 <View style={styles.dividerLine} />

@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import Spinner from '../../components/common/Spinner';
+import { Button } from '../../components/common';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Eye, EyeOff } from 'lucide-react-native';
@@ -225,19 +226,14 @@ export default function SignUpScreen() {
                 />
               </View>
 
-              <TouchableOpacity
-                style={[styles.button, !canSubmit && styles.buttonDisabled]}
+              <Button
+                style={styles.button}
                 onPress={handleRegister}
+                loading={isLoading}
+                loadingLabel="Creating…"
                 disabled={!canSubmit || isGoogleLoading}
-              >
-                {isLoading ? (
-                  <Spinner size={18} color={themeColors.primaryForeground} />
-                ) : (
-                  <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>
-                    Create account
-                  </Text>
-                )}
-              </TouchableOpacity>
+                label="Create account"
+              />
 
               {!canSubmit && password.length > 0 && !isSignupPasswordValid ? (
                 <Text style={styles.otpHint}>Finish the password requirements to continue</Text>

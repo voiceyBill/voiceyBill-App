@@ -41,9 +41,11 @@ function AppContent() {
       const result = await registerForPushNotificationsAsync();
       if (!isMounted) return;
       if (result.status !== "granted" || !result.token) {
-        console.warn(
-          `[push-notifications] registration skipped (status: ${result.status})`,
-        );
+        // "unsupported" is expected (Expo Go / simulator) — only surface a real
+        // permission denial so the console stays clean during development.
+        if (result.status === "denied") {
+          console.warn("[push-notifications] permission denied by user");
+        }
         return;
       }
       if (lastTokenRef.current === result.token) return;

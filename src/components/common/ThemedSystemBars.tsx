@@ -36,8 +36,11 @@ export default function ThemedSystemBars() {
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const NavigationBar = require("expo-navigation-bar");
+        // Only the nav-bar button (icon) colour needs setting. Under Android
+        // edge-to-edge (SDK 54 default) the bar background is driven by the
+        // root window colour above (expo-system-ui); calling
+        // `setBackgroundColorAsync` there is unsupported and only logs a warning.
         await NavigationBar.setButtonStyleAsync(isDark ? "light" : "dark");
-        await NavigationBar.setBackgroundColorAsync?.(bg);
       } catch (e) {
         console.warn("[SystemBars] expo-navigation-bar failed:", e);
       }

@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import Spinner from '../../components/common/Spinner';
+import { Button } from '../../components/common';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getApiErrorMessage } from '../../lib/getApiErrorMessage';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -194,19 +195,14 @@ export default function SetNewPasswordScreen() {
                 ) : null}
               </View>
 
-              <TouchableOpacity
-                style={[styles.button, !canSubmit && styles.buttonDisabled]}
+              <Button
+                style={styles.button}
                 onPress={handleReset}
+                loading={isLoading}
+                loadingLabel="Resetting…"
                 disabled={!canSubmit}
-              >
-                {isLoading ? (
-                  <Spinner size={18} color={themeColors.primaryForeground} />
-                ) : (
-                  <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>
-                    Reset password
-                  </Text>
-                )}
-              </TouchableOpacity>
+                label="Reset password"
+              />
 
               {!canSubmit && password.length > 0 && !isPasswordValid(password) ? (
                 <Text style={styles.otpHint}>Complete all password requirements to continue</Text>

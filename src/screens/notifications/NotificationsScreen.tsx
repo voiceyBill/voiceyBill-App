@@ -12,6 +12,7 @@ import { X, Trash2, CheckCheck, AlertTriangle, AlertCircle, CheckCircle, Info } 
 import { useTheme } from '../../context/ThemeContext';
 import { useNotification } from '../../context/NotificationContext';
 import { colors, spacing } from '../../theme/colors';
+import { Button } from '../../components/common';
 import type { MainTabParamList } from '../../navigation/MainNavigator';
 
 const NotificationsScreen = ({ navigation, route }: any) => {
@@ -210,15 +211,12 @@ const NotificationsScreen = ({ navigation, route }: any) => {
           />
 
           {/* Clear All Button */}
-          <TouchableOpacity
+          <Button
+            variant="destructive"
             onPress={clearNotifications}
-            style={[
-              styles.clearButton,
-              { backgroundColor: themeColors.destructive, marginBottom: tabBarSpace },
-            ]}
-          >
-            <Text style={styles.clearButtonText}>Clear All Notifications</Text>
-          </TouchableOpacity>
+            style={[styles.clearButton, { marginBottom: tabBarSpace }]}
+            label="Clear All Notifications"
+          />
         </>
       ) : (
         emptyComponent
@@ -295,16 +293,6 @@ const styles = StyleSheet.create({
   clearButton: {
     marginHorizontal: spacing.md,
     marginBottom: spacing.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  clearButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,
