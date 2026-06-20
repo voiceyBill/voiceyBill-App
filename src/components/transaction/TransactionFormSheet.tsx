@@ -64,6 +64,7 @@ import {
   Check,
 } from "lucide-react-native";
 import VoiceRecorder from "./VoiceRecorder";
+import { Picker } from "@react-native-picker/picker";
 
 interface TransactionFormSheetProps {
   isVisible: boolean;
@@ -1166,6 +1167,16 @@ const createStyles = (theme: typeof colors.light) =>
       fontSize: 13,
       color: theme.foreground,
       marginBottom: spacing.sm,
+    },
+    pickerContainer: {
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: borderRadius.xl,
+      backgroundColor: theme.background,
+    },
+
+    picker: {
+      color: theme.foreground,
     },
     input: {
       backgroundColor: theme.background,
