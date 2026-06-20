@@ -5,6 +5,7 @@ import SettingsScreen from "../screens/settings/SettingsScreen";
 import AccountScreen from "../screens/settings/AccountScreen";
 import AppearanceScreen from "../screens/settings/AppearanceScreen";
 import BillingScreen from "../screens/settings/BillingScreen";
+import CategorySettingsScreen from "../screens/settings/CategorySettingsScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -35,6 +36,11 @@ export default function SettingsNavigator() {
         name="Billing"
         component={BillingScreen}
         options={{ title: "Billing", headerShown: false }}
+      />
+      <Stack.Screen
+        name="CategorySettings"
+        component={CategorySettingsScreen}
+        options={{ title: "Category Management", headerShown: false }}
       />
     </Stack.Navigator>
   );

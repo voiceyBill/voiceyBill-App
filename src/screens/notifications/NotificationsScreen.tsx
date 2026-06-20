@@ -5,17 +5,20 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFloatingTabBarSpace } from '../../navigation/tabBarLayout';
 import { X, Trash2, CheckCheck, AlertTriangle, AlertCircle, CheckCircle, Info } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useNotification } from '../../context/NotificationContext';
 import { colors, spacing } from '../../theme/colors';
+import { Button } from '../../components/common';
 import type { MainTabParamList } from '../../navigation/MainNavigator';
 
 const NotificationsScreen = ({ navigation, route }: any) => {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const tabBarSpace = useFloatingTabBarSpace();
   const { notifications, removeNotification, clearNotifications } = useNotification();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const returnTo = (route?.params?.returnTo ?? 'Overview') as keyof MainTabParamList;
@@ -151,6 +154,7 @@ const NotificationsScreen = ({ navigation, route }: any) => {
 
   return (
     <SafeAreaView
+      edges={['top']}
       style={[
         styles.container,
         { backgroundColor: themeColors.background },
@@ -201,20 +205,18 @@ const NotificationsScreen = ({ navigation, route }: any) => {
             data={notifications}
             renderItem={renderNotification}
             keyExtractor={(item) => item.id}
+            style={{ flex: 1 }}
             contentContainerStyle={styles.listContainer}
             scrollEnabled
           />
 
           {/* Clear All Button */}
-          <TouchableOpacity
+          <Button
+            variant="destructive"
             onPress={clearNotifications}
-            style={[
-              styles.clearButton,
-              { backgroundColor: themeColors.destructive },
-            ]}
-          >
-            <Text style={styles.clearButtonText}>Clear All Notifications</Text>
-          </TouchableOpacity>
+            style={[styles.clearButton, { marginBottom: tabBarSpace }]}
+            label="Clear All Notifications"
+          />
         </>
       ) : (
         emptyComponent
@@ -291,16 +293,6 @@ const styles = StyleSheet.create({
   clearButton: {
     marginHorizontal: spacing.md,
     marginBottom: spacing.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  clearButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,

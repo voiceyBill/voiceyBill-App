@@ -1,8 +1,15 @@
 import React, { useEffect } from "react";
-import { NavigationContainer, useNavigation } from "@react-navigation/native";
+import {
+  NavigationContainer,
+  useNavigation,
+  DefaultTheme,
+  DarkTheme,
+} from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Platform } from "react-native";
 import { useTypedSelector } from "../store/hooks";
+import { useTheme } from "../context/ThemeContext";
+import { colors } from "../theme/colors";
 import AuthNavigator from "./AuthNavigator";
 import MainNavigator from "./MainNavigator";
 import { registerForPushNotificationsAsync } from "../lib/push-notifications";
@@ -34,9 +41,11 @@ function AppContent() {
       const result = await registerForPushNotificationsAsync();
       if (!isMounted) return;
       if (result.status !== "granted" || !result.token) {
-        console.warn(
-          `[push-notifications] registration skipped (status: ${result.status})`,
-        );
+        // "unsupported" is expected (Expo Go / simulator) — only surface a real
+        // permission denial so the console stays clean during development.
+        if (result.status === "denied") {
+          console.warn("[push-notifications] permission denied by user");
+        }
         return;
       }
       if (lastTokenRef.current === result.token) return;
@@ -77,8 +86,28 @@ function AppContent() {
 }
 
 export default function AppNavigator() {
+  const { activeTheme } = useTheme();
+  const themeColors = colors[activeTheme];
+  const base = activeTheme === "dark" ? DarkTheme : DefaultTheme;
+
+  // Theme the navigator root so the window background (incl. the area behind
+  // the transparent edge-to-edge system bars) matches the app theme instead
+  // of React Navigation's default white. This is what removed the white strip
+  // under the floating tab bar, and also kills white flashes between screens.
+  const navTheme = {
+    ...base,
+    colors: {
+      ...base.colors,
+      background: themeColors.background,
+      card: themeColors.card,
+      text: themeColors.foreground,
+      border: themeColors.border,
+      primary: themeColors.primary,
+    },
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navTheme}>
       <AppContent />
     </NavigationContainer>
   );

@@ -8,13 +8,16 @@ import {
   Image,
   Modal,
   TextInput,
-  ActivityIndicator,
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Keyboard,
   Platform,
 } from "react-native";
+import Spinner from "../../components/common/Spinner";
+import { Button } from "../../components/common";
+import { getApiErrorMessage } from "../../lib/getApiErrorMessage";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFloatingTabBarSpace } from "../../navigation/tabBarLayout";
 import { useNavigation } from "@react-navigation/native";
 import {
   User,
@@ -23,6 +26,8 @@ import {
   Lock,
   ChevronRight,
   LogOut,
+  Trash2,
+  Tag,
 } from "lucide-react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { useToast } from "../../context/NotificationContext";
@@ -56,6 +61,7 @@ type MenuItem = {
   subtitle: string;
   screen: string;
   icon: React.ElementType;
+  accent: string;
 };
 
 const sections: Section[] = [
@@ -67,6 +73,19 @@ const sections: Section[] = [
         subtitle: "Update profile and avatar",
         screen: "Account",
         icon: User,
+        accent: "#3b82f6",
+      },
+    ],
+  },
+  {
+    title: "Customization",
+    items: [
+      {
+        title: "Categories",
+        subtitle: "Create and manage custom transaction categories",
+        screen: "CategorySettings",
+        icon: Tag,
+        accent: "#06b6d4",
       },
     ],
   },
@@ -78,6 +97,7 @@ const sections: Section[] = [
         subtitle: "Update your password securely",
         screen: "ChangePassword",
         icon: Lock,
+        accent: "#10b981",
       },
     ],
   },
@@ -89,6 +109,7 @@ const sections: Section[] = [
         subtitle: "Theme and display settings",
         screen: "Appearance",
         icon: Palette,
+        accent: "#8b5cf6",
       },
     ],
   },
@@ -100,6 +121,7 @@ const sections: Section[] = [
         subtitle: "Manage subscription and payments",
         screen: "Billing",
         icon: CreditCard,
+        accent: "#f59e0b",
       },
     ],
   },
@@ -110,6 +132,7 @@ export default function SettingsScreen() {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const insets = useSafeAreaInsets();
+  const tabBarSpace = useFloatingTabBarSpace();
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const dispatch = useAppDispatch();
@@ -150,7 +173,7 @@ export default function SettingsScreen() {
       showToast({
         type: "error",
         title: "Failed to send OTP",
-        message: err?.data?.message || "Unable to send verification code",
+        message: getApiErrorMessage(err, "Unable to send verification code"),
       });
     } finally {
       setIsSendingOtp(false);
@@ -187,7 +210,7 @@ export default function SettingsScreen() {
       showToast({
         type: "error",
         title: "Deletion failed",
-        message: err?.data?.message || "Could not delete account",
+        message: getApiErrorMessage(err, "Could not delete account"),
       });
     } finally {
       setIsDeleting(false);
@@ -201,7 +224,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingBottom: tabBarSpace }} showsVerticalScrollIndicator={false}>
         {/* User card — taps into Account settings */}
         {user && (
           <TouchableOpacity
@@ -303,13 +326,13 @@ export default function SettingsScreen() {
                       <View
                         style={[
                           styles.menuIconWrap,
-                          { backgroundColor: themeColors.muted },
+                          { backgroundColor: item.accent + "1A" },
                         ]}
                       >
                         <IconComponent
                           size={18}
-                          color={themeColors.foreground}
-                          strokeWidth={1.75}
+                          color={item.accent}
+                          strokeWidth={2}
                         />
                       </View>
                       <View style={styles.menuText}>
@@ -341,7 +364,7 @@ export default function SettingsScreen() {
             </View>
           ))}
 
-          {/* Logout */}
+          {/* Log out — neutral, not destructive */}
           <View style={styles.section}>
             <View
               style={[
@@ -365,70 +388,67 @@ export default function SettingsScreen() {
                 >
                   <LogOut
                     size={18}
-                    color={themeColors.destructive}
-                    strokeWidth={1.75}
+                    color={themeColors.foreground}
+                    strokeWidth={2}
                   />
                 </View>
                 <View style={styles.menuText}>
-                  <Text
-                    style={[
-                      styles.menuTitle,
-                      { color: themeColors.destructive },
-                    ]}
-                  >
+                  <Text style={[styles.menuTitle, { color: themeColors.foreground }]}>
                     Log out
                   </Text>
                   <Text
-                    style={[
-                      styles.menuSubtitle,
-                      { color: themeColors.mutedForeground },
-                    ]}
+                    style={[styles.menuSubtitle, { color: themeColors.mutedForeground }]}
                   >
                     Sign out of your account
                   </Text>
                 </View>
                 <ChevronRight size={18} color={themeColors.mutedForeground} />
               </TouchableOpacity>
+            </View>
+          </View>
 
+          {/* Danger zone — destructive actions only */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: themeColors.destructive }]}>
+              Danger zone
+            </Text>
+            <View
+              style={[
+                styles.sectionCard,
+                {
+                  backgroundColor: themeColors.card,
+                  borderColor: themeColors.destructive + "40",
+                },
+              ]}
+            >
               <TouchableOpacity
-                style={[
-                  styles.menuItem,
-                  { borderTopWidth: 1, borderTopColor: themeColors.border },
-                ]}
+                style={styles.menuItem}
                 onPress={() => setShowDeleteModal(true)}
                 activeOpacity={0.7}
               >
                 <View
                   style={[
                     styles.menuIconWrap,
-                    { backgroundColor: themeColors.muted },
+                    { backgroundColor: themeColors.destructive + "1A" },
                   ]}
                 >
-                  <LogOut
+                  <Trash2
                     size={18}
                     color={themeColors.destructive}
-                    strokeWidth={1.75}
+                    strokeWidth={2}
                   />
                 </View>
                 <View style={styles.menuText}>
-                  <Text
-                    style={[
-                      styles.menuTitle,
-                      { color: themeColors.destructive },
-                    ]}
-                  >
+                  <Text style={[styles.menuTitle, { color: themeColors.destructive }]}>
                     Delete account
                   </Text>
                   <Text
-                    style={[
-                      styles.menuSubtitle,
-                      { color: themeColors.mutedForeground },
-                    ]}
+                    style={[styles.menuSubtitle, { color: themeColors.mutedForeground }]}
                   >
                     Permanently delete your account and data
                   </Text>
                 </View>
-                <ChevronRight size={18} color={themeColors.mutedForeground} />
+                <ChevronRight size={18} color={themeColors.destructive} />
               </TouchableOpacity>
             </View>
           </View>
@@ -537,27 +557,13 @@ export default function SettingsScreen() {
                             >
                               Check your email for the code
                             </Text>
-                            <TouchableOpacity
+                            <Button
+                              style={styles.deleteSendOtpBtn}
                               onPress={handleSendOtp}
-                              disabled={isSendingOtp}
-                              style={[
-                                styles.deleteSendOtpBtn,
-                                {
-                                  backgroundColor: themeColors.primary,
-                                  opacity: isSendingOtp ? 0.6 : 1,
-                                },
-                              ]}
-                              activeOpacity={0.8}
-                            >
-                              <Text
-                                style={[
-                                  styles.deleteSendOtpText,
-                                  { color: themeColors.primaryForeground },
-                                ]}
-                              >
-                                {isSendingOtp ? "Sending..." : "Send Code"}
-                              </Text>
-                            </TouchableOpacity>
+                              loading={isSendingOtp}
+                              loadingLabel="Sending…"
+                              label="Send Code"
+                            />
                             <TextInput
                               value={deleteOtp}
                               onChangeText={setDeleteOtp}
@@ -582,55 +588,29 @@ export default function SettingsScreen() {
                             { borderTopColor: themeColors.border },
                           ]}
                         >
-                          <TouchableOpacity
+                          <Button
+                            variant="outline"
+                            fullWidth={false}
+                            style={styles.deleteBtnFlex}
                             onPress={() => {
                               setShowDeleteModal(false);
                               setConfirmText("");
                               setDeleteOtp("");
                             }}
-                            style={[
-                              styles.deleteBtnCancel,
-                              { borderColor: themeColors.border },
-                            ]}
-                            activeOpacity={0.7}
-                          >
-                            <Text
-                              style={[
-                                styles.deleteBtnCancelText,
-                                { color: themeColors.foreground },
-                              ]}
-                            >
-                              Cancel
-                            </Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
+                            label="Cancel"
+                          />
+                          <Button
+                            variant="destructive"
+                            fullWidth={false}
+                            style={styles.deleteBtnFlex}
                             onPress={handleDelete}
+                            loading={isDeleting}
+                            loadingLabel="Deleting…"
                             disabled={
-                              isDeleting ||
-                              confirmText.trim() !== "DELETE" ||
-                              !deleteOtp.trim()
+                              confirmText.trim() !== "DELETE" || !deleteOtp.trim()
                             }
-                            style={[
-                              styles.deleteBtnConfirm,
-                              {
-                                opacity:
-                                  isDeleting ||
-                                  confirmText.trim() !== "DELETE" ||
-                                  !deleteOtp.trim()
-                                    ? 0.5
-                                    : 1,
-                              },
-                            ]}
-                            activeOpacity={0.8}
-                          >
-                            {isDeleting ? (
-                              <ActivityIndicator color="#fff" size="small" />
-                            ) : (
-                              <Text style={styles.deleteBtnConfirmText}>
-                                Delete
-                              </Text>
-                            )}
-                          </TouchableOpacity>
+                            label="Delete"
+                          />
                         </View>
                       </View>
                     </ScrollView>
@@ -664,6 +644,8 @@ const createStyles = (theme: typeof colors.light) =>
       height: 52,
       borderRadius: 26,
       resizeMode: "cover",
+      borderWidth: 2,
+      borderColor: theme.primary + "26",
     },
     userAvatar: {
       width: 52,
@@ -671,6 +653,8 @@ const createStyles = (theme: typeof colors.light) =>
       borderRadius: 26,
       alignItems: "center",
       justifyContent: "center",
+      borderWidth: 2,
+      borderColor: theme.primary + "26",
     },
     userInitial: { fontFamily: fontFamily.bold, fontSize: 20 },
     userInfo: { flex: 1, minWidth: 0 },
@@ -742,8 +726,8 @@ const createStyles = (theme: typeof colors.light) =>
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.xl,
       paddingBottom: spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: "rgba(0, 0, 0, 0.06)",
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.border,
     },
     deleteModalTitle: {
       fontFamily: fontFamily.bold,
@@ -779,12 +763,8 @@ const createStyles = (theme: typeof colors.light) =>
       marginTop: spacing.xs,
     },
     deleteSendOtpBtn: {
-      paddingVertical: spacing.sm + 4,
-      borderRadius: borderRadius.full,
-      alignItems: "center",
       marginBottom: spacing.md,
     },
-    deleteSendOtpText: { fontFamily: fontFamily.semibold, fontSize: 14 },
     deleteOtpInput: {
       borderWidth: StyleSheet.hairlineWidth,
       borderRadius: borderRadius.xl,
@@ -802,26 +782,7 @@ const createStyles = (theme: typeof colors.light) =>
       paddingVertical: spacing.lg,
       borderTopWidth: 1,
     },
-    deleteBtnCancel: {
+    deleteBtnFlex: {
       flex: 1,
-      paddingVertical: spacing.sm + 4,
-      borderRadius: borderRadius.full,
-      borderWidth: StyleSheet.hairlineWidth,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    deleteBtnCancelText: { fontFamily: fontFamily.semibold, fontSize: 14 },
-    deleteBtnConfirm: {
-      flex: 1,
-      paddingVertical: spacing.sm + 4,
-      borderRadius: borderRadius.full,
-      backgroundColor: "#ff3b30",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    deleteBtnConfirmText: {
-      fontFamily: fontFamily.semibold,
-      fontSize: 14,
-      color: "#fff",
     },
   });

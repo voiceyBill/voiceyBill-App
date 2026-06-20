@@ -6,9 +6,11 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   ScrollView,
-  ActivityIndicator,
 } from 'react-native';
+import Spinner from '../../components/common/Spinner';
+import { Button } from '../../components/common';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getApiErrorMessage } from '../../lib/getApiErrorMessage';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useForgotPasswordMutation } from '../../features/auth/authAPI';
@@ -50,7 +52,7 @@ export default function ForgotPasswordScreen() {
       showToast({
         type: 'error',
         title: 'Could not send code',
-        message: error?.data?.message || 'Failed to send reset code. Please try again.',
+        message: getApiErrorMessage(error, 'Failed to send reset code. Please try again.'),
       });
     }
   };
@@ -100,19 +102,14 @@ export default function ForgotPasswordScreen() {
                 {emailError ? <Text style={styles.fieldError}>{emailError}</Text> : null}
               </View>
 
-              <TouchableOpacity
-                style={[styles.button, !canSubmit && styles.buttonDisabled]}
+              <Button
+                style={styles.button}
                 onPress={handleSubmit}
+                loading={isLoading}
+                loadingLabel="Sending…"
                 disabled={!canSubmit}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color={themeColors.primaryForeground} />
-                ) : (
-                  <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>
-                    Send reset code
-                  </Text>
-                )}
-              </TouchableOpacity>
+                label="Send reset code"
+              />
 
               <TouchableOpacity
                 style={styles.linkRow}

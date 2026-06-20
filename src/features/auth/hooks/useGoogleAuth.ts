@@ -1,11 +1,5 @@
 import { useCallback, useState } from "react";
 import { Platform } from "react-native";
-import {
-  GoogleSignin,
-  statusCodes,
-  isErrorWithCode,
-  isSuccessResponse,
-} from "@react-native-google-signin/google-signin";
 import { useGoogleLoginMutation } from "../authAPI";
 import { setCredentials } from "../authSlice";
 import { setRefreshToken } from "../../../lib/tokenStorage";
@@ -32,7 +26,36 @@ import { useAppDispatch } from "../../../store/hooks";
 // can verify with the Google Auth Library.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─── Expo Go compatibility ───────────────────────────────────────────────────
+//
+// @react-native-google-signin/google-signin ships a native module
+// (RNGoogleSignin) that is NOT bundled in Expo Go.  A static `import` would run
+// TurboModuleRegistry.getEnforcing('RNGoogleSignin') at module-load time and
+// crash the entire app on boot in Expo Go (Invariant Violation, before any
+// try/catch can help).  We therefore `require()` the package lazily inside a
+// try/catch: in a dev-client / standalone build it loads normally; in Expo Go
+// the require throws, we catch it, and Google Sign-In is disabled while every
+// other feature (incl. email/password login) keeps working.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let GoogleSignin: any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let statusCodes: any;
+let isErrorWithCode: ((e: unknown) => boolean) | undefined;
+let isSuccessResponse: ((r: unknown) => boolean) | undefined;
+let googleSignInAvailable = false;
+
 try {
+  // Lazy require (not a static import) so the native-module load happens here,
+  // inside the try/catch, instead of crashing at module-evaluation time.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+  const mod = require("@react-native-google-signin/google-signin");
+  GoogleSignin = mod.GoogleSignin;
+  statusCodes = mod.statusCodes;
+  isErrorWithCode = mod.isErrorWithCode;
+  isSuccessResponse = mod.isSuccessResponse;
+
   GoogleSignin.configure({
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     ...(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID &&
@@ -42,8 +65,15 @@ try {
     scopes: ["profile", "email"],
     offlineAccess: false,
   });
+  googleSignInAvailable = true;
 } catch (e) {
-  console.warn("[GoogleAuth] configure skipped — iOS client ID not set:", e);
+  // Expected in Expo Go (native module missing); also covers a missing iOS
+  // client ID. Google Sign-In stays disabled; the rest of the app runs.
+  console.warn(
+    "[GoogleAuth] Native Google Sign-In unavailable — Google login disabled. " +
+      "This is expected in Expo Go; use a development build for Google login.",
+    e,
+  );
 }
 
 // Fields match GoogleUserProfile in authAPI.ts (string | undefined, no null).
@@ -60,7 +90,7 @@ type GoogleProfile = {
 
 const getFriendlyError = (err: unknown): string => {
   // ── Google Sign-In SDK errors (device-level) ────────────────────────────────
-  if (isErrorWithCode(err)) {
+  if (isErrorWithCode && isErrorWithCode(err)) {
     switch ((err as any).code) {
       case statusCodes.SIGN_IN_CANCELLED:
         return "Google sign-in was cancelled.";
@@ -113,6 +143,16 @@ export const useGoogleAuth = () => {
 
   const signInWithGoogle = useCallback(async () => {
     setError(null);
+
+    // Native module isn't present (e.g. Expo Go) — fail fast with guidance.
+    if (!googleSignInAvailable) {
+      setError(
+        "Google sign-in isn't available in Expo Go. Please use email & password, " +
+          "or run a development build for Google login.",
+      );
+      return;
+    }
+
     setIsSigningIn(true);
 
     try {
@@ -125,7 +165,7 @@ export const useGoogleAuth = () => {
       const response = await GoogleSignin.signIn();
 
       // v14 returns { type: 'success' | 'cancelled' | ..., data: ... }
-      if (!isSuccessResponse(response)) {
+      if (!isSuccessResponse!(response)) {
         setError("Google sign-in was cancelled.");
         return;
       }
@@ -171,6 +211,7 @@ export const useGoogleAuth = () => {
   return {
     error,
     isGoogleReady:
+      googleSignInAvailable &&
       Boolean(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID) &&
       (Platform.OS !== "ios" ||
         (Boolean(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID) &&

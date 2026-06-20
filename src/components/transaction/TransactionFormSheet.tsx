@@ -15,6 +15,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../context/ThemeContext";
 import { useToast } from "../../context/NotificationContext";
+import { getApiErrorMessage } from "../../lib/getApiErrorMessage";
+import { isValidCategoryName } from "../../lib/category";
 import {
   colors,
   spacing,
@@ -30,6 +32,10 @@ import {
   useGetSingleTransactionQuery,
   useAiScanReceiptMutation,
 } from "../../features/transaction/transactionAPI";
+import {
+  useCreateCategoryMutation,
+  useGetCategoriesQuery,
+} from "../../features/category/categoryAPI";
 import { useTypedSelector } from "../../store/hooks";
 import { useGetSupportedCurrenciesQuery } from "../../features/currency/currencyAPI";
 import {
@@ -39,20 +45,23 @@ import {
   TRANSACTION_FREQUENCY,
   FREQUENCY_OPTIONS,
 } from "../../constants/transaction";
-import { Picker } from "@react-native-picker/picker";
-import { CurrencyPicker } from "../common";
+import {
+  CurrencyPicker,
+  SelectField,
+  DateField,
+  Button,
+  type SelectOption,
+} from "../common";
 import { ALL_CURRENCIES } from "../../constants/currencies";
-import DateTimePicker from "@react-native-community/datetimepicker";
 
-import { format as formatDate } from "date-fns";
 import * as ImagePicker from "expo-image-picker";
 import {
   Mic,
   ScanText,
   FileText,
   X,
-  Calendar,
   Upload,
+  Check,
 } from "lucide-react-native";
 import VoiceRecorder from "./VoiceRecorder";
 
@@ -89,8 +98,19 @@ export default function TransactionFormSheet({
     TRANSACTION_TYPE.EXPENSE,
   );
   const [category, setCategory] = React.useState("");
+  const [newCategoryName, setNewCategoryName] = React.useState("");
+  const [newCategoryColor, setNewCategoryColor] = React.useState("#6B7280");
+  const [saveCategoryPermanently, setSaveCategoryPermanently] =
+    React.useState(true);
+  const [isCreatingPersistentCategory, setIsCreatingPersistentCategory] =
+    React.useState(false);
+
+  const NEW_CATEGORY_KEY = "__new_category__";
+  const CATEGORY_COLOR_SWATCHES = [
+    "#ef4444", "#f97316", "#f59e0b", "#10b981", "#14b8a6",
+    "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899", "#64748b",
+  ];
   const [date, setDate] = React.useState(new Date());
-  const [showDatePicker, setShowDatePicker] = React.useState(false);
   const [paymentMethod, setPaymentMethod] = React.useState("");
   const [isRecurring, setIsRecurring] = React.useState(false);
   const [frequency, setFrequency] = React.useState(
@@ -116,7 +136,6 @@ export default function TransactionFormSheet({
     );
     return found ? found.symbol : currency;
   }, [currenciesData, currency]);
-
   // AI Scan Receipt state
   const [receiptName, setReceiptName] =
     React.useState<string>("No file chosen");
@@ -150,6 +169,62 @@ export default function TransactionFormSheet({
   const [updateTransaction, { isLoading: isUpdating }] =
     useUpdateTransactionMutation();
   const [aiScanReceipt] = useAiScanReceiptMutation();
+
+  const { data: categoriesResponse, isFetching: isFetchingCategories } =
+    useGetCategoriesQuery();
+  const [createCategory] = useCreateCategoryMutation();
+
+  const categoryOptions = React.useMemo(() => {
+    const apiCategories =
+      categoriesResponse?.data
+        ?.filter((category) => isValidCategoryName(category.name))
+        .map((category) => ({
+          value: category.name,
+          label: category.name,
+          color: category.color as string | undefined,
+          isDefault: category.isDefault,
+        })) ?? [];
+
+    if (!apiCategories.length) {
+      return CATEGORIES.map((cat) => ({
+        value: cat.value,
+        label: cat.label,
+        color: undefined as string | undefined,
+        isDefault: true,
+      }));
+    }
+
+    return apiCategories.sort((a, b) => {
+      if (a.isDefault === b.isDefault) return a.label.localeCompare(b.label);
+      return a.isDefault ? -1 : 1;
+    });
+  }, [categoriesResponse]);
+
+  const selectedCategoryOption = categoryOptions.find(
+    (item) => item.value === category,
+  );
+
+  // Options for the themed category picker. Includes the current value when it
+  // is a valid custom category (e.g. AI-suggested) that isn't in the list yet.
+  const categorySelectOptions = React.useMemo<SelectOption[]>(() => {
+    const base: SelectOption[] = categoryOptions.map((c) => ({
+      label: c.label,
+      value: c.value,
+      color: c.color,
+    }));
+
+    if (
+      category &&
+      category !== NEW_CATEGORY_KEY &&
+      isValidCategoryName(category) &&
+      !categoryOptions.some((c) => c.value === category)
+    ) {
+      base.push({ label: category, value: category });
+    }
+
+    return base;
+  }, [categoryOptions, category]);
+
   // Load existing transaction data for edit
   React.useEffect(() => {
     if (isEdit && transactionData?.transaction) {
@@ -164,7 +239,7 @@ export default function TransactionFormSheet({
       );
       setCurrency(tx.originalCurrency || userBaseCurrency);
       setType(tx.type);
-      setCategory(tx.category);
+      setCategory(isValidCategoryName(tx.category) ? tx.category : "");
       setDate(new Date(tx.date));
       setPaymentMethod(tx.paymentMethod);
       setIsRecurring(tx.isRecurring);
@@ -268,25 +343,60 @@ export default function TransactionFormSheet({
       return;
     }
 
+    const resolvedCategory =
+      category === NEW_CATEGORY_KEY ? newCategoryName.trim() : category.trim();
+
+    if (!resolvedCategory) {
+      showToast({
+        type: "warning",
+        title: "Category required",
+        message: "Please choose or enter a category.",
+      });
+      return;
+    }
+
+    if (category === NEW_CATEGORY_KEY && saveCategoryPermanently) {
+      try {
+        setIsCreatingPersistentCategory(true);
+        await createCategory({
+          name: resolvedCategory,
+          color: newCategoryColor,
+        }).unwrap();
+      } catch (error: any) {
+        showToast({
+          type: "error",
+          title: "Couldn't save category",
+          message:
+            error?.data?.message || "Failed to save category permanently.",
+        });
+        return;
+      } finally {
+        setIsCreatingPersistentCategory(false);
+      }
+    }
+
     const payload = {
       title,
       amount: parseFloat(amount),
       currency: currency.trim() ? currency : undefined,
       type,
-      category: category.trim().toLowerCase(),
+      category: resolvedCategory,
       date: date.toISOString(),
       paymentMethod,
       isRecurring,
       recurringInterval: isRecurring ? frequency : null,
       description,
     };
-
     try {
       if (isEdit && transactionId) {
         // prevent sending update when there are no changes
         const existing = originalTransactionRef.current;
         if (isSameTransaction(existing, payload)) {
-          alert("No changes detected");
+          showToast({
+            type: "info",
+            title: "No changes",
+            message: "You haven't made any changes to this transaction.",
+          });
           onClose();
           return;
         }
@@ -299,7 +409,7 @@ export default function TransactionFormSheet({
       onClose();
     } catch (error) {
       console.error("Failed to save transaction:", error);
-      showToast({ type: "error", title: "Save failed", message: "Failed to save transaction." });
+      showToast({ type: "error", title: "Save failed", message: getApiErrorMessage(error, "Failed to save transaction.") });
     }
   };
 
@@ -411,8 +521,10 @@ export default function TransactionFormSheet({
                     let cat = data.category.toLowerCase().trim();
                     if (cat === "dining & restaurants") cat = "dining";
                     if (cat === "housing & rent") cat = "housing";
-                    console.log("Setting category to:", cat);
-                    setCategory(cat);
+                    // Ignore junk values the AI can return ("undefined"/"null").
+                    if (cat && cat !== "undefined" && cat !== "null") {
+                      setCategory(cat);
+                    }
                   }
                   if (data.paymentMethod) {
                     const pm = data.paymentMethod.toUpperCase();
@@ -472,7 +584,9 @@ export default function TransactionFormSheet({
                           if (scanned.title) setTitle(scanned.title);
                           setType(TRANSACTION_TYPE.EXPENSE);
                           if (scanned.paymentMethod) {
-                            setPaymentMethod(scanned.paymentMethod.toUpperCase());
+                            setPaymentMethod(
+                              scanned.paymentMethod.toUpperCase(),
+                            );
                           }
                           if (scanned.amount != null)
                             setAmount(String(scanned.amount));
@@ -483,7 +597,9 @@ export default function TransactionFormSheet({
                             let cat = scanned.category.toLowerCase().trim();
                             if (cat === "dining & restaurants") cat = "dining";
                             if (cat === "housing & rent") cat = "housing";
-                            setCategory(cat);
+                            if (cat && cat !== "undefined" && cat !== "null") {
+                              setCategory(cat);
+                            }
                           }
                           if (scanned.description)
                             setDescription(scanned.description);
@@ -554,7 +670,9 @@ export default function TransactionFormSheet({
                           if (scanned.title) setTitle(scanned.title);
                           setType(TRANSACTION_TYPE.EXPENSE);
                           if (scanned.paymentMethod) {
-                            setPaymentMethod(scanned.paymentMethod.toUpperCase());
+                            setPaymentMethod(
+                              scanned.paymentMethod.toUpperCase(),
+                            );
                           }
                           if (scanned.amount != null)
                             setAmount(String(scanned.amount));
@@ -565,7 +683,9 @@ export default function TransactionFormSheet({
                             let cat = scanned.category.toLowerCase().trim();
                             if (cat === "dining & restaurants") cat = "dining";
                             if (cat === "housing & rent") cat = "housing";
-                            setCategory(cat);
+                            if (cat && cat !== "undefined" && cat !== "null") {
+                              setCategory(cat);
+                            }
                           }
                           if (scanned.description)
                             setDescription(scanned.description);
@@ -586,8 +706,14 @@ export default function TransactionFormSheet({
                     ]}
                     disabled={isScanning}
                   >
-                    <Upload size={16} color="#ffffff" />
-                    <Text style={{ color: "#ffffff", marginLeft: spacing.xs }}>
+                    <Upload size={16} color={themeColors.primaryForeground} />
+                    <Text
+                      style={{
+                        color: themeColors.primaryForeground,
+                        marginLeft: spacing.xs,
+                        fontFamily: fontFamily.semibold,
+                      }}
+                    >
                       {isScanning ? "Scanning…" : "Choose File"}
                     </Text>
                   </TouchableOpacity>
@@ -745,55 +871,124 @@ export default function TransactionFormSheet({
                   }
                 </Picker>
               </View>
+              <SelectField
+                label="Category *"
+                title="Select a category"
+                placeholder="Select a category"
+                value={category}
+                options={categorySelectOptions}
+                searchable
+                onChange={(value) => {
+                  setCategory(value);
+                  setNewCategoryName("");
+                }}
+                selectedLabel={
+                  category === NEW_CATEGORY_KEY
+                    ? newCategoryName.trim() || "New category"
+                    : undefined
+                }
+                footerAction={{
+                  label: "+ Add new category…",
+                  onPress: () => {
+                    setCategory(NEW_CATEGORY_KEY);
+                    setNewCategoryName("");
+                  },
+                }}
+                emptyText={
+                  isFetchingCategories
+                    ? "Loading categories…"
+                    : "No categories yet. Add one below."
+                }
+              />
+
+              {(category === NEW_CATEGORY_KEY ||
+                (!selectedCategoryOption && category)) && (
+                <View style={styles.newCategorySection}>
+                  <Text style={styles.label}>New category name</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. Freelance Supplies"
+                    placeholderTextColor={themeColors.mutedForeground}
+                    value={
+                      category === NEW_CATEGORY_KEY ? newCategoryName : category
+                    }
+                    onChangeText={setNewCategoryName}
+                  />
+
+                  <Text style={[styles.label, { marginTop: spacing.md }]}>
+                    Save category permanently?
+                  </Text>
+                  <View style={styles.switchRow}>
+                    <Text style={styles.switchLabel}>
+                      Save for future transactions
+                    </Text>
+                    <RNSwitch
+                      value={saveCategoryPermanently}
+                      onValueChange={setSaveCategoryPermanently}
+                      trackColor={{
+                        false: themeColors.muted,
+                        true: themeColors.primary,
+                      }}
+                      thumbColor={themeColors.foreground}
+                    />
+                  </View>
+
+                  {saveCategoryPermanently && (
+                    <>
+                      <Text style={[styles.label, { marginTop: spacing.md }]}>
+                        Category color
+                      </Text>
+                      <View style={styles.colorSwatchRow}>
+                        {CATEGORY_COLOR_SWATCHES.map((swatch) => {
+                          const selected =
+                            swatch.toLowerCase() === newCategoryColor.toLowerCase();
+                          return (
+                            <TouchableOpacity
+                              key={swatch}
+                              onPress={() => setNewCategoryColor(swatch)}
+                              activeOpacity={0.8}
+                              style={[
+                                styles.colorSwatch,
+                                { backgroundColor: swatch },
+                                selected && {
+                                  borderColor: themeColors.foreground,
+                                  borderWidth: 3,
+                                },
+                              ]}
+                            >
+                              {selected && (
+                                <Check size={13} color="#fff" strokeWidth={3} />
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </>
+                  )}
+                </View>
+              )}
             </View>
 
             {/* Date */}
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Date *</Text>
-              <TouchableOpacity
-                style={styles.dateButton}
-                onPress={() => setShowDatePicker(true)}
-              >
-                <Calendar size={16} color={themeColors.mutedForeground} />
-                <Text style={styles.dateText}>
-                  {formatDate(date, "MMMM do, yyyy")}
-                </Text>
-              </TouchableOpacity>
-              {showDatePicker && (
-                <DateTimePicker
-                  value={date}
-                  mode="date"
-                  display={Platform.OS === "ios" ? "spinner" : "default"}
-                  onChange={(event, selectedDate) => {
-                    setShowDatePicker(Platform.OS === "ios");
-                    if (selectedDate) {
-                      setDate(selectedDate);
-                    }
-                  }}
-                />
-              )}
+              <DateField
+                label="Date *"
+                title="Select date"
+                value={date}
+                onChange={setDate}
+              />
             </View>
 
             {/* Payment Method */}
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Payment Method *</Text>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={paymentMethod}
-                  onValueChange={setPaymentMethod}
-                  style={styles.picker}
-                  dropdownIconColor={themeColors.foreground}
-                >
-                  <Picker.Item label="Select payment method" value="" />
-                  {PAYMENT_METHODS.map((method) => (
-                    <Picker.Item
-                      key={method.value}
-                      label={method.label}
-                      value={method.value}
-                    />
-                  ))}
-                </Picker>
-              </View>
+              <SelectField
+                label="Payment Method *"
+                title="Select payment method"
+                placeholder="Select payment method"
+                value={paymentMethod}
+                options={PAYMENT_METHODS}
+                onChange={setPaymentMethod}
+              />
             </View>
 
             {/* Recurring Toggle */}
@@ -820,23 +1015,14 @@ export default function TransactionFormSheet({
             {/* Frequency (if recurring) */}
             {isRecurring && (
               <View style={styles.fieldContainer}>
-                <Text style={styles.label}>Frequency</Text>
-                <View style={styles.pickerContainer}>
-                  <Picker
-                    selectedValue={frequency}
-                    onValueChange={setFrequency}
-                    style={styles.picker}
-                    dropdownIconColor={themeColors.foreground}
-                  >
-                    {FREQUENCY_OPTIONS.map((freq) => (
-                      <Picker.Item
-                        key={freq.value}
-                        label={freq.label}
-                        value={freq.value}
-                      />
-                    ))}
-                  </Picker>
-                </View>
+                <SelectField
+                  label="Frequency"
+                  title="Select frequency"
+                  placeholder="Select frequency"
+                  value={frequency}
+                  options={FREQUENCY_OPTIONS}
+                  onChange={(value) => setFrequency(value as typeof frequency)}
+                />
               </View>
             )}
 
@@ -856,23 +1042,14 @@ export default function TransactionFormSheet({
             </View>
 
             {/* Submit Button */}
-            <TouchableOpacity
-              style={[
-                styles.submitButton,
-                (isCreating || isUpdating || (isEdit && !isDirty)) &&
-                styles.submitButtonDisabled,
-              ]}
+            <Button
+              style={styles.submitButton}
               onPress={handleSubmit}
-              disabled={isCreating || isUpdating || (isEdit && !isDirty)}
-            >
-              <Text style={styles.submitButtonText}>
-                {isCreating || isUpdating
-                  ? "Saving..."
-                  : isEdit
-                    ? "Update Transaction"
-                    : "Add Transaction"}
-              </Text>
-            </TouchableOpacity>
+              loading={isCreating || isUpdating}
+              loadingLabel="Saving…"
+              disabled={isEdit && !isDirty}
+              label={isEdit ? "Update Transaction" : "Add Transaction"}
+            />
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -1080,17 +1257,6 @@ const createStyles = (theme: typeof colors.light) =>
       fontSize: 15,
       color: theme.foreground,
     },
-    pickerContainer: {
-      backgroundColor: theme.background,
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: borderRadius.xl,
-      overflow: "hidden",
-    },
-    picker: {
-      fontFamily: fontFamily.regular,
-      color: theme.foreground,
-    },
     segmentRow: {
       flexDirection: "row",
       gap: spacing.sm,
@@ -1116,23 +1282,8 @@ const createStyles = (theme: typeof colors.light) =>
       fontSize: 13,
     },
     segmentTextActive: {
-      color: "#ffffff",
+      color: theme.primaryForeground,
       fontFamily: fontFamily.medium,
-    },
-    dateButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.sm,
-      backgroundColor: theme.background,
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: borderRadius.xl,
-      padding: spacing.md,
-    },
-    dateText: {
-      fontFamily: fontFamily.regular,
-      fontSize: 14,
-      color: theme.foreground,
     },
     recurringContainer: {
       flexDirection: "row",
@@ -1153,23 +1304,42 @@ const createStyles = (theme: typeof colors.light) =>
       color: theme.mutedForeground,
       marginTop: spacing.xs,
     },
-    submitButton: {
-      backgroundColor: theme.primary,
-      borderRadius: borderRadius.full,
-      paddingVertical: spacing.md + 2,
-      paddingHorizontal: spacing.lg,
+    newCategorySection: {
+      marginTop: spacing.md,
+      padding: spacing.md,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: borderRadius.md,
+      backgroundColor: theme.background,
+    },
+    colorSwatchRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm + 2,
+      marginTop: spacing.xs,
+    },
+    colorSwatch: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
       alignItems: "center",
       justifyContent: "center",
+      borderColor: "transparent",
+    },
+
+    switchRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginTop: spacing.sm,
+    },
+
+    switchLabel: {
+      fontSize: fontSize.sm,
+      color: theme.foreground,
+    },
+    submitButton: {
       marginTop: spacing.lg,
       marginBottom: spacing.xl,
-      ...shadows.md,
-    },
-    submitButtonDisabled: {
-      opacity: 0.5,
-    },
-    submitButtonText: {
-      fontFamily: fontFamily.semibold,
-      fontSize: 15,
-      color: "#ffffff",
     },
   });

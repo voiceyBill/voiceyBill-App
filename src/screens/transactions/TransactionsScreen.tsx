@@ -8,11 +8,13 @@ import {
   TextInput,
   RefreshControl,
   Modal,
-  ActivityIndicator,
   Pressable,
   ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Spinner from "../../components/common/Spinner";
+import { getApiErrorMessage } from "../../lib/getApiErrorMessage";
+import { useFloatingTabBarSpace } from "../../navigation/tabBarLayout";
 import { RouteProp } from "@react-navigation/native";
 import {
   useGetAllTransactionsQuery,
@@ -50,7 +52,6 @@ import { Ionicons } from "@expo/vector-icons";
 import {
   Search,
   Filter,
-  Plus,
   Upload,
   MoreVertical,
   Trash2,
@@ -71,6 +72,7 @@ interface TransactionsScreenProps {
 export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const tabBarSpace = useFloatingTabBarSpace();
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const { voiceData, setVoiceData } = useVoiceRecording();
@@ -190,7 +192,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
       refetch();
     } catch (error) {
       console.error("Failed to delete transaction:", error);
-      showToast({ type: "error", title: "Error", message: "Failed to delete transaction." });
+      showToast({ type: "error", title: "Error", message: getApiErrorMessage(error, "Failed to delete transaction.") });
     }
   };
 
@@ -206,13 +208,8 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
       showToast({ type: "success", title: "Duplicated", message: "Transaction duplicated successfully." });
     } catch (error) {
       console.error("Failed to duplicate transaction:", error);
-      showToast({ type: "error", title: "Error", message: "Failed to duplicate transaction." });
+      showToast({ type: "error", title: "Error", message: getApiErrorMessage(error, "Failed to duplicate transaction.") });
     }
-  };
-
-  const handleAddNew = () => {
-    setEditingTransactionId(undefined);
-    setShowFormSheet(true);
   };
 
   const handleCloseForm = () => {
@@ -269,8 +266,8 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
       setSelectedIds(new Set());
       showToast({ type: "success", title: "Deleted", message: "Selected transactions removed." });
       refetch();
-    } catch {
-      showToast({ type: "error", title: "Error", message: "Failed to delete selected transactions." });
+    } catch (error) {
+      showToast({ type: "error", title: "Error", message: getApiErrorMessage(error, "Failed to delete selected transactions.") });
     }
   };
 
@@ -301,8 +298,6 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   const totalPages = data?.pagination?.totalPages || 0;
   const totalCount = data?.pagination?.totalCount || 0;
   const items = data?.transactions || [];
-  const showingFrom = items.length ? (page - 1) * pageSize + 1 : 0;
-  const showingTo = items.length ? Math.min(page * pageSize, totalCount) : 0;
 
   const hasActiveFilters =
     search || typeFilter !== "ALL" || recurringFilter !== "ALL";
@@ -703,6 +698,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
         data={items}
         keyExtractor={(item) => item._id}
         renderItem={renderTransactionCard}
+        style={styles.list}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl refreshing={isLoading} onRefresh={refetch} />
@@ -730,6 +726,8 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
           {
             backgroundColor: themeColors.card,
             borderTopColor: themeColors.border,
+            // Lift the pinned footer clear of the floating tab bar.
+            marginBottom: tabBarSpace,
           },
         ]}
       >
@@ -898,7 +896,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
 
             {isDetailsLoading && (
               <View style={styles.sheetState}>
-                <ActivityIndicator size="small" color={themeColors.primary} />
+                <Spinner size={18} color={themeColors.primary} />
                 <Text
                   style={[
                     styles.sheetStateText,
@@ -1375,9 +1373,14 @@ const createStyles = (theme: typeof colors.light) =>
       fontFamily: fontFamily.semibold,
       fontSize: 13,
     },
+    list: {
+      flex: 1,
+    },
     listContent: {
       paddingHorizontal: spacing.lg,
-      paddingBottom: 120,
+      // Footer is a separate pinned bar below the list, so the list only needs
+      // a little breathing room at the end of its scroll content.
+      paddingBottom: spacing.md,
     },
     transactionCard: {
       borderRadius: borderRadius.xl,

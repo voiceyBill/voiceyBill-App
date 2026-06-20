@@ -6,11 +6,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import Spinner from "../../components/common/Spinner";
+import { Button } from "../../components/common";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFloatingTabBarSpace } from "../../navigation/tabBarLayout";
 import { useNavigation } from "@react-navigation/native";
 import { Eye, EyeOff, ChevronLeft } from "lucide-react-native";
 import { useTheme } from "../../context/ThemeContext";
@@ -58,6 +60,7 @@ export default function ChangePasswordScreen() {
   const themeColors = colors[activeTheme];
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
+  const tabBarSpace = useFloatingTabBarSpace();
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -147,7 +150,7 @@ export default function ChangePasswordScreen() {
         style={styles.keyboardAvoiding}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.scrollContainer, { paddingBottom: tabBarSpace }]} showsVerticalScrollIndicator={false}>
           <View
             style={[styles.header, { paddingTop: Math.max(insets.top, spacing.sm) }]}
           >
@@ -322,31 +325,14 @@ export default function ChangePasswordScreen() {
               </Text>
             ) : null}
 
-            <TouchableOpacity
+            <Button
+              style={styles.button}
               onPress={handleSubmit}
-              activeOpacity={0.85}
+              loading={isLoading}
+              loadingLabel="Updating…"
               disabled={!canSubmit}
-              style={[
-                styles.button,
-                {
-                  backgroundColor: themeColors.primary,
-                  opacity: canSubmit ? 1 : 0.45,
-                },
-              ]}
-            >
-              {isLoading ? (
-                <ActivityIndicator color={themeColors.primaryForeground} />
-              ) : (
-                <Text
-                  style={[
-                    styles.buttonText,
-                    { color: themeColors.primaryForeground },
-                  ]}
-                >
-                  Update password
-                </Text>
-              )}
-            </TouchableOpacity>
+              label="Update password"
+            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -454,15 +440,6 @@ const createStyles = (themeColors: any) =>
       fontSize: 13,
     },
     button: {
-      borderRadius: borderRadius.full,
-      paddingVertical: spacing.md,
-      alignItems: "center",
-      justifyContent: "center",
       marginTop: spacing.sm,
-      ...shadows.md,
-    },
-    buttonText: {
-      fontFamily: fontFamily.semibold,
-      fontSize: 15,
     },
   });
