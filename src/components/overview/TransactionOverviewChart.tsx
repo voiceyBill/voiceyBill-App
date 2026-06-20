@@ -270,12 +270,16 @@ export default function TransactionOverviewChart({
               const label = (() => {
                 try { return format(new Date(d.date), 'MMM d'); } catch { return ''; }
               })();
+              // Anchor the edge labels inward so the first/last don't overflow
+              // the SVG viewport and get clipped (e.g. a cut-off "Jun 17").
+              const textAnchor: 'start' | 'middle' | 'end' =
+                idx === 0 ? 'start' : idx === data.length - 1 ? 'end' : 'middle';
               return (
                 <SvgText
                   key={`xlabel-${idx}`}
                   x={sx(idx)}
                   y={closeY + 16}
-                  textAnchor="middle"
+                  textAnchor={textAnchor}
                   fontSize={9}
                   fill={axisLabelColor}
                   fontWeight="600"

@@ -11,6 +11,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useNotification } from '../context/NotificationContext';
 import { useVoiceRecording } from '../context/VoiceRecordingContext';
 import { colors, spacing, fontFamily } from '../theme/colors';
+import { FLOATING_TAB_BAR_HEIGHT } from './tabBarLayout';
 
 // Screens
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
@@ -203,7 +204,11 @@ export default function MainNavigator() {
       />
       <Tab.Screen name="Reports" component={ReportsScreen} />
       <Tab.Screen name="Budget" component={BudgetScreen} />
-      <Tab.Screen name="Notifications" component={NotificationsScreen} />
+      <Tab.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{ headerShown: false }}
+      />
       <Tab.Screen name="Settings" component={SettingsNavigator} />
     </Tab.Navigator>
   );
@@ -269,7 +274,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 64,
+    height: FLOATING_TAB_BAR_HEIGHT,
     width: '90%',
     maxWidth: 420,
     borderRadius: 32,

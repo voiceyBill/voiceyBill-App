@@ -4,10 +4,11 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   Animated,
   ScrollView,
 } from "react-native";
+import Spinner from "../common/Spinner";
+import { getApiErrorMessage } from "../../lib/getApiErrorMessage";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
 import lamejs from "lamejs";
@@ -308,7 +309,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       showToast({
         type: "error",
         title: "Processing failed",
-        message: error?.message || "Failed to process voice recording. Please try again.",
+        message: getApiErrorMessage(error, "Failed to process voice recording. Please try again."),
       });
     } finally {
       onLoadingChange(false);
@@ -743,7 +744,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
           {/* Processing */}
           {loadingChange && (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={themeColors.primary} />
+              <Spinner size={40} color={themeColors.primary} />
               <Text
                 style={[styles.loadingTitle, { color: themeColors.foreground }]}
               >

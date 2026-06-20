@@ -100,6 +100,15 @@ const baseQueryWithReauth: BaseQueryFn<
   const argsUrl = typeof args === "string" ? args : args.url;
   if (argsUrl === "/auth/refresh-token") return result;
 
+  // A 401 on a request that carried NO access token isn't an expired session —
+  // it's a normal auth failure (e.g. wrong password on /auth/login). Running the
+  // refresh path here finds no refresh token, then calls resetApiState(), which
+  // aborts the in-flight login mutation and surfaces a misleading "Aborted" /
+  // "can't reach the server" error instead of the server's real 401 message.
+  // Returning the result lets the screen show "Invalid email/password".
+  const hasAccessToken = !!(api.getState() as RootState).auth?.accessToken;
+  if (!hasAccessToken) return result;
+
   if (!refreshInFlight) {
     refreshInFlight = performRefresh(api, extraOptions).finally(() => {
       refreshInFlight = null;

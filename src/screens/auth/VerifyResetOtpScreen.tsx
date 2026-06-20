@@ -5,9 +5,11 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   ScrollView,
-  ActivityIndicator,
 } from 'react-native';
+import Spinner from '../../components/common/Spinner';
+import { Button } from '../../components/common';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getApiErrorMessage } from '../../lib/getApiErrorMessage';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useForgotPasswordMutation } from '../../features/auth/authAPI';
@@ -54,7 +56,7 @@ export default function VerifyResetOtpScreen() {
       showToast({
         type: 'error',
         title: 'Could not resend',
-        message: error?.data?.message || 'Failed to resend code.',
+        message: getApiErrorMessage(error, 'Failed to resend code.'),
       });
     }
   };
@@ -89,15 +91,12 @@ export default function VerifyResetOtpScreen() {
               <OtpInput value={otp} onChange={(v) => { setOtp(v); setOtpError(''); }} />
               {otpError ? <Text style={styles.otpHint}>{otpError}</Text> : null}
 
-              <TouchableOpacity
-                style={[styles.button, otp.length !== 6 && styles.buttonDisabled]}
+              <Button
+                style={styles.button}
                 onPress={handleContinue}
                 disabled={otp.length !== 6}
-              >
-                <Text style={[styles.buttonText, { color: themeColors.primaryForeground }]}>
-                  Continue
-                </Text>
-              </TouchableOpacity>
+                label="Continue"
+              />
 
               <TouchableOpacity
                 style={styles.outlineButton}
@@ -105,7 +104,7 @@ export default function VerifyResetOtpScreen() {
                 disabled={isResending}
               >
                 {isResending ? (
-                  <ActivityIndicator size="small" color={themeColors.foreground} />
+                  <Spinner size={18} color={themeColors.foreground} />
                 ) : (
                   <Ionicons name="refresh" size={16} color={themeColors.foreground} />
                 )}

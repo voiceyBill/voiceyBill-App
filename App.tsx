@@ -1,6 +1,5 @@
 import "react-native-gesture-handler";
 import React from "react";
-import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Provider } from "react-redux";
@@ -22,6 +21,7 @@ import { VoiceRecordingProvider } from "./src/context/VoiceRecordingContext";
 import AppNavigator from "./src/navigation/AppNavigator";
 import SplashScreen from "./src/components/SplashScreen";
 import ToastHost from "./src/components/common/ToastHost";
+import ThemedSystemBars from "./src/components/common/ThemedSystemBars";
 
 export default function App() {
   const [splashDone, setSplashDone] = React.useState(false);
@@ -47,7 +47,7 @@ export default function App() {
               <NotificationProvider>
                 <ConfirmProvider>
                   <VoiceRecordingProvider>
-                    <StatusBar style="auto" />
+                    <ThemedSystemBars />
 
                     {splashDone ? (
                       <>

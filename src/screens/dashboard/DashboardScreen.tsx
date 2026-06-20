@@ -10,6 +10,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFloatingTabBarSpace } from "../../navigation/tabBarLayout";
+import Spinner from "../../components/common/Spinner";
 import {
   useGetSummaryAnalyticsQuery,
   useGetChartAnalyticsQuery,
@@ -40,6 +42,7 @@ export default function DashboardScreen({ navigation }: any) {
   const { activeTheme } = useTheme();
   const theme = colors[activeTheme];
   const insets = useSafeAreaInsets();
+  const tabBarSpace = useFloatingTabBarSpace();
   const { notifications } = useNotification();
   const unreadCount = notifications.length;
   const [preset, setPreset] = useState<DateRangePreset>("30days");
@@ -74,7 +77,7 @@ export default function DashboardScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={styles.scrollContainer}
+        contentContainerStyle={[styles.scrollContainer, { paddingBottom: tabBarSpace }]}
         showsVerticalScrollIndicator={false}
         bounces={false}
         refreshControl={
@@ -143,16 +146,35 @@ export default function DashboardScreen({ navigation }: any) {
                 </View>
               </View>
             </View>
-            <TransactionOverviewChart
-              data={chartQuery.data?.data?.chartData || []}
-              totalIncomeCount={chartQuery.data?.data?.totalIncomeCount || 0}
-              totalExpenseCount={chartQuery.data?.data?.totalExpenseCount || 0}
-              periodLabel={summary?.preset?.label || "Past 30 Days"}
-              baseCurrency={baseCurrency}
-              hideHeader={true}
-              transparentBackground={true}
-              height={180}
-            />
+            {/* Distinguish "still loading" (slow network) from "genuinely no
+                data" — otherwise the chart's empty state shows during loading. */}
+            {chartQuery.isLoading ? (
+              <View style={styles.chartStateBox}>
+                <Spinner size={32} />
+              </View>
+            ) : chartQuery.isError && !chartQuery.data ? (
+              <View style={styles.chartStateBox}>
+                <Text style={styles.chartErrorText}>Couldn't load the chart.</Text>
+                <TouchableOpacity
+                  style={styles.retryBtn}
+                  onPress={() => chartQuery.refetch()}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.retryText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TransactionOverviewChart
+                data={chartQuery.data?.data?.chartData || []}
+                totalIncomeCount={chartQuery.data?.data?.totalIncomeCount || 0}
+                totalExpenseCount={chartQuery.data?.data?.totalExpenseCount || 0}
+                periodLabel={summary?.preset?.label || "Past 30 Days"}
+                baseCurrency={baseCurrency}
+                hideHeader={true}
+                transparentBackground={true}
+                height={180}
+              />
+            )}
           </View>
         </View>
 
@@ -320,6 +342,30 @@ const createStyles = (theme: typeof colors.light, insets: any) =>
       alignItems: "center",
       paddingHorizontal: spacing.lg,
       marginBottom: spacing.sm,
+    },
+    chartStateBox: {
+      height: 180,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.md,
+    },
+    chartErrorText: {
+      fontFamily: fontFamily.medium,
+      fontSize: 13,
+      color: theme.mutedForeground,
+    },
+    retryBtn: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.xs + 2,
+      borderRadius: 999,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.border,
+      backgroundColor: theme.muted,
+    },
+    retryText: {
+      fontFamily: fontFamily.semibold,
+      fontSize: 13,
+      color: theme.foreground,
     },
     cardTitle: {
       fontFamily: fontFamily.semibold,

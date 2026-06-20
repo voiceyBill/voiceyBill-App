@@ -1,3 +1,5 @@
+import { getApiErrorMessage } from '../../lib/getApiErrorMessage';
+
 export type PasswordRuleKey = 'length' | 'uppercase' | 'number' | 'special';
 
 export type PasswordRuleState = Record<PasswordRuleKey, boolean>;
@@ -62,7 +64,9 @@ export const mapAuthApiErrors = (
     }
   });
 
-  const message = getServerMessage(error) || fallbackMessage;
+  // Always a friendly, sanitized message — never raw transport noise ("Aborted",
+  // "Network request failed", etc.). See lib/getApiErrorMessage.
+  const message = getApiErrorMessage(error, fallbackMessage);
 
   if (Object.keys(mappedErrors).length > 0) {
     if (mappedErrors.password && getServerMessage(error)) {

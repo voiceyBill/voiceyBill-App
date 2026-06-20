@@ -7,10 +7,10 @@ import {
   Modal,
   FlatList,
   StyleSheet,
-  SafeAreaView,
   Image,
   Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Search, X, Check } from "lucide-react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { colors, spacing, fontSize, fontWeight, borderRadius, fontFamily } from "../../theme/colors";
