@@ -64,6 +64,7 @@ import {
   Check,
 } from "lucide-react-native";
 import VoiceRecorder from "./VoiceRecorder";
+import { Picker } from "@react-native-picker/picker";
 
 interface TransactionFormSheetProps {
   isVisible: boolean;
@@ -847,6 +848,30 @@ export default function TransactionFormSheet({
 
             {/* Category */}
             <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Category *</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={category}
+                  onValueChange={setCategory}
+                  style={styles.picker}
+                  dropdownIconColor={themeColors.foreground}
+                >
+                  <Picker.Item label="Select a category" value="" />
+                  {
+                    (() => {
+                      const added = (user as any)?.customCategories || [];
+                      const all = [...CATEGORIES, ...added];
+                      return all.map((cat: any) => (
+                        <Picker.Item
+                          key={cat.value}
+                          label={cat.label}
+                          value={cat.value}
+                        />
+                      ));
+                    })()
+                  }
+                </Picker>
+              </View>
               <SelectField
                 label="Category *"
                 title="Select a category"
@@ -1142,6 +1167,16 @@ const createStyles = (theme: typeof colors.light) =>
       fontSize: 13,
       color: theme.foreground,
       marginBottom: spacing.sm,
+    },
+    pickerContainer: {
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: borderRadius.xl,
+      backgroundColor: theme.background,
+    },
+
+    picker: {
+      color: theme.foreground,
     },
     input: {
       backgroundColor: theme.background,

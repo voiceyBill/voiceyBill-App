@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -9,6 +10,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -32,6 +34,10 @@ import {
   X,
 } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { useTypedSelector, useAppDispatch } from '../../store/hooks';
+import { updateUser } from '../../features/auth/authSlice';
+import { useUpdateUserProfileMutation } from '../../features/user/userAPI';
+import { useGetAllTransactionsQuery, useUpdateTransactionMutation } from '../../features/transaction/transactionAPI';
 import { useNotification, useToast } from '../../context/NotificationContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -55,8 +61,6 @@ import {
   useGetBudgetSummaryQuery,
   useUpsertBudgetMutation,
 } from '../../features/budget/budgetAPI';
-import { useGetSupportedCurrenciesQuery } from '../../features/currency/currencyAPI';
-import { useTypedSelector } from '../../store/hooks';
 import BudgetCategoryPie from '../../components/budget/BudgetCategoryPie';
 import VoiceRecorder from '../../components/transaction/VoiceRecorder';
 import { useIsFocused } from '@react-navigation/native';
@@ -151,11 +155,8 @@ const formatBudgetCategory = (name: string) => {
 
 const getCategoryIcon = (name: string) => categoryIcons[name] ?? PiggyBank;
 
-const formatBudgetCurrency = (
-  value: number,
-  currency: string = 'USD',
-  options: Parameters<typeof formatCurrency>[1] = {},
-) => formatCurrency(Math.round(value), { ...options, currency, decimalPlaces: 0 });
+// formatBudgetCurrency is created inside the component so it can use the
+// current user's base currency from the auth store.
 
 const parseBudgetAmount = (value: string) => {
   const amount = Number(String(value || '').replace(/,/g, ''));
@@ -165,18 +166,18 @@ const parseBudgetAmount = (value: string) => {
 const BudgetScreen = () => {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
+  const { user } = useTypedSelector((state) => state.auth);
+  const userBaseCurrency = user?.baseCurrency || 'USD';
+  const formatBudgetCurrency = (
+    value: number,
+    options: Parameters<typeof formatCurrency>[1] = {},
+  ) => formatCurrency(Math.round(value), { ...options, decimalPlaces: 0, currency: userBaseCurrency });
   const { showNotification } = useNotification();
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const insets = useSafeAreaInsets();
   const tabBarSpace = useFloatingTabBarSpace();
   const isBudgetFocused = useIsFocused();
-  const { user } = useTypedSelector((state) => state.auth);
-  const { data: currencyData } = useGetSupportedCurrenciesQuery();
-  const baseCurrency = user?.baseCurrency || 'USD';
-  const currencySymbol = currencyData?.currencies?.find(
-    (c) => c.code === baseCurrency
-  )?.symbol ?? '$';
   const currentMonthYear = getCurrentMonthYear();
   const monthOptions = useMemo(() => getBudgetMonthOptions(), []);
   const [selectedMonthValue, setSelectedMonthValue] = useState(
@@ -235,6 +236,101 @@ const BudgetScreen = () => {
     () => categoryLimitPayload.reduce((sum, item) => sum + item.limit, 0),
     [categoryLimitPayload],
   );
+
+  // Additional state for adding custom categories
+  const dispatch = useAppDispatch();
+  const [updateUserProfile] = useUpdateUserProfileMutation();
+  const [updateTransaction] = useUpdateTransactionMutation();
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryLimit, setNewCategoryLimit] = useState('');
+  const [newCategoryPermanent, setNewCategoryPermanent] = useState(false);
+  const [temporaryCategories, setTemporaryCategories] = useState<{
+    value: string;
+    label: string;
+    permanent?: boolean;
+  }[]>([]);
+
+  const slugify = (s: string) =>
+    s
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '_')
+      .replace(/[^a-z0-9_]/g, '');
+
+  const handleAddCategory = async () => {
+    const label = newCategoryName.trim();
+    if (!label) return alert('Please enter a category name');
+    const value = slugify(label);
+    const limitNum = Number(newCategoryLimit) || 0;
+
+    setCategoryLimits((prev) => ({ ...prev, [value]: limitNum > 0 ? String(limitNum) : '' }));
+    setTemporaryCategories((prev) => [...prev, { value, label, permanent: newCategoryPermanent }]);
+
+    // Persist permanent category to user profile (best-effort)
+    if (newCategoryPermanent) {
+      try {
+        const existing = (user as any)?.customCategories || [];
+        const updated = [...existing, { value, label }];
+        await (updateUserProfile as any)({ customCategories: updated }).unwrap?.();
+        // attach customCategories locally as a best-effort
+        dispatch((updateUser as any)({ ...(user || {}), customCategories: updated }));
+      } catch (e) {
+        // Fallback: update Redux store only
+        dispatch((updateUser as any)({ ...(user || {}), customCategories: ((user as any)?.customCategories || []).concat({ value, label }) }));
+      }
+    }
+
+    // Note: applying to existing transactions is not implemented here.
+
+    setNewCategoryName('');
+    setNewCategoryLimit('');
+    setNewCategoryPermanent(false);
+  };
+
+  const isCategoryCustom = (value: string) => {
+    const inTemp = temporaryCategories.find((c) => c.value === value);
+    const inUser = (user as any)?.customCategories?.find((c: any) => c.value === value);
+    return Boolean(inTemp || inUser);
+  };
+
+  const isCategoryPermanent = (value: string) => {
+    const inUser = (user as any)?.customCategories?.find((c: any) => c.value === value);
+    const inTemp = temporaryCategories.find((c) => c.value === value && c.permanent);
+    return Boolean(inUser || inTemp);
+  };
+
+  const handleTogglePermanent = async (value: string, label: string) => {
+    const currentlyPermanent = isCategoryPermanent(value);
+    if (currentlyPermanent) {
+      // remove from persisted user custom categories
+      try {
+        const existing = (user as any)?.customCategories || [];
+        const updated = existing.filter((c: any) => c.value !== value);
+        await (updateUserProfile as any)({ customCategories: updated }).unwrap?.();
+        dispatch((updateUser as any)({ ...(user || {}), customCategories: updated }));
+      } catch (e) {
+        dispatch((updateUser as any)({ ...(user || {}), customCategories: ((user as any)?.customCategories || []).filter((c: any) => c.value !== value) }));
+      }
+
+      // also update temporaryCategories to unset permanent flag
+      setTemporaryCategories((prev) => prev.map((c) => (c.value === value ? { ...c, permanent: false } : c)));
+      return;
+    }
+
+    // make permanent: add to user custom categories and persist
+    try {
+      const existing = (user as any)?.customCategories || [];
+      const already = existing.find((c: any) => c.value === value);
+      const updated = already ? existing : [...existing, { value, label }];
+      await (updateUserProfile as any)({ customCategories: updated }).unwrap?.();
+      dispatch((updateUser as any)({ ...(user || {}), customCategories: updated }));
+    } catch (e) {
+      // fallback: update local store
+      dispatch((updateUser as any)({ ...(user || {}), customCategories: ((user as any)?.customCategories || []).concat({ value, label }) }));
+    }
+
+    setTemporaryCategories((prev) => prev.map((c) => (c.value === value ? { ...c, permanent: true } : c)));
+  };
 
   const categoryLimitErrors = useMemo(() => {
     const errors: Record<string, string> = {};
@@ -316,7 +412,7 @@ const BudgetScreen = () => {
       showNotification({
         type: 'budget_alert',
         title: 'Budget Increased',
-        message: `Your overall budget increased from ${formatBudgetCurrency(previousBudget.totalBudget, baseCurrency)} to ${formatBudgetCurrency(budget.totalBudget, baseCurrency)}`,
+        message: `Your overall budget increased from ${formatBudgetCurrency(previousBudget.totalBudget)} to ${formatBudgetCurrency(budget.totalBudget)}`,
       });
     }
 
@@ -329,7 +425,7 @@ const BudgetScreen = () => {
         showNotification({
           type: 'budget_alert',
           title: 'Category Budget Increased',
-          message: `${formatBudgetCategory(category.name)} budget increased from ${formatBudgetCurrency(prevCategory.limit, baseCurrency)} to ${formatBudgetCurrency(category.limit, baseCurrency)}`,
+          message: `${formatBudgetCategory(category.name)} budget increased from ${formatBudgetCurrency(prevCategory.limit)} to ${formatBudgetCurrency(category.limit)}`,
         });
       }
     });
@@ -340,13 +436,13 @@ const BudgetScreen = () => {
   const summaryItems: SummaryItem[] = [
     {
       label: 'Total Budget',
-      value: formatBudgetCurrency(budget?.totalBudget || 0, baseCurrency),
+      value: formatBudgetCurrency(budget?.totalBudget || 0),
       progress: budget?.hasBudget ? 100 : 0,
       tone: 'safe',
     },
     {
       label: 'Spent',
-      value: formatBudgetCurrency(budget?.spent || 0, baseCurrency, {
+      value: formatBudgetCurrency(budget?.spent || 0, {
         showSign: true,
         isExpense: true,
       }),
@@ -355,7 +451,7 @@ const BudgetScreen = () => {
     },
     {
       label: 'Remaining',
-      value: formatBudgetCurrency(budget?.remaining || 0, baseCurrency),
+      value: formatBudgetCurrency(budget?.remaining || 0),
       progress: budget?.hasBudget ? Math.max(100 - (budget?.usagePercentage || 0), 0) : 0,
       tone: getBudgetTone(budget?.usagePercentage || 0),
     },
@@ -420,7 +516,7 @@ const BudgetScreen = () => {
       showNotification({
         type: 'error',
         title: 'Invalid Budget',
-        message: `Total budget must be greater than ${currencySymbol}0.`,
+        message: `Total budget must be greater than ${formatBudgetCurrency(0)}.`,
       });
       return;
     }
@@ -471,13 +567,22 @@ const BudgetScreen = () => {
         categoryLimits: categoryLimitPayload,
       }).unwrap();
 
+      // Show toast-style notification
       showNotification({
         type: 'success',
         title: 'Budget Saved',
         message: 'Your budget was saved successfully.',
       });
+
+      // Also show a native alert to confirm and close editor
+      Alert.alert('Budget saved', 'Your budget was saved successfully.', [
+        { text: 'OK', onPress: () => { } },
+      ]);
+
+      // Close editor and refresh
       setIsBudgetEditorVisible(false);
       refetch();
+      setTemporaryCategories([]);
     } catch (error: any) {
       showNotification({
         type: 'error',
@@ -575,19 +680,38 @@ const BudgetScreen = () => {
               ))}
             </View>
 
-            {budget.hasBudget && budget.categories.length > 0 && (
+            {budget.hasBudget && (
               <View style={[styles.categorySummarySection, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
                 <View style={styles.categorySummaryHeader}>
                   <Text style={[styles.sectionLabel, { color: themeColors.foreground }]}>Category Budgets</Text>
                   <Text style={[styles.sectionDescription, { color: themeColors.mutedForeground }]}>Track category distribution, limits, and usage.</Text>
                 </View>
-                <BudgetCategoryPie
-                  categories={budget.categories}
-                  totalSpent={budget.spent}
-                  formatCategory={formatBudgetCategory}
-                  getCategoryIcon={getCategoryIcon}
-                  baseCurrency={baseCurrency}
-                />
+                {
+                  (() => {
+                    const existing = budget.categories || [];
+                    const added = temporaryCategories
+                      .filter((c) => !existing.find((e) => e.name === c.value))
+                      .map((c) => ({
+                        name: c.value,
+                        limit: parseBudgetAmount(categoryLimits[c.value] || ''),
+                        spent: 0,
+                        remaining: parseBudgetAmount(categoryLimits[c.value] || ''),
+                        usagePercentage: 0,
+                        exceeded: false,
+                      } as any));
+
+                    const combined = [...existing, ...added];
+
+                    return (
+                      <BudgetCategoryPie
+                        categories={combined}
+                        totalSpent={budget.spent}
+                        formatCategory={formatBudgetCategory}
+                        getCategoryIcon={getCategoryIcon}
+                      />
+                    );
+                  })()
+                }
               </View>
             )}
 
@@ -759,7 +883,7 @@ const BudgetScreen = () => {
                   value={totalBudget}
                   onChangeText={(value) => setTotalBudget(value.replace(/[^0-9.]/g, ''))}
                   keyboardType="decimal-pad"
-                  placeholder={`${currencySymbol}0.00`}
+                  placeholder="0.00"
                   placeholderTextColor={themeColors.mutedForeground}
                   style={[styles.input, { color: themeColors.foreground, borderColor: themeColors.border, backgroundColor: themeColors.card }]}
                 />
@@ -767,36 +891,89 @@ const BudgetScreen = () => {
                 <View style={styles.categorySection}>
                   <Text style={[styles.sectionLabel, { color: themeColors.foreground }]}>Category Limits</Text>
                   <Text style={[styles.sectionDescription, { color: themeColors.mutedForeground }]}>Add limits for the categories you want to track.</Text>
-                  {CATEGORIES.map((category) => {
-                    const categoryError = categoryLimitErrors[category.value] ?? '';
+                  {
+                    // Merge built-in categories with temporary categories added in this session
+                    (() => {
+                      const added = temporaryCategories.map((c) => ({ value: c.value, label: c.label }));
+                      const all = [...CATEGORIES, ...added];
+                      return all.map((category) => {
+                        const categoryError = categoryLimitErrors[category.value] ?? '';
 
-                    return (
-                      <View
-                        key={category.value}
-                        style={[styles.categoryRow, { borderColor: categoryError ? themeColors.destructive : themeColors.border }]}
-                      >
-                        <Text style={[styles.categoryLabel, { color: themeColors.foreground }]}>{category.label}</Text>
-                        <TextInput
-                          value={categoryLimits[category.value]}
-                          onChangeText={(value) =>
-                            handleCategoryLimitChange(
-                              category.value,
-                              value.replace(/[^0-9.]/g, ''),
-                            )
-                          }
-                          keyboardType="decimal-pad"
-                          placeholder={`${currencySymbol}0.00`}
-                          placeholderTextColor={themeColors.mutedForeground}
-                          style={[styles.categoryInput, { color: themeColors.foreground, borderColor: categoryError ? themeColors.destructive : themeColors.border, backgroundColor: themeColors.card }]}
+                        const isCustom = isCategoryCustom(category.value);
+                        const permanent = isCategoryPermanent(category.value);
+
+                        return (
+                          <View
+                            key={category.value}
+                            style={[styles.categoryRow, { borderColor: categoryError ? themeColors.destructive : themeColors.border }]}
+                          >
+                            <Text style={[styles.categoryLabel, { color: themeColors.foreground }]}>{category.label}</Text>
+                            <TextInput
+                              value={categoryLimits[category.value]}
+                              onChangeText={(value) =>
+                                handleCategoryLimitChange(
+                                  category.value,
+                                  value.replace(/[^0-9.]/g, ''),
+                                )
+                              }
+                              keyboardType="decimal-pad"
+                              placeholder="0.00"
+                              placeholderTextColor={themeColors.mutedForeground}
+                              style={[styles.categoryInput, { color: themeColors.foreground, borderColor: categoryError ? themeColors.destructive : themeColors.border, backgroundColor: themeColors.card }]}
+                            />
+                            {categoryError ? (
+                              <Text style={[styles.fieldErrorText, { color: themeColors.destructive }]}>
+                                {categoryError}
+                              </Text>
+                            ) : null}
+
+                            {isCustom ? (
+                              <View style={{ marginTop: spacing.xs, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                <Text style={{ color: themeColors.mutedForeground, marginRight: 8 }}>Permanent</Text>
+                                <TouchableOpacity onPress={() => handleTogglePermanent(category.value, category.label)}>
+                                  <Text style={{ color: permanent ? themeColors.primary : themeColors.mutedForeground }}>{permanent ? 'Yes' : 'No'}</Text>
+                                </TouchableOpacity>
+                              </View>
+                            ) : null}
+
+                          </View>
+                        );
+                      });
+                    })()
+                  }
+
+                  {/* Add custom category */}
+                  <View style={[styles.customCategoryRow, { borderColor: themeColors.border }]}>
+                    <TextInput
+                      value={newCategoryName}
+                      onChangeText={setNewCategoryName}
+                      placeholder="New category name"
+                      placeholderTextColor={themeColors.mutedForeground}
+                      style={[styles.customCategoryInput, { color: themeColors.foreground, borderColor: themeColors.border, backgroundColor: themeColors.card }]}
+                    />
+                    <TextInput
+                      value={newCategoryLimit}
+                      onChangeText={(v) => setNewCategoryLimit(v.replace(/[^0-9.]/g, ''))}
+                      placeholder="Limit"
+                      placeholderTextColor={themeColors.mutedForeground}
+                      keyboardType="decimal-pad"
+                      style={[styles.customCategoryInput, { color: themeColors.foreground, borderColor: themeColors.border, backgroundColor: themeColors.card }]}
+                    />
+                    <View style={styles.customOptionsRow}>
+                      <View style={styles.customOption}>
+                        <Text style={{ color: themeColors.foreground, marginRight: 8 }}>Permanent</Text>
+                        <Switch
+                          value={newCategoryPermanent}
+                          onValueChange={setNewCategoryPermanent}
+                          trackColor={{ false: '#ccc', true: themeColors.primary }}
+                          thumbColor={newCategoryPermanent ? themeColors.primaryForeground : undefined}
                         />
-                        {categoryError ? (
-                          <Text style={[styles.fieldErrorText, { color: themeColors.destructive }]}>
-                            {categoryError}
-                          </Text>
-                        ) : null}
                       </View>
-                    );
-                  })}
+                      <TouchableOpacity onPress={handleAddCategory} style={[styles.addCategoryBtn, { backgroundColor: themeColors.primary }]}>
+                        <Text style={{ color: themeColors.primaryForeground }}>Add</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </View>
               </View>
             )}
@@ -1131,6 +1308,36 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     fontFamily: fontFamily.medium,
     fontSize: 15,
+  },
+  customCategoryRow: {
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    padding: spacing.sm,
+    marginTop: spacing.md,
+  },
+  customCategoryInput: {
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    padding: spacing.sm,
+    marginTop: spacing.xs,
+    fontSize: fontSize.base,
+    marginBottom: spacing.xs,
+  },
+  customOptionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  customOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  addCategoryBtn: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
   },
   fieldErrorText: {
     marginTop: spacing.xs,
