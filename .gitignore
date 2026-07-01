@@ -45,3 +45,8 @@ Thumbs.db
 *.backup
 *.bak
 google-services.json
+
+# Firebase service account key (SECRET — full admin access, never commit)
+*-firebase-adminsdk-*.json
+fcm-service-account.json
+service-account*.json
