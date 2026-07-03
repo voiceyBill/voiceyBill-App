@@ -52,6 +52,8 @@
       "expo-updates",
       "expo-secure-store",
       "expo-web-browser",
+      "expo-font",
+      "@react-native-community/datetimepicker",
       [
         "@react-native-google-signin/google-signin",
         {
