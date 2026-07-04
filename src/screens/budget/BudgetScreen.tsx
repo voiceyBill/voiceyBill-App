@@ -401,6 +401,10 @@ const BudgetScreen = () => {
       return;
     }
 
+    // Switch to Manual so the user can see and review the fields we just filled
+    // from voice (in Voice mode the form inputs aren't visible).
+    setBudgetMode('manual');
+
     const categoryValue = String(data?.category || '').toLowerCase();
     const matchedCategory = categories.find(
       (category) =>
