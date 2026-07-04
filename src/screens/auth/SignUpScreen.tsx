@@ -48,6 +48,11 @@ export default function SignUpScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
+  // Y offsets captured via onLayout, used to scroll a focused field into view
+  // above the keyboard (Fabric-safe — no measureLayout needed).
+  const formTopRef = useRef(0);
+  const emailGroupTopRef = useRef(0);
+  const passwordGroupTopRef = useRef(0);
 
   const signupRules = {
     ...getPasswordRules(password),
@@ -61,8 +66,18 @@ export default function SignUpScreen() {
     return undefined;
   };
 
-  const scrollToFormEnd = () => {
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 250);
+  // Bring the focused field near the top of the scroll view so it stays visible
+  // above the keyboard. Android needs this because, unlike iOS, the ScrollView
+  // does not reliably auto-scroll to the focused input. We scroll to the field's
+  // recorded onLayout offset (form offset + field offset) — Fabric-safe, and it
+  // avoids the old "scroll to end of form" bug that hid the focused field.
+  const scrollToField = (fieldTopRef: React.RefObject<number>) => {
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({
+        y: Math.max(formTopRef.current + fieldTopRef.current - 24, 0),
+        animated: true,
+      });
+    }, 150);
   };
 
   const validate = () => {
@@ -114,15 +129,15 @@ export default function SignUpScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+        keyboardVerticalOffset={0}
       >
         <ScrollView
           ref={scrollRef}
           automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           contentContainerStyle={styles.scrollContent}
-          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'none'}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -133,7 +148,12 @@ export default function SignUpScreen() {
               <Text style={styles.subtitle}>Start tracking expenses with VoiceyBill</Text>
             </View>
 
-            <View style={styles.form}>
+            <View
+              style={styles.form}
+              onLayout={(e) => {
+                formTopRef.current = e.nativeEvent.layout.y;
+              }}
+            >
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Name</Text>
                 <TextInput
@@ -154,7 +174,12 @@ export default function SignUpScreen() {
                 {errors.name ? <Text style={styles.fieldError}>{errors.name}</Text> : null}
               </View>
 
-              <View style={styles.inputGroup}>
+              <View
+                style={styles.inputGroup}
+                onLayout={(e) => {
+                  emailGroupTopRef.current = e.nativeEvent.layout.y;
+                }}
+              >
                 <Text style={styles.label}>Email</Text>
                 <TextInput
                   ref={emailRef}
@@ -171,13 +196,18 @@ export default function SignUpScreen() {
                   editable={!isLoading}
                   returnKeyType="next"
                   submitBehavior="submit"
-                  onFocus={scrollToFormEnd}
+                  onFocus={() => scrollToField(emailGroupTopRef)}
                   onSubmitEditing={() => passwordRef.current?.focus()}
                 />
                 {errors.email ? <Text style={styles.fieldError}>{errors.email}</Text> : null}
               </View>
 
-              <View style={styles.inputGroup}>
+              <View
+                style={styles.inputGroup}
+                onLayout={(e) => {
+                  passwordGroupTopRef.current = e.nativeEvent.layout.y;
+                }}
+              >
                 <Text style={styles.label}>Password</Text>
                 <View
                   style={[
@@ -201,7 +231,7 @@ export default function SignUpScreen() {
                     returnKeyType="done"
                     onFocus={() => {
                       setIsPasswordFocused(true);
-                      scrollToFormEnd();
+                      scrollToField(passwordGroupTopRef);
                     }}
                     onBlur={() => setIsPasswordFocused(false)}
                     onSubmitEditing={handleRegister}
