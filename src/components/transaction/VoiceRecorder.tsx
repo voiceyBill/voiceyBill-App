@@ -47,6 +47,66 @@ interface VoiceRecorderProps {
   autoStart?: boolean;
 }
 
+// WhatsApp-style animated waveform shown while recording.
+const WAVEFORM_BARS = 34;
+
+const RecordingWaveform: React.FC<{ color: string }> = ({ color }) => {
+  const bars = useRef(
+    Array.from({ length: WAVEFORM_BARS }, () => new Animated.Value(0.25)),
+  ).current;
+
+  useEffect(() => {
+    const anims = bars.map((bar, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(bar, {
+            toValue: 0.3 + Math.random() * 0.7,
+            duration: 260 + Math.random() * 240,
+            delay: i * 16,
+            useNativeDriver: true,
+          }),
+          Animated.timing(bar, {
+            toValue: 0.2 + Math.random() * 0.25,
+            duration: 260 + Math.random() * 240,
+            useNativeDriver: true,
+          }),
+        ]),
+      ),
+    );
+    anims.forEach((a) => a.start());
+    return () => anims.forEach((a) => a.stop());
+  }, [bars]);
+
+  return (
+    <View style={waveStyles.row}>
+      {bars.map((bar, i) => (
+        <Animated.View
+          key={i}
+          style={[
+            waveStyles.bar,
+            { backgroundColor: color, transform: [{ scaleY: bar }] },
+          ]}
+        />
+      ))}
+    </View>
+  );
+};
+
+const waveStyles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 52,
+    gap: 3,
+  },
+  bar: {
+    width: 3,
+    height: 44,
+    borderRadius: 2,
+  },
+});
+
 const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   loadingChange,
   onLoadingChange,
@@ -682,6 +742,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
                   {formatDuration(recordingDuration)}
                 </Text>
               </View>
+              <RecordingWaveform color={themeColors.primary} />
               <TouchableOpacity
                 style={[
                   styles.stopButton,
