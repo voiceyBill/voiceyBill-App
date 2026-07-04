@@ -9,7 +9,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { useNotification } from '../context/NotificationContext';
-import { useVoiceRecording } from '../context/VoiceRecordingContext';
 import { colors, spacing, fontFamily } from '../theme/colors';
 import { FLOATING_TAB_BAR_HEIGHT } from './tabBarLayout';
 
@@ -45,7 +44,6 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const insets = useSafeAreaInsets();
-  const { openVoiceRecording } = useVoiceRecording();
 
   // Tabs shown in the bar (left side, then FAB, then right side)
   const leftTabs = ['Overview', 'Transactions'];
@@ -100,7 +98,9 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
         <View style={styles.fabSlot}>
           <TouchableOpacity
             activeOpacity={0.85}
-            onPress={() => openVoiceRecording(true)}
+            onPress={() =>
+              navigation.navigate('Transactions', { openVoiceMode: Date.now() })
+            }
             style={[styles.voiceFab, { backgroundColor: themeColors.primary }]}
           >
             <Ionicons name="mic" size={24} color={themeColors.primaryForeground} />
