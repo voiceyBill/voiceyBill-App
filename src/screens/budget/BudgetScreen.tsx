@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -282,10 +281,16 @@ const BudgetScreen = () => {
 
     setBudgetMode('voice');
     setTotalBudget(budget?.hasBudget ? budget.totalBudget.toString() : '');
+    // Match by normalized name so existing limits pre-fill regardless of whether
+    // the server returns the display name ("Dining & Restaurants") or a
+    // normalized key ("dining_&_restaurants"). Without this, updating a budget
+    // showed blank category fields and could wipe other categories on save.
+    const normalizeName = (s: string) =>
+      s.trim().toLowerCase().replace(/\s+/g, '_');
     setCategoryLimits(
       categories.reduce((acc, category) => {
         const existing = budget?.categories.find(
-          (item) => item.name === category.value,
+          (item) => normalizeName(item.name) === normalizeName(category.value),
         );
         acc[category.value] = existing?.limit
           ? existing.limit.toString()
@@ -482,17 +487,12 @@ const BudgetScreen = () => {
         categoryLimits: categoryLimitPayload,
       }).unwrap();
 
-      // Show toast-style notification
+      // Custom toast-style notification (no native Alert popup)
       showNotification({
         type: 'success',
         title: 'Budget Saved',
         message: 'Your budget was saved successfully.',
       });
-
-      // Also show a native alert to confirm and close editor
-      Alert.alert('Budget saved', 'Your budget was saved successfully.', [
-        { text: 'OK', onPress: () => { } },
-      ]);
 
       // Close editor and refresh
       setIsBudgetEditorVisible(false);
