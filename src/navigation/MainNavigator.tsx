@@ -100,7 +100,7 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
         <View style={styles.fabSlot}>
           <TouchableOpacity
             activeOpacity={0.85}
-            onPress={() => openVoiceRecording(true)}
+            onPress={() => openVoiceRecording()}
             style={[styles.voiceFab, { backgroundColor: themeColors.primary }]}
           >
             <Ionicons name="mic" size={24} color={themeColors.primaryForeground} />
