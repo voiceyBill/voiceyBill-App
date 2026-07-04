@@ -61,6 +61,8 @@ interface TransactionFormSheetProps {
   isEdit?: boolean;
   initialMode?: "VOICE" | "SCAN" | "MANUAL";
   initialType?: "INCOME" | "EXPENSE";
+  // Pre-fill from the instant mic popup (opens in Manual mode with these values)
+  voicePrefill?: any | null;
 }
 
 export default function TransactionFormSheet({
@@ -70,6 +72,7 @@ export default function TransactionFormSheet({
   isEdit = false,
   initialMode = "VOICE",
   initialType = "EXPENSE",
+  voicePrefill = null,
 }: TransactionFormSheetProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
@@ -133,6 +136,34 @@ export default function TransactionFormSheet({
       }
     }
   }, [isVisible, initialMode, isEdit, userBaseCurrency, initialType]);
+
+  // Map a voice/scan result onto the form fields. Used both by the in-form
+  // recorder and by the instant mic popup pre-fill.
+  const applyVoiceData = React.useCallback((data: any) => {
+    if (!data) return;
+    if (data.title) setTitle(data.title);
+    if (data.amount != null) setAmount(String(data.amount));
+    if (data.currency) setCurrency(data.currency);
+    // Server returns one of the user's category names (default or custom).
+    if (data.category && isValidCategoryName(data.category)) {
+      setCategory(String(data.category).trim());
+    }
+    if (data.paymentMethod) setPaymentMethod(String(data.paymentMethod).toUpperCase());
+    if (data.type) setType(data.type);
+    if (data.date) {
+      const d = new Date(data.date);
+      if (!isNaN(d.getTime())) setDate(d);
+    }
+    if (data.description) setDescription(data.description);
+  }, []);
+
+  // Pre-fill from the instant mic popup. The caller opens us in Manual mode
+  // (initialMode="MANUAL") so the filled fields are visible for review.
+  React.useEffect(() => {
+    if (isVisible && voicePrefill) {
+      applyVoiceData(voicePrefill);
+    }
+  }, [isVisible, voicePrefill, applyVoiceData]);
 
   // API hooks
   const { data: transactionData } = useGetSingleTransactionQuery(
@@ -445,47 +476,7 @@ export default function TransactionFormSheet({
               <VoiceRecorder
                 loadingChange={isVoiceProcessing}
                 onLoadingChange={setIsVoiceProcessing}
-                onVoiceComplete={(data) => {
-                  console.log("onVoiceComplete triggered with data:", data);
-                  // Map response data to form fields
-                  if (data.title) {
-                    console.log("Setting title to:", data.title);
-                    setTitle(data.title);
-                  }
-                  if (data.amount != null) {
-                    console.log("Setting amount to:", String(data.amount));
-                    setAmount(String(data.amount));
-                  }
-                  if (data.currency) {
-                    console.log("Setting currency to:", data.currency);
-                    setCurrency(data.currency);
-                  }
-                  // The server already returns one of the user's category names
-                  // (default or custom), so use it as-is.
-                  if (data.category && isValidCategoryName(data.category)) {
-                    setCategory(data.category.trim());
-                  }
-                  if (data.paymentMethod) {
-                    const pm = data.paymentMethod.toUpperCase();
-                    console.log("Setting paymentMethod to:", pm);
-                    setPaymentMethod(pm);
-                  }
-                  if (data.type) {
-                    console.log("Setting type to:", data.type);
-                    setType(data.type);
-                  }
-                  if (data.date) {
-                    const d = new Date(data.date);
-                    if (!isNaN(d.getTime())) {
-                      console.log("Setting date to:", d);
-                      setDate(d);
-                    }
-                  }
-                  if (data.description) {
-                    console.log("Setting description to:", data.description);
-                    setDescription(data.description);
-                  }
-                }}
+                onVoiceComplete={applyVoiceData}
               />
             )}
 

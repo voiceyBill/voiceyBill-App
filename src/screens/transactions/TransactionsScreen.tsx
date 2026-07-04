@@ -25,7 +25,10 @@ import {
   useBulkImportTransactionMutation,
 } from "../../features/transaction/transactionAPI";
 import { useTheme } from "../../context/ThemeContext";
-import { useVoiceRecording } from "../../context/VoiceRecordingContext";
+import {
+  useVoiceRecording,
+  type VoiceRecordingData,
+} from "../../context/VoiceRecordingContext";
 import {
   colors,
   spacing,
@@ -91,6 +94,9 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   const [initialMode, setInitialMode] = useState<"VOICE" | "SCAN" | "MANUAL">(
     "VOICE",
   );
+  const [voicePrefill, setVoicePrefill] = useState<VoiceRecordingData | null>(
+    null,
+  );
   const [editingTransactionId, setEditingTransactionId] = useState<
     string | undefined
   >();
@@ -131,13 +137,16 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
     }
   }, [route?.params?.openVoiceMode]);
 
-  // Listen for voice data from context
+  // Voice data captured by the instant mic popup: open the form in Manual mode
+  // pre-filled with the result so the user can review and save it.
   useEffect(() => {
     if (voiceData) {
+      setVoicePrefill(voiceData);
+      setInitialMode("MANUAL");
       setShowFormSheet(true);
       setVoiceData(null);
     }
-  }, [voiceData]);
+  }, [voiceData, setVoiceData]);
 
   const { data, isLoading, refetch } = useGetAllTransactionsQuery({
     keyword: debounced || undefined,
@@ -216,6 +225,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
     setShowFormSheet(false);
     setEditingTransactionId(undefined);
     setInitialMode("MANUAL");
+    setVoicePrefill(null);
     refetch();
   };
 
@@ -1192,6 +1202,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
         transactionId={editingTransactionId}
         isEdit={!!editingTransactionId}
         initialMode={initialMode}
+        voicePrefill={voicePrefill}
       />
 
       <ActionSheet
