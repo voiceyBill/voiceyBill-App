@@ -8,6 +8,7 @@ import { useGetAllTransactionsQuery } from '../../features/transaction/transacti
 import { useTypedSelector } from '../../store/hooks';
 import { formatCurrency } from '../../lib/formatCurrency';
 import { getCategoryVisual } from '../../lib/categoryVisuals';
+import { useCategoryColor } from '../../features/category/useCategoryColor';
 import { format } from 'date-fns';
 import { useNavigation } from '@react-navigation/native';
 
@@ -15,6 +16,7 @@ export default function RecentTransactions() {
   const { activeTheme } = useTheme();
   const theme = colors[activeTheme];
   const navigation = useNavigation();
+  const getCategoryColor = useCategoryColor();
 
   const user = useTypedSelector((state) => state.auth.user);
   const baseCurrency = user?.baseCurrency || "USD";
@@ -30,7 +32,7 @@ export default function RecentTransactions() {
 
   const renderTransactionCard = ({ item }: { item: any }) => {
     const isIncome = item.type === 'INCOME';
-    const visual = getCategoryVisual(item.category);
+    const visual = getCategoryVisual(item.category, getCategoryColor(item.category));
 
     const metaParts = [item.category, format(new Date(item.createdAt), 'MMM d')].filter(Boolean);
     if (item.paymentMethod) metaParts.push(formatPaymentMethod(item.paymentMethod));

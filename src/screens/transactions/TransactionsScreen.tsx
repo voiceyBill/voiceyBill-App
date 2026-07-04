@@ -50,6 +50,7 @@ import * as FileSystem from "expo-file-system";
 import { format } from "date-fns";
 import { formatCurrency } from "../../lib/formatCurrency";
 import { getCategoryVisual } from "../../lib/categoryVisuals";
+import { useCategoryColor } from "../../features/category/useCategoryColor";
 import { useTypedSelector } from "../../store/hooks";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -79,6 +80,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const { voiceData, setVoiceData } = useVoiceRecording();
+  const getCategoryColor = useCategoryColor();
 
   const user = useTypedSelector((state) => state.auth.user);
   const baseCurrency = user?.baseCurrency || "USD";
@@ -353,7 +355,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
     const accentColor = isIncome
       ? themeColors.incomeText
       : themeColors.expenseText;
-    const visual = getCategoryVisual(item.category);
+    const visual = getCategoryVisual(item.category, getCategoryColor(item.category));
 
     const metaLine1Parts = [
       formatLabel(item.category),
