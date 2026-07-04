@@ -71,6 +71,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   const recording = useRef<Audio.Recording | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const startingRef = useRef(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   const [processVoice] = useProcessVoiceMutation();
@@ -102,13 +103,43 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     }
   }, [autoStart]);
 
+  // Clean up any active recording/sound on unmount so closing the popup mid-
+  // recording (e.g. via the back button) doesn't leave a dangling recorder
+  // that makes the next "start" fail.
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      recording.current?.stopAndUnloadAsync().catch(() => {});
+      recording.current = null;
+      soundRef.current?.unloadAsync().catch(() => {});
+      soundRef.current = null;
+    };
+  }, []);
+
   const startRecording = async () => {
+    // Prevent overlapping starts (auto-start can fire more than once).
+    if (startingRef.current || isRecording) return;
+    startingRef.current = true;
     try {
       const { status } = await Audio.requestPermissionsAsync();
       if (status !== "granted") {
         showToast({ type: "warning", title: "Permission needed", message: "Microphone permission is required." });
         return;
       }
+
+      // Unload any leftover recording from a previous session that wasn't
+      // stopped (otherwise expo-av throws "only one Recording at a time").
+      if (recording.current) {
+        try {
+          await recording.current.stopAndUnloadAsync();
+        } catch {}
+        recording.current = null;
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
@@ -116,11 +147,12 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         shouldDuckAndroid: true,
         playThroughEarpieceAndroid: false,
       });
-      const rec = new Audio.Recording();
-      await rec.prepareToRecordAsync(
+
+      // createAsync prepares + starts in one call — more reliable than
+      // new Recording() + prepare + start.
+      const { recording: rec } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY,
       );
-      await rec.startAsync();
       recording.current = rec;
       setIsRecording(true);
       setRecordingDuration(0);
@@ -128,8 +160,13 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         () => setRecordingDuration((p) => p + 1),
         1000,
       );
-    } catch {
-      showToast({ type: "error", title: "Recording failed", message: "Failed to start recording." });
+    } catch (e) {
+      console.warn("[VoiceRecorder] startRecording failed:", e);
+      recording.current = null;
+      setIsRecording(false);
+      showToast({ type: "error", title: "Recording failed", message: "Couldn't start recording. Please try again." });
+    } finally {
+      startingRef.current = false;
     }
   };
 
