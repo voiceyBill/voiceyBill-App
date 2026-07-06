@@ -15,7 +15,7 @@
     "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/icon.png",
-      "backgroundColor": "#ffffff",
+      "backgroundColor": "#213e1a",
       "resizeMode": "contain"
     },
     "assetBundlePatterns": ["**/*"],

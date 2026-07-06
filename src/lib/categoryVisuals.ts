@@ -25,7 +25,24 @@ const CATEGORY_VISUALS: Record<string, CategoryVisual> = {
 
 const FALLBACK: CategoryVisual = CATEGORY_VISUALS.other;
 
-export function getCategoryVisual(category?: string): CategoryVisual {
+// Turn a #RRGGBB hex into a translucent background so custom categories get the
+// same coloured-chip look as the built-in ones.
+const hexToBg = (hex: string): string => {
+  const h = hex.replace("#", "").trim();
+  if (h.length !== 6) return FALLBACK.bgColor;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  if ([r, g, b].some((n) => Number.isNaN(n))) return FALLBACK.bgColor;
+  return `rgba(${r}, ${g}, ${b}, 0.12)`;
+};
+
+// `color` is the category's own colour (from the Category record). Custom
+// categories use it so they render as first-class categories, not grey ones.
+export function getCategoryVisual(
+  category?: string,
+  color?: string,
+): CategoryVisual {
   if (!category) return FALLBACK;
   const key = category.toLowerCase().trim();
 
@@ -50,6 +67,9 @@ export function getCategoryVisual(category?: string): CategoryVisual {
   if (has("entertainment") || has("movie") || has("game")) return CATEGORY_VISUALS.entertainment;
   if (has("income") || has("salary")) return CATEGORY_VISUALS.income;
   if (has("investment") || has("investments") || has("stock")) return CATEGORY_VISUALS.investments;
+
+  // 3. Custom category — render it in its own colour with a generic icon.
+  if (color) return { icon: "pricetag", color, bgColor: hexToBg(color) };
 
   return FALLBACK;
 }

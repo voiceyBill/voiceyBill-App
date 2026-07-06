@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Spinner from "../../components/common/Spinner";
+import { ListSkeleton } from "../../components/common/Skeleton";
 import { getApiErrorMessage } from "../../lib/getApiErrorMessage";
 import { useFloatingTabBarSpace } from "../../navigation/tabBarLayout";
 import { RouteProp } from "@react-navigation/native";
@@ -25,7 +26,10 @@ import {
   useBulkImportTransactionMutation,
 } from "../../features/transaction/transactionAPI";
 import { useTheme } from "../../context/ThemeContext";
-import { useVoiceRecording } from "../../context/VoiceRecordingContext";
+import {
+  useVoiceRecording,
+  type VoiceRecordingData,
+} from "../../context/VoiceRecordingContext";
 import {
   colors,
   spacing,
@@ -47,6 +51,7 @@ import * as FileSystem from "expo-file-system";
 import { format } from "date-fns";
 import { formatCurrency } from "../../lib/formatCurrency";
 import { getCategoryVisual } from "../../lib/categoryVisuals";
+import { useCategoryColor } from "../../features/category/useCategoryColor";
 import { useTypedSelector } from "../../store/hooks";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -76,6 +81,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const { voiceData, setVoiceData } = useVoiceRecording();
+  const getCategoryColor = useCategoryColor();
 
   const user = useTypedSelector((state) => state.auth.user);
   const baseCurrency = user?.baseCurrency || "USD";
@@ -90,6 +96,9 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   const [showFormSheet, setShowFormSheet] = useState(false);
   const [initialMode, setInitialMode] = useState<"VOICE" | "SCAN" | "MANUAL">(
     "VOICE",
+  );
+  const [voicePrefill, setVoicePrefill] = useState<VoiceRecordingData | null>(
+    null,
   );
   const [editingTransactionId, setEditingTransactionId] = useState<
     string | undefined
@@ -131,13 +140,16 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
     }
   }, [route?.params?.openVoiceMode]);
 
-  // Listen for voice data from context
+  // Voice data captured by the instant mic popup: open the form in Manual mode
+  // pre-filled with the result so the user can review and save it.
   useEffect(() => {
     if (voiceData) {
+      setVoicePrefill(voiceData);
+      setInitialMode("MANUAL");
       setShowFormSheet(true);
       setVoiceData(null);
     }
-  }, [voiceData]);
+  }, [voiceData, setVoiceData]);
 
   const { data, isLoading, refetch } = useGetAllTransactionsQuery({
     keyword: debounced || undefined,
@@ -149,6 +161,18 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
         ? (recurringFilter as RecurringStatus)
         : undefined,
   });
+
+  // Pull-to-refresh spins only on an actual user pull — not on the first load
+  // (that's what the skeleton is for).
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const [deleteTransaction] = useDeleteTransactionMutation();
   const [duplicateTransaction] = useDuplicateTransactionMutation();
@@ -178,22 +202,25 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   }, [showDetailsSheet, detailsTransactionId, refetchDetails]);
 
   const handleDelete = async (id: string) => {
-    const confirmed = await confirm({
+    await confirm({
       title: "Delete transaction",
       message: "Are you sure you want to delete this transaction?",
       confirmText: "Delete",
       destructive: true,
+      // Runs while the dialog shows a spinner on the Delete button, so the
+      // user sees the deletion is in progress instead of nothing happening.
+      onConfirm: async () => {
+        try {
+          // The row is removed from the list optimistically (see transactionAPI),
+          // so it disappears instantly in sync with this success toast.
+          await deleteTransaction(id).unwrap();
+          showToast({ type: "success", title: "Deleted", message: "Transaction removed." });
+        } catch (error) {
+          console.error("Failed to delete transaction:", error);
+          showToast({ type: "error", title: "Error", message: getApiErrorMessage(error, "Failed to delete transaction.") });
+        }
+      },
     });
-    if (!confirmed) return;
-
-    try {
-      await deleteTransaction(id).unwrap();
-      showToast({ type: "success", title: "Deleted", message: "Transaction removed." });
-      refetch();
-    } catch (error) {
-      console.error("Failed to delete transaction:", error);
-      showToast({ type: "error", title: "Error", message: getApiErrorMessage(error, "Failed to delete transaction.") });
-    }
   };
 
   const handleEdit = (id: string) => {
@@ -216,6 +243,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
     setShowFormSheet(false);
     setEditingTransactionId(undefined);
     setInitialMode("MANUAL");
+    setVoicePrefill(null);
     refetch();
   };
 
@@ -253,22 +281,21 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0 || isBulkDeleting) return;
-    const confirmed = await confirm({
+    await confirm({
       title: "Delete selected",
       message: `Delete ${selectedIds.size} selected transaction(s)?`,
       confirmText: "Delete",
       destructive: true,
+      onConfirm: async () => {
+        try {
+          await bulkDelete(Array.from(selectedIds)).unwrap();
+          setSelectedIds(new Set());
+          showToast({ type: "success", title: "Deleted", message: "Selected transactions removed." });
+        } catch (error) {
+          showToast({ type: "error", title: "Error", message: getApiErrorMessage(error, "Failed to delete selected transactions.") });
+        }
+      },
     });
-    if (!confirmed) return;
-
-    try {
-      await bulkDelete(Array.from(selectedIds)).unwrap();
-      setSelectedIds(new Set());
-      showToast({ type: "success", title: "Deleted", message: "Selected transactions removed." });
-      refetch();
-    } catch (error) {
-      showToast({ type: "error", title: "Error", message: getApiErrorMessage(error, "Failed to delete selected transactions.") });
-    }
   };
 
   const handleBulkImport = async () => {
@@ -343,7 +370,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
     const accentColor = isIncome
       ? themeColors.incomeText
       : themeColors.expenseText;
-    const visual = getCategoryVisual(item.category);
+    const visual = getCategoryVisual(item.category, getCategoryColor(item.category));
 
     const metaLine1Parts = [
       formatLabel(item.category),
@@ -360,6 +387,10 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
         activeOpacity={0.7}
         onPress={() => handleOpenDetails(item._id)}
         onLongPress={() => showActionMenu(item)}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.title}, ${isIncome ? "income" : "expense"}, ${formatLabel(item.category)}`}
+        accessibilityHint="Opens transaction details. Long press for more actions."
+        accessibilityState={{ selected }}
         style={[
           styles.transactionCard,
           {
@@ -700,22 +731,37 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
         renderItem={renderTransactionCard}
         style={styles.list}
         contentContainerStyle={styles.listContent}
+        // PERF: render a screenful first and mount the rest in small batches so a
+        // large page doesn't block the JS thread on mount; reclaim offscreen rows.
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        removeClippedSubviews
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={refetch} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={themeColors.primary}
+            colors={[themeColors.primary]}
+          />
         }
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <CircleDot
-              size={48}
-              color={themeColors.mutedForeground}
-              opacity={0.5}
-            />
-            <Text
-              style={[styles.emptyText, { color: themeColors.mutedForeground }]}
-            >
-              No transactions found
-            </Text>
-          </View>
+          isLoading ? (
+            <ListSkeleton count={8} separatorColor={themeColors.border} />
+          ) : (
+            <View style={styles.emptyState}>
+              <CircleDot
+                size={48}
+                color={themeColors.mutedForeground}
+                opacity={0.5}
+              />
+              <Text
+                style={[styles.emptyText, { color: themeColors.mutedForeground }]}
+              >
+                No transactions found
+              </Text>
+            </View>
+          )
         }
       />
 
@@ -1192,6 +1238,7 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
         transactionId={editingTransactionId}
         isEdit={!!editingTransactionId}
         initialMode={initialMode}
+        voicePrefill={voicePrefill}
       />
 
       <ActionSheet

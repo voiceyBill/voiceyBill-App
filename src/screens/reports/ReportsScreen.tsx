@@ -10,6 +10,7 @@ import {
   Switch,
 } from 'react-native';
 import Spinner from '../../components/common/Spinner';
+import { ListSkeleton } from '../../components/common/Skeleton';
 import { Button } from '../../components/common';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFloatingTabBarSpace } from '../../navigation/tabBarLayout';
@@ -43,7 +44,16 @@ export default function ReportsScreen() {
   const [scheduleEnabled, setScheduleEnabled] = useState(reportSetting?.isEnabled ?? false);
   const [isSavingSchedule, setIsSavingSchedule] = useState(false);
 
-  const { data, isLoading, isFetching, refetch } = useGetAllReportsQuery({ pageNumber: page, pageSize });
+  const { data, isLoading, refetch } = useGetAllReportsQuery({ pageNumber: page, pageSize });
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  };
   const [updateReportSetting] = useUpdateReportSettingMutation();
   const [resendReport] = useResendReportMutation();
   const [resendingReportId, setResendingReportId] = useState<string | null>(null);
@@ -118,7 +128,14 @@ export default function ReportsScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: tabBarSpace }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={themeColors.primary}
+            colors={[themeColors.primary]}
+          />
+        }
       >
         <View style={styles.contentHeader}>
           <View style={styles.headerTextWrap}>
@@ -139,10 +156,7 @@ export default function ReportsScreen() {
         <View style={styles.content}>
           {/* Loading */}
           {isLoading && (
-            <View style={styles.centerState}>
-              <Spinner size={40} color={themeColors.primary} />
-              <Text style={[styles.stateText, { color: themeColors.mutedForeground }]}>Loading reports...</Text>
-            </View>
+            <ListSkeleton count={6} separatorColor={themeColors.border} />
           )}
 
           {/* Empty state */}

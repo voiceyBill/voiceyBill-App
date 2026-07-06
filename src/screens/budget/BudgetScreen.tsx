@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -10,7 +9,6 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -34,10 +32,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { useTypedSelector, useAppDispatch } from '../../store/hooks';
-import { updateUser } from '../../features/auth/authSlice';
-import { useUpdateUserProfileMutation } from '../../features/user/userAPI';
-import { useGetAllTransactionsQuery, useUpdateTransactionMutation } from '../../features/transaction/transactionAPI';
+import { useTypedSelector } from '../../store/hooks';
 import { useNotification, useToast } from '../../context/NotificationContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -54,7 +49,8 @@ import {
   shadows,
   cardRadius,
 } from '../../theme/colors';
-import { CATEGORIES } from '../../constants/transaction';
+import { useGetCategoriesQuery } from '../../features/category/categoryAPI';
+import { isValidCategoryName } from '../../lib/category';
 import { formatCurrency } from '../../lib/formatCurrency';
 import {
   useDeleteBudgetMutation,
@@ -62,6 +58,7 @@ import {
   useUpsertBudgetMutation,
 } from '../../features/budget/budgetAPI';
 import BudgetCategoryPie from '../../components/budget/BudgetCategoryPie';
+import Skeleton from '../../components/common/Skeleton';
 import VoiceRecorder from '../../components/transaction/VoiceRecorder';
 import { useIsFocused } from '@react-navigation/native';
 import type {
@@ -148,12 +145,17 @@ const getToneColor = (tone: SummaryItem['tone'], themeColors: typeof colors.ligh
   return themeColors.primary;
 };
 
-const formatBudgetCategory = (name: string) => {
-  const category = CATEGORIES.find((item) => item.value === name);
-  return category ? category.label : name;
-};
+// Budget summaries carry the real category name (e.g. "Dining & Restaurants").
+// Prettify any legacy slug names ("dining_&_restaurants") for display.
+const formatBudgetCategory = (name: string) =>
+  name.replace(/[_-]+/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
 
-const getCategoryIcon = (name: string) => categoryIcons[name] ?? PiggyBank;
+// Map a category name to an icon by its first word ("Dining & Restaurants" ->
+// dining). Custom categories fall back to a generic icon.
+const getCategoryIcon = (name: string) => {
+  const key = name.trim().toLowerCase().split(/[\s&]+/)[0];
+  return categoryIcons[key] ?? PiggyBank;
+};
 
 // formatBudgetCurrency is created inside the component so it can use the
 // current user's base currency from the auth store.
@@ -168,6 +170,18 @@ const BudgetScreen = () => {
   const themeColors = colors[activeTheme];
   const { user } = useTypedSelector((state) => state.auth);
   const userBaseCurrency = user?.baseCurrency || 'USD';
+
+  // Single source of truth for categories (default + custom), managed only in
+  // Account → Categories.
+  const { data: categoriesResponse } = useGetCategoriesQuery();
+  const categories = useMemo(
+    () =>
+      (categoriesResponse?.data ?? [])
+        .filter((c) => isValidCategoryName(c.name))
+        .map((c) => ({ value: c.name, label: c.name, color: c.color })),
+    [categoriesResponse],
+  );
+
   const formatBudgetCurrency = (
     value: number,
     options: Parameters<typeof formatCurrency>[1] = {},
@@ -188,11 +202,7 @@ const BudgetScreen = () => {
   const [budgetMode, setBudgetMode] = useState<BudgetMode>('voice');
   const [totalBudget, setTotalBudget] = useState('');
   const [categoryLimits, setCategoryLimits] = useState<Record<string, string>>(
-    () =>
-      CATEGORIES.reduce((acc, category) => {
-        acc[category.value] = '';
-        return acc;
-      }, {} as Record<string, string>),
+    {},
   );
   const [isSaving, setIsSaving] = useState(false);
   const [isVoiceProcessing, setIsVoiceProcessing] = useState(false);
@@ -237,101 +247,6 @@ const BudgetScreen = () => {
     [categoryLimitPayload],
   );
 
-  // Additional state for adding custom categories
-  const dispatch = useAppDispatch();
-  const [updateUserProfile] = useUpdateUserProfileMutation();
-  const [updateTransaction] = useUpdateTransactionMutation();
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [newCategoryLimit, setNewCategoryLimit] = useState('');
-  const [newCategoryPermanent, setNewCategoryPermanent] = useState(false);
-  const [temporaryCategories, setTemporaryCategories] = useState<{
-    value: string;
-    label: string;
-    permanent?: boolean;
-  }[]>([]);
-
-  const slugify = (s: string) =>
-    s
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, '_')
-      .replace(/[^a-z0-9_]/g, '');
-
-  const handleAddCategory = async () => {
-    const label = newCategoryName.trim();
-    if (!label) return alert('Please enter a category name');
-    const value = slugify(label);
-    const limitNum = Number(newCategoryLimit) || 0;
-
-    setCategoryLimits((prev) => ({ ...prev, [value]: limitNum > 0 ? String(limitNum) : '' }));
-    setTemporaryCategories((prev) => [...prev, { value, label, permanent: newCategoryPermanent }]);
-
-    // Persist permanent category to user profile (best-effort)
-    if (newCategoryPermanent) {
-      try {
-        const existing = (user as any)?.customCategories || [];
-        const updated = [...existing, { value, label }];
-        await (updateUserProfile as any)({ customCategories: updated }).unwrap?.();
-        // attach customCategories locally as a best-effort
-        dispatch((updateUser as any)({ ...(user || {}), customCategories: updated }));
-      } catch (e) {
-        // Fallback: update Redux store only
-        dispatch((updateUser as any)({ ...(user || {}), customCategories: ((user as any)?.customCategories || []).concat({ value, label }) }));
-      }
-    }
-
-    // Note: applying to existing transactions is not implemented here.
-
-    setNewCategoryName('');
-    setNewCategoryLimit('');
-    setNewCategoryPermanent(false);
-  };
-
-  const isCategoryCustom = (value: string) => {
-    const inTemp = temporaryCategories.find((c) => c.value === value);
-    const inUser = (user as any)?.customCategories?.find((c: any) => c.value === value);
-    return Boolean(inTemp || inUser);
-  };
-
-  const isCategoryPermanent = (value: string) => {
-    const inUser = (user as any)?.customCategories?.find((c: any) => c.value === value);
-    const inTemp = temporaryCategories.find((c) => c.value === value && c.permanent);
-    return Boolean(inUser || inTemp);
-  };
-
-  const handleTogglePermanent = async (value: string, label: string) => {
-    const currentlyPermanent = isCategoryPermanent(value);
-    if (currentlyPermanent) {
-      // remove from persisted user custom categories
-      try {
-        const existing = (user as any)?.customCategories || [];
-        const updated = existing.filter((c: any) => c.value !== value);
-        await (updateUserProfile as any)({ customCategories: updated }).unwrap?.();
-        dispatch((updateUser as any)({ ...(user || {}), customCategories: updated }));
-      } catch (e) {
-        dispatch((updateUser as any)({ ...(user || {}), customCategories: ((user as any)?.customCategories || []).filter((c: any) => c.value !== value) }));
-      }
-
-      // also update temporaryCategories to unset permanent flag
-      setTemporaryCategories((prev) => prev.map((c) => (c.value === value ? { ...c, permanent: false } : c)));
-      return;
-    }
-
-    // make permanent: add to user custom categories and persist
-    try {
-      const existing = (user as any)?.customCategories || [];
-      const already = existing.find((c: any) => c.value === value);
-      const updated = already ? existing : [...existing, { value, label }];
-      await (updateUserProfile as any)({ customCategories: updated }).unwrap?.();
-      dispatch((updateUser as any)({ ...(user || {}), customCategories: updated }));
-    } catch (e) {
-      // fallback: update local store
-      dispatch((updateUser as any)({ ...(user || {}), customCategories: ((user as any)?.customCategories || []).concat({ value, label }) }));
-    }
-
-    setTemporaryCategories((prev) => prev.map((c) => (c.value === value ? { ...c, permanent: true } : c)));
-  };
-
   const categoryLimitErrors = useMemo(() => {
     const errors: Record<string, string> = {};
 
@@ -367,10 +282,16 @@ const BudgetScreen = () => {
 
     setBudgetMode('voice');
     setTotalBudget(budget?.hasBudget ? budget.totalBudget.toString() : '');
+    // Match by normalized name so existing limits pre-fill regardless of whether
+    // the server returns the display name ("Dining & Restaurants") or a
+    // normalized key ("dining_&_restaurants"). Without this, updating a budget
+    // showed blank category fields and could wipe other categories on save.
+    const normalizeName = (s: string) =>
+      s.trim().toLowerCase().replace(/\s+/g, '_');
     setCategoryLimits(
-      CATEGORIES.reduce((acc, category) => {
+      categories.reduce((acc, category) => {
         const existing = budget?.categories.find(
-          (item) => item.name === category.value,
+          (item) => normalizeName(item.name) === normalizeName(category.value),
         );
         acc[category.value] = existing?.limit
           ? existing.limit.toString()
@@ -378,7 +299,7 @@ const BudgetScreen = () => {
         return acc;
       }, {} as Record<string, string>),
     );
-  }, [budget, isBudgetEditorVisible]);
+  }, [budget, isBudgetEditorVisible, categories]);
 
   useEffect(() => {
     if (!isBudgetFocused || !budget?.hasBudget || budget.alerts.length === 0) return;
@@ -481,10 +402,14 @@ const BudgetScreen = () => {
       return;
     }
 
+    // Switch to Manual so the user can see and review the fields we just filled
+    // from voice (in Voice mode the form inputs aren't visible).
+    setBudgetMode('manual');
+
     const categoryValue = String(data?.category || '').toLowerCase();
-    const matchedCategory = CATEGORIES.find(
+    const matchedCategory = categories.find(
       (category) =>
-        category.value === categoryValue ||
+        category.value.toLowerCase() === categoryValue ||
         category.label.toLowerCase() === categoryValue,
     );
     const nextLimits = { ...categoryLimits };
@@ -567,22 +492,16 @@ const BudgetScreen = () => {
         categoryLimits: categoryLimitPayload,
       }).unwrap();
 
-      // Show toast-style notification
+      // Custom toast-style notification (no native Alert popup)
       showNotification({
         type: 'success',
         title: 'Budget Saved',
         message: 'Your budget was saved successfully.',
       });
 
-      // Also show a native alert to confirm and close editor
-      Alert.alert('Budget saved', 'Your budget was saved successfully.', [
-        { text: 'OK', onPress: () => { } },
-      ]);
-
       // Close editor and refresh
       setIsBudgetEditorVisible(false);
       refetch();
-      setTemporaryCategories([]);
     } catch (error: any) {
       showNotification({
         type: 'error',
@@ -595,25 +514,25 @@ const BudgetScreen = () => {
   };
 
   const handleDeleteBudget = async () => {
-    const confirmed = await confirm({
+    await confirm({
       title: 'Delete budget',
       message: 'Are you sure you want to delete this monthly budget?',
       confirmText: 'Delete',
       destructive: true,
+      onConfirm: async () => {
+        try {
+          await deleteBudget({ month, year }).unwrap();
+          showToast({ type: 'success', title: 'Budget deleted', message: 'Your monthly budget was removed.' });
+          refetch();
+        } catch (error: any) {
+          showToast({
+            type: 'error',
+            title: 'Delete failed',
+            message: getApiErrorMessage(error, 'Unable to delete budget.'),
+          });
+        }
+      },
     });
-    if (!confirmed) return;
-
-    try {
-      await deleteBudget({ month, year }).unwrap();
-      showToast({ type: 'success', title: 'Budget deleted', message: 'Your monthly budget was removed.' });
-      refetch();
-    } catch (error: any) {
-      showToast({
-        type: 'error',
-        title: 'Delete failed',
-        message: getApiErrorMessage(error, 'Unable to delete budget.'),
-      });
-    }
   };
 
   return (
@@ -644,9 +563,27 @@ const BudgetScreen = () => {
         </View>
 
         {isLoading && (
-          <View style={[styles.infoCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-            <Text style={[styles.loadingText, { color: themeColors.mutedForeground }]}>Loading budget...</Text>
-          </View>
+          <>
+            <View style={styles.summaryGrid}>
+              {[0, 1].map((i) => (
+                <View
+                  key={i}
+                  style={[styles.summaryCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+                >
+                  <Skeleton width={72} height={11} radius={5} />
+                  <Skeleton width={104} height={22} radius={7} style={{ marginTop: 10, marginBottom: 12 }} />
+                  <Skeleton width="100%" height={6} radius={3} />
+                </View>
+              ))}
+            </View>
+            <View style={[styles.categorySummarySection, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+              <Skeleton width={150} height={14} radius={6} />
+              <Skeleton width="70%" height={10} radius={5} style={{ marginTop: 10 }} />
+              <View style={{ alignItems: 'center', marginTop: 24 }}>
+                <Skeleton width={160} height={160} radius={80} />
+              </View>
+            </View>
+          </>
         )}
 
         {isError && (
@@ -686,32 +623,12 @@ const BudgetScreen = () => {
                   <Text style={[styles.sectionLabel, { color: themeColors.foreground }]}>Category Budgets</Text>
                   <Text style={[styles.sectionDescription, { color: themeColors.mutedForeground }]}>Track category distribution, limits, and usage.</Text>
                 </View>
-                {
-                  (() => {
-                    const existing = budget.categories || [];
-                    const added = temporaryCategories
-                      .filter((c) => !existing.find((e) => e.name === c.value))
-                      .map((c) => ({
-                        name: c.value,
-                        limit: parseBudgetAmount(categoryLimits[c.value] || ''),
-                        spent: 0,
-                        remaining: parseBudgetAmount(categoryLimits[c.value] || ''),
-                        usagePercentage: 0,
-                        exceeded: false,
-                      } as any));
-
-                    const combined = [...existing, ...added];
-
-                    return (
-                      <BudgetCategoryPie
-                        categories={combined}
-                        totalSpent={budget.spent}
-                        formatCategory={formatBudgetCategory}
-                        getCategoryIcon={getCategoryIcon}
-                      />
-                    );
-                  })()
-                }
+                <BudgetCategoryPie
+                  categories={budget.categories}
+                  totalSpent={budget.spent}
+                  formatCategory={formatBudgetCategory}
+                  getCategoryIcon={getCategoryIcon}
+                />
               </View>
             )}
 
@@ -891,89 +808,41 @@ const BudgetScreen = () => {
                 <View style={styles.categorySection}>
                   <Text style={[styles.sectionLabel, { color: themeColors.foreground }]}>Category Limits</Text>
                   <Text style={[styles.sectionDescription, { color: themeColors.mutedForeground }]}>Add limits for the categories you want to track.</Text>
-                  {
-                    // Merge built-in categories with temporary categories added in this session
-                    (() => {
-                      const added = temporaryCategories.map((c) => ({ value: c.value, label: c.label }));
-                      const all = [...CATEGORIES, ...added];
-                      return all.map((category) => {
-                        const categoryError = categoryLimitErrors[category.value] ?? '';
+                  {categories.map((category) => {
+                    const categoryError =
+                      categoryLimitErrors[category.value] ?? '';
 
-                        const isCustom = isCategoryCustom(category.value);
-                        const permanent = isCategoryPermanent(category.value);
-
-                        return (
-                          <View
-                            key={category.value}
-                            style={[styles.categoryRow, { borderColor: categoryError ? themeColors.destructive : themeColors.border }]}
-                          >
-                            <Text style={[styles.categoryLabel, { color: themeColors.foreground }]}>{category.label}</Text>
-                            <TextInput
-                              value={categoryLimits[category.value]}
-                              onChangeText={(value) =>
-                                handleCategoryLimitChange(
-                                  category.value,
-                                  value.replace(/[^0-9.]/g, ''),
-                                )
-                              }
-                              keyboardType="decimal-pad"
-                              placeholder="0.00"
-                              placeholderTextColor={themeColors.mutedForeground}
-                              style={[styles.categoryInput, { color: themeColors.foreground, borderColor: categoryError ? themeColors.destructive : themeColors.border, backgroundColor: themeColors.card }]}
-                            />
-                            {categoryError ? (
-                              <Text style={[styles.fieldErrorText, { color: themeColors.destructive }]}>
-                                {categoryError}
-                              </Text>
-                            ) : null}
-
-                            {isCustom ? (
-                              <View style={{ marginTop: spacing.xs, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                <Text style={{ color: themeColors.mutedForeground, marginRight: 8 }}>Permanent</Text>
-                                <TouchableOpacity onPress={() => handleTogglePermanent(category.value, category.label)}>
-                                  <Text style={{ color: permanent ? themeColors.primary : themeColors.mutedForeground }}>{permanent ? 'Yes' : 'No'}</Text>
-                                </TouchableOpacity>
-                              </View>
-                            ) : null}
-
-                          </View>
-                        );
-                      });
-                    })()
-                  }
-
-                  {/* Add custom category */}
-                  <View style={[styles.customCategoryRow, { borderColor: themeColors.border }]}>
-                    <TextInput
-                      value={newCategoryName}
-                      onChangeText={setNewCategoryName}
-                      placeholder="New category name"
-                      placeholderTextColor={themeColors.mutedForeground}
-                      style={[styles.customCategoryInput, { color: themeColors.foreground, borderColor: themeColors.border, backgroundColor: themeColors.card }]}
-                    />
-                    <TextInput
-                      value={newCategoryLimit}
-                      onChangeText={(v) => setNewCategoryLimit(v.replace(/[^0-9.]/g, ''))}
-                      placeholder="Limit"
-                      placeholderTextColor={themeColors.mutedForeground}
-                      keyboardType="decimal-pad"
-                      style={[styles.customCategoryInput, { color: themeColors.foreground, borderColor: themeColors.border, backgroundColor: themeColors.card }]}
-                    />
-                    <View style={styles.customOptionsRow}>
-                      <View style={styles.customOption}>
-                        <Text style={{ color: themeColors.foreground, marginRight: 8 }}>Permanent</Text>
-                        <Switch
-                          value={newCategoryPermanent}
-                          onValueChange={setNewCategoryPermanent}
-                          trackColor={{ false: '#ccc', true: themeColors.primary }}
-                          thumbColor={newCategoryPermanent ? themeColors.primaryForeground : undefined}
+                    return (
+                      <View
+                        key={category.value}
+                        style={[styles.categoryRow, { borderColor: categoryError ? themeColors.destructive : themeColors.border }]}
+                      >
+                        <Text style={[styles.categoryLabel, { color: themeColors.foreground }]}>{category.label}</Text>
+                        <TextInput
+                          value={categoryLimits[category.value] ?? ''}
+                          onChangeText={(value) =>
+                            handleCategoryLimitChange(
+                              category.value,
+                              value.replace(/[^0-9.]/g, ''),
+                            )
+                          }
+                          keyboardType="decimal-pad"
+                          placeholder="0.00"
+                          placeholderTextColor={themeColors.mutedForeground}
+                          style={[styles.categoryInput, { color: themeColors.foreground, borderColor: categoryError ? themeColors.destructive : themeColors.border, backgroundColor: themeColors.card }]}
                         />
+                        {categoryError ? (
+                          <Text style={[styles.fieldErrorText, { color: themeColors.destructive }]}>
+                            {categoryError}
+                          </Text>
+                        ) : null}
                       </View>
-                      <TouchableOpacity onPress={handleAddCategory} style={[styles.addCategoryBtn, { backgroundColor: themeColors.primary }]}>
-                        <Text style={{ color: themeColors.primaryForeground }}>Add</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+                    );
+                  })}
+
+                  <Text style={[styles.sectionDescription, { color: themeColors.mutedForeground, marginTop: spacing.sm }]}>
+                    Need another category? Add it in Account → Categories.
+                  </Text>
                 </View>
               </View>
             )}

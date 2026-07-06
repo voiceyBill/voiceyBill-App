@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, TouchableOpacity, View, Text, Platform } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Text, Platform, Animated } from 'react-native';
 import {
   createBottomTabNavigator,
   type BottomTabHeaderProps,
@@ -8,10 +8,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
-import { useNotification } from '../context/NotificationContext';
+import { useNotification, useToast } from '../context/NotificationContext';
 import { useVoiceRecording } from '../context/VoiceRecordingContext';
 import { colors, spacing, fontFamily } from '../theme/colors';
 import { FLOATING_TAB_BAR_HEIGHT } from './tabBarLayout';
+import RecordingWaveform from '../components/common/RecordingWaveform';
 
 // Screens
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
@@ -45,7 +46,111 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const insets = useSafeAreaInsets();
-  const { openVoiceRecording } = useVoiceRecording();
+  const { holdStart, holdEnd, holdCancel, isRecording, duration } =
+    useVoiceRecording();
+  const { showToast } = useToast();
+  const holdTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordingStartedRef = React.useRef(false);
+  const fabStartX = React.useRef(0);
+  const fabLastX = React.useRef(0);
+  const fabCancelRef = React.useRef(false);
+  const [fabCancel, setFabCancel] = React.useState(false);
+  const fabTranslateX = React.useRef(new Animated.Value(0)).current;
+  const formatDur = (s: number) =>
+    `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+
+  // Require a deliberate press-and-hold before recording begins, so a quick tap
+  // never starts a recording. Uses the responder system so we can also track
+  // the finger for WhatsApp-style slide-to-cancel.
+  const HOLD_DELAY = 450;
+  const MAX_SLIDE = 64; // how far the mic follows the finger
+  const ENTER_CANCEL = 50; // slide left past this → armed to cancel
+  const EXIT_CANCEL = 22; // slide back within this → un-armed (hysteresis)
+
+  // Re-evaluate the cancel state from the current finger offset. The two
+  // thresholds (hysteresis) stop finger jitter near the boundary from
+  // flickering between recording and cancel.
+  const updateCancel = (dx: number) => {
+    let cancel = fabCancelRef.current;
+    if (!cancel && dx < -ENTER_CANCEL) cancel = true;
+    else if (cancel && dx > -EXIT_CANCEL) cancel = false;
+    if (cancel !== fabCancelRef.current) {
+      fabCancelRef.current = cancel;
+      setFabCancel(cancel);
+    }
+  };
+
+  const slideMic = (dx: number) => {
+    fabTranslateX.setValue(Math.max(Math.min(dx, 0), -MAX_SLIDE));
+  };
+
+  const resetMic = () => {
+    Animated.timing(fabTranslateX, {
+      toValue: 0,
+      duration: 160,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const onFabGrant = (pageX: number) => {
+    fabStartX.current = pageX;
+    fabLastX.current = pageX;
+    fabCancelRef.current = false;
+    setFabCancel(false);
+    fabTranslateX.setValue(0);
+    recordingStartedRef.current = false;
+    holdTimerRef.current = setTimeout(() => {
+      recordingStartedRef.current = true;
+      holdStart();
+      // The finger may already have slid during the 450ms hold delay — sync the
+      // slide + cancel state to where it is NOW, so an early slide isn't ignored
+      // (which looked like it recorded for a moment and then cancelled).
+      const dx = fabLastX.current - fabStartX.current;
+      slideMic(dx);
+      updateCancel(dx);
+    }, HOLD_DELAY);
+  };
+
+  const onFabMove = (pageX: number) => {
+    fabLastX.current = pageX;
+    if (!recordingStartedRef.current) return;
+    const dx = pageX - fabStartX.current;
+    slideMic(dx);
+    updateCancel(dx);
+  };
+
+  const onFabRelease = async () => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    resetMic();
+    if (recordingStartedRef.current) {
+      recordingStartedRef.current = false;
+      const wasCancel = fabCancelRef.current;
+      fabCancelRef.current = false;
+      setFabCancel(false);
+      if (wasCancel) {
+        await holdCancel();
+      } else {
+        const r = await holdEnd();
+        if (r === 'tooShort') {
+          showToast({
+            type: 'info',
+            title: 'Hold to record',
+            message: 'Hold a moment and speak, then release to send.',
+          });
+        }
+      }
+    } else {
+      // Released before the hold threshold — it was just a tap.
+      showToast({
+        type: 'info',
+        title: 'Hold to record',
+        message: 'Press and hold the mic to record · release to send.',
+      });
+    }
+  };
 
   // Tabs shown in the bar (left side, then FAB, then right side)
   const leftTabs = ['Overview', 'Transactions'];
@@ -73,6 +178,9 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
         style={styles.tabItem}
         onPress={onPress}
         activeOpacity={0.7}
+        accessibilityRole="tab"
+        accessibilityLabel={name === 'Overview' ? 'Overview' : name}
+        accessibilityState={{ selected: isFocused }}
       >
         <Ionicons
           name={isFocused ? icon.active : icon.inactive}
@@ -85,6 +193,33 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
 
   return (
     <View style={[styles.floatingWrapper, { paddingBottom: insets.bottom || spacing.md }]} pointerEvents="box-none">
+      {isRecording && (
+        <View
+          style={[
+            styles.recordingBar,
+            {
+              backgroundColor: themeColors.card,
+              borderColor: fabCancel ? themeColors.destructive : themeColors.border,
+            },
+          ]}
+        >
+          {fabCancel ? (
+            <Text style={[styles.recordingCancelText, { color: themeColors.destructive }]}>
+              ‹  Release to cancel
+            </Text>
+          ) : (
+            <>
+              <View style={styles.recordingDot} />
+              <View style={styles.recordingWaveWrap}>
+                <RecordingWaveform color={themeColors.primary} barCount={28} height={26} />
+              </View>
+              <Text style={[styles.recordingTime, { color: themeColors.foreground }]}>
+                {formatDur(duration)}
+              </Text>
+            </>
+          )}
+        </View>
+      )}
       <View
         style={[
           styles.floatingBar,
@@ -96,15 +231,35 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       >
         {leftTabs.map(renderTab)}
 
-        {/* Center FAB */}
+        {/* Center FAB — hold to record, slide left to cancel, release to send */}
         <View style={styles.fabSlot}>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => openVoiceRecording(true)}
-            style={[styles.voiceFab, { backgroundColor: themeColors.primary }]}
+          <Animated.View
+            style={[
+              styles.voiceFab,
+              {
+                backgroundColor: isRecording
+                  ? themeColors.destructive
+                  : themeColors.primary,
+                opacity: fabCancel ? 0.9 : 1,
+                transform: [{ translateY: -18 }, { translateX: fabTranslateX }],
+              },
+            ]}
+            onStartShouldSetResponder={() => true}
+            onMoveShouldSetResponder={() => true}
+            onResponderGrant={(e) => onFabGrant(e.nativeEvent.pageX)}
+            onResponderMove={(e) => onFabMove(e.nativeEvent.pageX)}
+            onResponderRelease={onFabRelease}
+            onResponderTerminate={onFabRelease}
+            accessibilityRole="button"
+            accessibilityLabel={isRecording ? 'Recording voice transaction' : 'Record a voice transaction'}
+            accessibilityHint="Press and hold to record, release to send, slide left to cancel"
           >
-            <Ionicons name="mic" size={24} color={themeColors.primaryForeground} />
-          </TouchableOpacity>
+            <Ionicons
+              name={isRecording ? (fabCancel ? 'trash' : 'stop') : 'mic'}
+              size={24}
+              color={themeColors.primaryForeground}
+            />
+          </Animated.View>
         </View>
 
         {rightTabs.map(renderTab)}
@@ -142,24 +297,37 @@ function MainTopBar({ navigation, route }: BottomTabHeaderProps) {
       }
     ]}>
       <View style={styles.headerLeftGroup}>
-        <TouchableOpacity 
-          activeOpacity={0.7} 
+        <TouchableOpacity
+          activeOpacity={0.7}
           onPress={() => navigation.navigate('Transactions', { openVoiceMode: Date.now() })}
           style={styles.headerIconButton}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="Add transaction"
         >
           <Ionicons name="add-circle-outline" size={28} color={themeColors.foreground} />
         </TouchableOpacity>
       </View>
 
-      <Text style={[styles.headerTitle, { color: themeColors.foreground }]}>
+      <Text
+        style={[styles.headerTitle, { color: themeColors.foreground }]}
+        accessibilityRole="header"
+      >
         {getTitle(route.name)}
       </Text>
 
       <View style={styles.headerRightGroup}>
-        <TouchableOpacity 
-          activeOpacity={0.7} 
+        <TouchableOpacity
+          activeOpacity={0.7}
           onPress={() => navigation.navigate('Notifications')}
           style={styles.headerIconButton}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={
+            unreadCount > 0
+              ? `Notifications, ${unreadCount} unread`
+              : 'Notifications'
+          }
         >
           <Ionicons name="notifications-outline" size={24} color={themeColors.foreground} />
           {unreadCount > 0 && (
@@ -168,10 +336,13 @@ function MainTopBar({ navigation, route }: BottomTabHeaderProps) {
             </View>
           )}
         </TouchableOpacity>
-        <TouchableOpacity 
-          activeOpacity={0.7} 
+        <TouchableOpacity
+          activeOpacity={0.7}
           onPress={() => navigation.navigate('Settings')}
           style={styles.headerIconButton}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="Account and settings"
         >
           <Ionicons name="person-circle-outline" size={28} color={themeColors.foreground} />
         </TouchableOpacity>
@@ -309,5 +480,45 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 8,
+  },
+  recordingBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: spacing.sm,
+    width: '90%',
+    maxWidth: 420,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  recordingDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: '#ef4444',
+  },
+  recordingTime: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
+    fontVariant: ['tabular-nums'],
+    minWidth: 34,
+  },
+  recordingWaveWrap: {
+    flex: 1,
+    overflow: 'hidden',
+    alignItems: 'center',
+  },
+  recordingCancelText: {
+    flex: 1,
+    textAlign: 'center',
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
   },
 });

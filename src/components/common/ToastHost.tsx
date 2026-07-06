@@ -5,7 +5,7 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Platform,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -46,10 +46,9 @@ export default function ToastHost() {
     }
   }, [currentToast, slideAnim]);
 
-  if (!currentToast) return null;
-
-  const accent =
-    currentToast.type === 'success'
+  const accent = !currentToast
+    ? themeColors.foreground
+    : currentToast.type === 'success'
       ? themeColors.primary
       : currentToast.type === 'error'
         ? themeColors.destructive
@@ -57,52 +56,65 @@ export default function ToastHost() {
           ? '#d97706'
           : themeColors.foreground;
 
+  // Rendered inside a transparent Modal so the toast always sits ABOVE other
+  // native modals (transaction form, budget editor, pickers) instead of behind
+  // them. box-none lets taps pass through everywhere except the toast itself.
   return (
-    <Animated.View
-      pointerEvents="box-none"
-      style={[
-        styles.container,
-        {
-          paddingTop: insets.top + spacing.xs,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
+    <Modal
+      transparent
+      visible={!!currentToast}
+      animationType="none"
+      statusBarTranslucent
+      onRequestClose={() => currentToast && dismissToast(currentToast.id)}
     >
-      <View
+      <Animated.View
+        pointerEvents="box-none"
         style={[
-          styles.toast,
+          styles.container,
           {
-            backgroundColor: themeColors.card,
-            borderColor: themeColors.border,
+            paddingTop: insets.top + spacing.xs,
+            transform: [{ translateY: slideAnim }],
           },
         ]}
       >
-        <View style={[styles.accentBar, { backgroundColor: accent }]} />
-        <View style={[styles.iconWrap, { backgroundColor: accent + '18' }]}>
-          <Ionicons name={ICONS[currentToast.type]} size={20} color={accent} />
-        </View>
-        <View style={styles.textWrap}>
-          {currentToast.title ? (
-            <Text style={[styles.title, { color: themeColors.foreground }]} numberOfLines={1}>
-              {currentToast.title}
-            </Text>
-          ) : null}
-          <Text
-            style={[styles.message, { color: themeColors.mutedForeground }]}
-            numberOfLines={3}
+        {currentToast ? (
+          <View
+            style={[
+              styles.toast,
+              {
+                backgroundColor: themeColors.card,
+                borderColor: themeColors.border,
+              },
+            ]}
           >
-            {currentToast.message}
-          </Text>
-        </View>
-        <TouchableOpacity
-          onPress={() => dismissToast(currentToast.id)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          style={styles.closeBtn}
-        >
-          <Ionicons name="close" size={18} color={themeColors.mutedForeground} />
-        </TouchableOpacity>
-      </View>
-    </Animated.View>
+            <View style={[styles.accentBar, { backgroundColor: accent }]} />
+            <View style={[styles.iconWrap, { backgroundColor: accent + '18' }]}>
+              <Ionicons name={ICONS[currentToast.type]} size={20} color={accent} />
+            </View>
+            <View style={styles.textWrap}>
+              {currentToast.title ? (
+                <Text style={[styles.title, { color: themeColors.foreground }]} numberOfLines={1}>
+                  {currentToast.title}
+                </Text>
+              ) : null}
+              <Text
+                style={[styles.message, { color: themeColors.mutedForeground }]}
+                numberOfLines={3}
+              >
+                {currentToast.message}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => dismissToast(currentToast.id)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.closeBtn}
+            >
+              <Ionicons name="close" size={18} color={themeColors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
+        ) : null}
+      </Animated.View>
+    </Modal>
   );
 }
 

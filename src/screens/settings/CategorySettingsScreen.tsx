@@ -18,6 +18,7 @@ import { getApiErrorMessage } from "../../lib/getApiErrorMessage";
 import { getCategoryVisual } from "../../lib/categoryVisuals";
 import { isValidCategoryName } from "../../lib/category";
 import Spinner from "../../components/common/Spinner";
+import { ListSkeleton } from "../../components/common/Skeleton";
 import { Button } from "../../components/common";
 import { useToast } from "../../context/NotificationContext";
 import { useConfirm } from "../../context/ConfirmContext";
@@ -125,25 +126,25 @@ export default function CategorySettingsScreen() {
   };
 
   const handleDelete = async (category: { _id: string; name: string }) => {
-    const confirmed = await confirm({
+    await confirm({
       title: "Delete category",
       message: `Delete "${category.name}"? Existing transactions will fall back to Uncategorized.`,
       confirmText: "Delete",
       destructive: true,
+      onConfirm: async () => {
+        try {
+          await deleteCategory(category._id).unwrap();
+          if (categoryId === category._id) resetForm();
+          showToast({ type: "success", title: "Deleted", message: `"${category.name}" was removed.` });
+        } catch (error) {
+          showToast({
+            type: "error",
+            title: "Delete failed",
+            message: getApiErrorMessage(error, "Unable to delete category."),
+          });
+        }
+      },
     });
-    if (!confirmed) return;
-
-    try {
-      await deleteCategory(category._id).unwrap();
-      if (categoryId === category._id) resetForm();
-      showToast({ type: "success", title: "Deleted", message: `"${category.name}" was removed.` });
-    } catch (error) {
-      showToast({
-        type: "error",
-        title: "Delete failed",
-        message: getApiErrorMessage(error, "Unable to delete category."),
-      });
-    }
   };
 
   const styles = createStyles(themeColors);
@@ -274,21 +275,27 @@ export default function CategorySettingsScreen() {
         {/* Custom categories */}
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionLabel}>Your categories</Text>
-          {isFetching && <Spinner size={14} />}
+          {isFetching && data && <Spinner size={14} />}
         </View>
-        {customCategories.length === 0 ? (
-          <View style={[styles.emptyCard, { borderColor: themeColors.border }]}>
-            <Text style={styles.emptyText}>
-              No custom categories yet. Create one above to see it here.
-            </Text>
-          </View>
+        {!data ? (
+          <ListSkeleton count={6} separatorColor={themeColors.border} />
         ) : (
-          customCategories.map((category) => renderCategoryRow(category, true))
-        )}
+          <>
+            {customCategories.length === 0 ? (
+              <View style={[styles.emptyCard, { borderColor: themeColors.border }]}>
+                <Text style={styles.emptyText}>
+                  No custom categories yet. Create one above to see it here.
+                </Text>
+              </View>
+            ) : (
+              customCategories.map((category) => renderCategoryRow(category, true))
+            )}
 
-        {/* Default categories */}
-        <Text style={[styles.sectionLabel, { marginTop: spacing.lg }]}>Default categories</Text>
-        {defaultCategories.map((category) => renderCategoryRow(category, false))}
+            {/* Default categories */}
+            <Text style={[styles.sectionLabel, { marginTop: spacing.lg }]}>Default categories</Text>
+            {defaultCategories.map((category) => renderCategoryRow(category, false))}
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

@@ -5,9 +5,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, borderRadius, fontSize, fontWeight, fontFamily } from '../../theme/colors';
 import { useGetAllTransactionsQuery } from '../../features/transaction/transactionAPI';
+import { ListSkeleton } from '../common/Skeleton';
 import { useTypedSelector } from '../../store/hooks';
 import { formatCurrency } from '../../lib/formatCurrency';
 import { getCategoryVisual } from '../../lib/categoryVisuals';
+import { useCategoryColor } from '../../features/category/useCategoryColor';
 import { format } from 'date-fns';
 import { useNavigation } from '@react-navigation/native';
 
@@ -15,6 +17,7 @@ export default function RecentTransactions() {
   const { activeTheme } = useTheme();
   const theme = colors[activeTheme];
   const navigation = useNavigation();
+  const getCategoryColor = useCategoryColor();
 
   const user = useTypedSelector((state) => state.auth.user);
   const baseCurrency = user?.baseCurrency || "USD";
@@ -30,7 +33,7 @@ export default function RecentTransactions() {
 
   const renderTransactionCard = ({ item }: { item: any }) => {
     const isIncome = item.type === 'INCOME';
-    const visual = getCategoryVisual(item.category);
+    const visual = getCategoryVisual(item.category, getCategoryColor(item.category));
 
     const metaParts = [item.category, format(new Date(item.createdAt), 'MMM d')].filter(Boolean);
     if (item.paymentMethod) metaParts.push(formatPaymentMethod(item.paymentMethod));
@@ -116,25 +119,29 @@ export default function RecentTransactions() {
       </View>
 
       {/* Transactions List */}
-      <FlatList
-        data={transactions}
-        keyExtractor={(item) => item._id}
-        renderItem={renderTransactionCard}
-        ItemSeparatorComponent={() => (
-          <View style={[styles.separator, { backgroundColor: theme.border }]} />
-        )}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          !isLoading ? (
+      {isLoading ? (
+        <View style={styles.skeletonWrap}>
+          <ListSkeleton count={4} separatorColor={theme.border} />
+        </View>
+      ) : (
+        <FlatList
+          data={transactions}
+          keyExtractor={(item) => item._id}
+          renderItem={renderTransactionCard}
+          ItemSeparatorComponent={() => (
+            <View style={[styles.separator, { backgroundColor: theme.border }]} />
+          )}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={[styles.emptyText, { color: theme.mutedForeground }]}>
                 No recent transactions
               </Text>
             </View>
-          ) : null
-        }
-        scrollEnabled={false}
-      />
+          }
+          scrollEnabled={false}
+        />
+      )}
     </View>
   );
 }
@@ -241,10 +248,14 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.medium,
     fontSize: 9,
   },
+  skeletonWrap: {
+    paddingVertical: spacing.xs,
+  },
   emptyState: {
     paddingVertical: spacing.xxl,
     alignItems: 'center',
   },
+
   emptyText: {
     fontFamily: fontFamily.regular,
     fontSize: 13,

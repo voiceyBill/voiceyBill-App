@@ -32,14 +32,10 @@ import {
   useGetSingleTransactionQuery,
   useAiScanReceiptMutation,
 } from "../../features/transaction/transactionAPI";
-import {
-  useCreateCategoryMutation,
-  useGetCategoriesQuery,
-} from "../../features/category/categoryAPI";
+import { useGetCategoriesQuery } from "../../features/category/categoryAPI";
 import { useTypedSelector } from "../../store/hooks";
 import { useGetSupportedCurrenciesQuery } from "../../features/currency/currencyAPI";
 import {
-  CATEGORIES,
   PAYMENT_METHODS,
   TRANSACTION_TYPE,
   TRANSACTION_FREQUENCY,
@@ -55,16 +51,8 @@ import {
 import { ALL_CURRENCIES } from "../../constants/currencies";
 
 import * as ImagePicker from "expo-image-picker";
-import {
-  Mic,
-  ScanText,
-  FileText,
-  X,
-  Upload,
-  Check,
-} from "lucide-react-native";
+import { Mic, ScanText, FileText, X, Upload } from "lucide-react-native";
 import VoiceRecorder from "./VoiceRecorder";
-import { Picker } from "@react-native-picker/picker";
 
 interface TransactionFormSheetProps {
   isVisible: boolean;
@@ -73,6 +61,8 @@ interface TransactionFormSheetProps {
   isEdit?: boolean;
   initialMode?: "VOICE" | "SCAN" | "MANUAL";
   initialType?: "INCOME" | "EXPENSE";
+  // Pre-fill from the instant mic popup (opens in Manual mode with these values)
+  voicePrefill?: any | null;
 }
 
 export default function TransactionFormSheet({
@@ -82,6 +72,7 @@ export default function TransactionFormSheet({
   isEdit = false,
   initialMode = "VOICE",
   initialType = "EXPENSE",
+  voicePrefill = null,
 }: TransactionFormSheetProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
@@ -99,18 +90,6 @@ export default function TransactionFormSheet({
     TRANSACTION_TYPE.EXPENSE,
   );
   const [category, setCategory] = React.useState("");
-  const [newCategoryName, setNewCategoryName] = React.useState("");
-  const [newCategoryColor, setNewCategoryColor] = React.useState("#6B7280");
-  const [saveCategoryPermanently, setSaveCategoryPermanently] =
-    React.useState(true);
-  const [isCreatingPersistentCategory, setIsCreatingPersistentCategory] =
-    React.useState(false);
-
-  const NEW_CATEGORY_KEY = "__new_category__";
-  const CATEGORY_COLOR_SWATCHES = [
-    "#ef4444", "#f97316", "#f59e0b", "#10b981", "#14b8a6",
-    "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899", "#64748b",
-  ];
   const [date, setDate] = React.useState(new Date());
   const [paymentMethod, setPaymentMethod] = React.useState("");
   const [isRecurring, setIsRecurring] = React.useState(false);
@@ -158,6 +137,34 @@ export default function TransactionFormSheet({
     }
   }, [isVisible, initialMode, isEdit, userBaseCurrency, initialType]);
 
+  // Map a voice/scan result onto the form fields. Used both by the in-form
+  // recorder and by the instant mic popup pre-fill.
+  const applyVoiceData = React.useCallback((data: any) => {
+    if (!data) return;
+    if (data.title) setTitle(data.title);
+    if (data.amount != null) setAmount(String(data.amount));
+    if (data.currency) setCurrency(data.currency);
+    // Server returns one of the user's category names (default or custom).
+    if (data.category && isValidCategoryName(data.category)) {
+      setCategory(String(data.category).trim());
+    }
+    if (data.paymentMethod) setPaymentMethod(String(data.paymentMethod).toUpperCase());
+    if (data.type) setType(data.type);
+    if (data.date) {
+      const d = new Date(data.date);
+      if (!isNaN(d.getTime())) setDate(d);
+    }
+    if (data.description) setDescription(data.description);
+  }, []);
+
+  // Pre-fill from the instant mic popup. The caller opens us in Manual mode
+  // (initialMode="MANUAL") so the filled fields are visible for review.
+  React.useEffect(() => {
+    if (isVisible && voicePrefill) {
+      applyVoiceData(voicePrefill);
+    }
+  }, [isVisible, voicePrefill, applyVoiceData]);
+
   // API hooks
   const { data: transactionData } = useGetSingleTransactionQuery(
     transactionId || "",
@@ -173,8 +180,9 @@ export default function TransactionFormSheet({
 
   const { data: categoriesResponse, isFetching: isFetchingCategories } =
     useGetCategoriesQuery();
-  const [createCategory] = useCreateCategoryMutation();
 
+  // Single source of truth: the user's categories (default + custom) from the
+  // server. Custom categories are managed only in Account → Categories.
   const categoryOptions = React.useMemo(() => {
     const apiCategories =
       categoriesResponse?.data
@@ -186,27 +194,14 @@ export default function TransactionFormSheet({
           isDefault: category.isDefault,
         })) ?? [];
 
-    if (!apiCategories.length) {
-      return CATEGORIES.map((cat) => ({
-        value: cat.value,
-        label: cat.label,
-        color: undefined as string | undefined,
-        isDefault: true,
-      }));
-    }
-
     return apiCategories.sort((a, b) => {
       if (a.isDefault === b.isDefault) return a.label.localeCompare(b.label);
       return a.isDefault ? -1 : 1;
     });
   }, [categoriesResponse]);
 
-  const selectedCategoryOption = categoryOptions.find(
-    (item) => item.value === category,
-  );
-
   // Options for the themed category picker. Includes the current value when it
-  // is a valid custom category (e.g. AI-suggested) that isn't in the list yet.
+  // is a valid category (e.g. AI-suggested) that isn't in the list yet.
   const categorySelectOptions = React.useMemo<SelectOption[]>(() => {
     const base: SelectOption[] = categoryOptions.map((c) => ({
       label: c.label,
@@ -216,7 +211,6 @@ export default function TransactionFormSheet({
 
     if (
       category &&
-      category !== NEW_CATEGORY_KEY &&
       isValidCategoryName(category) &&
       !categoryOptions.some((c) => c.value === category)
     ) {
@@ -344,36 +338,15 @@ export default function TransactionFormSheet({
       return;
     }
 
-    const resolvedCategory =
-      category === NEW_CATEGORY_KEY ? newCategoryName.trim() : category.trim();
+    const resolvedCategory = category.trim();
 
     if (!resolvedCategory) {
       showToast({
         type: "warning",
         title: "Category required",
-        message: "Please choose or enter a category.",
+        message: "Please choose a category.",
       });
       return;
-    }
-
-    if (category === NEW_CATEGORY_KEY && saveCategoryPermanently) {
-      try {
-        setIsCreatingPersistentCategory(true);
-        await createCategory({
-          name: resolvedCategory,
-          color: newCategoryColor,
-        }).unwrap();
-      } catch (error: any) {
-        showToast({
-          type: "error",
-          title: "Couldn't save category",
-          message:
-            error?.data?.message || "Failed to save category permanently.",
-        });
-        return;
-      } finally {
-        setIsCreatingPersistentCategory(false);
-      }
     }
 
     const payload = {
@@ -503,51 +476,7 @@ export default function TransactionFormSheet({
               <VoiceRecorder
                 loadingChange={isVoiceProcessing}
                 onLoadingChange={setIsVoiceProcessing}
-                onVoiceComplete={(data) => {
-                  console.log("onVoiceComplete triggered with data:", data);
-                  // Map response data to form fields
-                  if (data.title) {
-                    console.log("Setting title to:", data.title);
-                    setTitle(data.title);
-                  }
-                  if (data.amount != null) {
-                    console.log("Setting amount to:", String(data.amount));
-                    setAmount(String(data.amount));
-                  }
-                  if (data.currency) {
-                    console.log("Setting currency to:", data.currency);
-                    setCurrency(data.currency);
-                  }
-                  if (data.category) {
-                    let cat = data.category.toLowerCase().trim();
-                    if (cat === "dining & restaurants") cat = "dining";
-                    if (cat === "housing & rent") cat = "housing";
-                    // Ignore junk values the AI can return ("undefined"/"null").
-                    if (cat && cat !== "undefined" && cat !== "null") {
-                      setCategory(cat);
-                    }
-                  }
-                  if (data.paymentMethod) {
-                    const pm = data.paymentMethod.toUpperCase();
-                    console.log("Setting paymentMethod to:", pm);
-                    setPaymentMethod(pm);
-                  }
-                  if (data.type) {
-                    console.log("Setting type to:", data.type);
-                    setType(data.type);
-                  }
-                  if (data.date) {
-                    const d = new Date(data.date);
-                    if (!isNaN(d.getTime())) {
-                      console.log("Setting date to:", d);
-                      setDate(d);
-                    }
-                  }
-                  if (data.description) {
-                    console.log("Setting description to:", data.description);
-                    setDescription(data.description);
-                  }
-                }}
+                onVoiceComplete={applyVoiceData}
               />
             )}
 
@@ -594,13 +523,11 @@ export default function TransactionFormSheet({
                           if (scanned.currency) {
                             setCurrency(scanned.currency);
                           }
-                          if (scanned.category) {
-                            let cat = scanned.category.toLowerCase().trim();
-                            if (cat === "dining & restaurants") cat = "dining";
-                            if (cat === "housing & rent") cat = "housing";
-                            if (cat && cat !== "undefined" && cat !== "null") {
-                              setCategory(cat);
-                            }
+                          if (
+                            scanned.category &&
+                            isValidCategoryName(scanned.category)
+                          ) {
+                            setCategory(scanned.category.trim());
                           }
                           if (scanned.description)
                             setDescription(scanned.description);
@@ -680,13 +607,11 @@ export default function TransactionFormSheet({
                           if (scanned.currency) {
                             setCurrency(scanned.currency);
                           }
-                          if (scanned.category) {
-                            let cat = scanned.category.toLowerCase().trim();
-                            if (cat === "dining & restaurants") cat = "dining";
-                            if (cat === "housing & rent") cat = "housing";
-                            if (cat && cat !== "undefined" && cat !== "null") {
-                              setCategory(cat);
-                            }
+                          if (
+                            scanned.category &&
+                            isValidCategoryName(scanned.category)
+                          ) {
+                            setCategory(scanned.category.trim());
                           }
                           if (scanned.description)
                             setDescription(scanned.description);
@@ -846,32 +771,8 @@ export default function TransactionFormSheet({
               </View>
             </View>
 
-            {/* Category */}
+            {/* Category — managed only in Account → Categories */}
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Category *</Text>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={category}
-                  onValueChange={setCategory}
-                  style={styles.picker}
-                  dropdownIconColor={themeColors.foreground}
-                >
-                  <Picker.Item label="Select a category" value="" />
-                  {
-                    (() => {
-                      const added = (user as any)?.customCategories || [];
-                      const all = [...CATEGORIES, ...added];
-                      return all.map((cat: any) => (
-                        <Picker.Item
-                          key={cat.value}
-                          label={cat.label}
-                          value={cat.value}
-                        />
-                      ));
-                    })()
-                  }
-                </Picker>
-              </View>
               <SelectField
                 label="Category *"
                 title="Select a category"
@@ -879,95 +780,13 @@ export default function TransactionFormSheet({
                 value={category}
                 options={categorySelectOptions}
                 searchable
-                onChange={(value) => {
-                  setCategory(value);
-                  setNewCategoryName("");
-                }}
-                selectedLabel={
-                  category === NEW_CATEGORY_KEY
-                    ? newCategoryName.trim() || "New category"
-                    : undefined
-                }
-                footerAction={{
-                  label: "+ Add new category…",
-                  onPress: () => {
-                    setCategory(NEW_CATEGORY_KEY);
-                    setNewCategoryName("");
-                  },
-                }}
+                onChange={setCategory}
                 emptyText={
                   isFetchingCategories
                     ? "Loading categories…"
-                    : "No categories yet. Add one below."
+                    : "No categories yet. Add one in Account → Categories."
                 }
               />
-
-              {(category === NEW_CATEGORY_KEY ||
-                (!selectedCategoryOption && category)) && (
-                <View style={styles.newCategorySection}>
-                  <Text style={styles.label}>New category name</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="e.g. Freelance Supplies"
-                    placeholderTextColor={themeColors.mutedForeground}
-                    value={
-                      category === NEW_CATEGORY_KEY ? newCategoryName : category
-                    }
-                    onChangeText={setNewCategoryName}
-                  />
-
-                  <Text style={[styles.label, { marginTop: spacing.md }]}>
-                    Save category permanently?
-                  </Text>
-                  <View style={styles.switchRow}>
-                    <Text style={styles.switchLabel}>
-                      Save for future transactions
-                    </Text>
-                    <RNSwitch
-                      value={saveCategoryPermanently}
-                      onValueChange={setSaveCategoryPermanently}
-                      trackColor={{
-                        false: themeColors.muted,
-                        true: themeColors.primary,
-                      }}
-                      thumbColor={themeColors.foreground}
-                    />
-                  </View>
-
-                  {saveCategoryPermanently && (
-                    <>
-                      <Text style={[styles.label, { marginTop: spacing.md }]}>
-                        Category color
-                      </Text>
-                      <View style={styles.colorSwatchRow}>
-                        {CATEGORY_COLOR_SWATCHES.map((swatch) => {
-                          const selected =
-                            swatch.toLowerCase() === newCategoryColor.toLowerCase();
-                          return (
-                            <TouchableOpacity
-                              key={swatch}
-                              onPress={() => setNewCategoryColor(swatch)}
-                              activeOpacity={0.8}
-                              style={[
-                                styles.colorSwatch,
-                                { backgroundColor: swatch },
-                                selected && {
-                                  borderColor: themeColors.foreground,
-                                  borderWidth: 3,
-                                },
-                              ]}
-                            >
-                              {selected && (
-                                <Check size={13} color="#fff" strokeWidth={3} />
-                              )}
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                    </>
-                  )}
-                </View>
-              )}
             </View>
 
             {/* Date */}

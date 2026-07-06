@@ -8,6 +8,7 @@ import {
   ScrollView,
 } from "react-native";
 import Spinner from "../common/Spinner";
+import RecordingWaveform from "../common/RecordingWaveform";
 import { getApiErrorMessage } from "../../lib/getApiErrorMessage";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
@@ -67,11 +68,18 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   const [transcriptionResult, setTranscriptionResult] = useState<any | null>(
     null,
   );
+  const [slideCancel, setSlideCancel] = useState(false);
 
   const recording = useRef<Audio.Recording | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const startingRef = useRef(false);
+  const holdStartX = useRef(0);
+  const holdingRef = useRef(false);
+  const recordStartTime = useRef(0);
+  const slideCancelRef = useRef(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const micTranslateX = useRef(new Animated.Value(0)).current;
 
   const [processVoice] = useProcessVoiceMutation();
 
@@ -102,13 +110,43 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     }
   }, [autoStart]);
 
+  // Clean up any active recording/sound on unmount so closing the popup mid-
+  // recording (e.g. via the back button) doesn't leave a dangling recorder
+  // that makes the next "start" fail.
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      recording.current?.stopAndUnloadAsync().catch(() => {});
+      recording.current = null;
+      soundRef.current?.unloadAsync().catch(() => {});
+      soundRef.current = null;
+    };
+  }, []);
+
   const startRecording = async () => {
+    // Prevent overlapping starts (auto-start can fire more than once).
+    if (startingRef.current || isRecording) return;
+    startingRef.current = true;
     try {
       const { status } = await Audio.requestPermissionsAsync();
       if (status !== "granted") {
         showToast({ type: "warning", title: "Permission needed", message: "Microphone permission is required." });
         return;
       }
+
+      // Unload any leftover recording from a previous session that wasn't
+      // stopped (otherwise expo-av throws "only one Recording at a time").
+      if (recording.current) {
+        try {
+          await recording.current.stopAndUnloadAsync();
+        } catch {}
+        recording.current = null;
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
@@ -116,45 +154,59 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         shouldDuckAndroid: true,
         playThroughEarpieceAndroid: false,
       });
-      const rec = new Audio.Recording();
-      await rec.prepareToRecordAsync(
+
+      // createAsync prepares + starts in one call — more reliable than
+      // new Recording() + prepare + start.
+      const { recording: rec } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY,
       );
-      await rec.startAsync();
       recording.current = rec;
+      recordStartTime.current = Date.now();
       setIsRecording(true);
       setRecordingDuration(0);
       timerRef.current = setInterval(
         () => setRecordingDuration((p) => p + 1),
         1000,
       );
-    } catch {
-      showToast({ type: "error", title: "Recording failed", message: "Failed to start recording." });
+      // If the finger was already released while we were starting (quick tap),
+      // stop right away so we don't leave an orphan recording.
+      if (!holdingRef.current) {
+        await stopRecording();
+      }
+    } catch (e) {
+      console.warn("[VoiceRecorder] startRecording failed:", e);
+      recording.current = null;
+      setIsRecording(false);
+      showToast({ type: "error", title: "Recording failed", message: "Couldn't start recording. Please try again." });
+    } finally {
+      startingRef.current = false;
     }
   };
 
-  const stopRecording = async () => {
+  const stopRecording = async (): Promise<string | null> => {
+    const rec = recording.current;
+    if (!rec) return null;
     try {
-      if (recording.current && isRecording) {
-        await recording.current.stopAndUnloadAsync();
-        const uri = recording.current.getURI();
-        if (timerRef.current) {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
-        }
-        try {
-          await Audio.setAudioModeAsync({
-            allowsRecordingIOS: false,
-            playsInSilentModeIOS: true,
-          });
-        } catch {}
-        setIsRecording(false);
-        recording.current = null;
-        if (uri) setRecordedUri(uri);
+      await rec.stopAndUnloadAsync();
+      const uri = rec.getURI();
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
       }
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+        });
+      } catch {}
+      setIsRecording(false);
+      recording.current = null;
+      if (uri) setRecordedUri(uri);
+      return uri ?? null;
     } catch {
       setIsRecording(false);
       recording.current = null;
+      return null;
     }
   };
 
@@ -267,18 +319,19 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     return mp3Uri;
   };
 
-  const processVoiceRecording = async () => {
-    if (!recordedUri) {
+  const processVoiceRecording = async (uriArg?: string) => {
+    const src = uriArg ?? recordedUri;
+    if (!src) {
       showToast({ type: "warning", title: "No recording", message: "No recording found." });
       return;
     }
-    let uploadUri = recordedUri;
+    let uploadUri = src;
     try {
       onLoadingChange(true);
-      const fileExt = recordedUri.split(".").pop()?.toLowerCase();
+      const fileExt = src.split(".").pop()?.toLowerCase();
       if (fileExt === "wav") {
         try {
-          uploadUri = await convertWavToMp3(recordedUri);
+          uploadUri = await convertWavToMp3(src);
         } catch {}
       }
       const form = new FormData();
@@ -297,7 +350,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       const result = await processVoice(form as any).unwrap();
       if (result?.success && result?.data) {
         setTranscriptionResult(result.data);
-        if (uploadUri !== recordedUri) {
+        if (uploadUri !== src) {
           try {
             await FileSystem.deleteAsync(uploadUri, { idempotent: true });
           } catch {}
@@ -321,6 +374,56 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       onVoiceComplete(transcriptionResult);
       clearRecording();
     }
+  };
+
+  // ── Hold-to-record gesture (WhatsApp-style): hold the mic to record, release
+  // to send, slide left to cancel. ──
+  const onHoldStart = (pageX: number) => {
+    holdStartX.current = pageX;
+    holdingRef.current = true;
+    slideCancelRef.current = false;
+    setSlideCancel(false);
+    micTranslateX.setValue(0);
+    startRecording();
+  };
+
+  const onHoldMove = (pageX: number) => {
+    if (!holdingRef.current) return;
+    const dx = pageX - holdStartX.current;
+    // Slide the mic left with the finger (clamped), WhatsApp-style.
+    micTranslateX.setValue(Math.max(Math.min(dx, 0), -70));
+    const cancel = dx < -70;
+    if (cancel !== slideCancelRef.current) {
+      slideCancelRef.current = cancel;
+      setSlideCancel(cancel);
+    }
+  };
+
+  const onHoldEnd = async () => {
+    if (!holdingRef.current) return;
+    holdingRef.current = false;
+    const cancel = slideCancelRef.current;
+    slideCancelRef.current = false;
+    setSlideCancel(false);
+    micTranslateX.setValue(0);
+
+    const uri = await stopRecording();
+    const elapsed = (Date.now() - recordStartTime.current) / 1000;
+
+    if (cancel) {
+      await clearRecording();
+      return;
+    }
+    if (!uri || elapsed < 0.7) {
+      await clearRecording();
+      showToast({
+        type: "info",
+        title: "Hold to record",
+        message: "Hold the mic while you speak, then release to send.",
+      });
+      return;
+    }
+    await processVoiceRecording(uri);
   };
 
   const formatDuration = (s: number) =>
@@ -581,163 +684,108 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
             },
           ]}
         >
-          {/* Idle */}
-          {!isRecording && !recordedUri && !loadingChange && (
-            <TouchableOpacity
-              style={[
-                styles.startButton,
-                {
-                  borderColor: themeColors.border,
-                  backgroundColor: themeColors.background,
-                },
-              ]}
-              onPress={startRecording}
-              activeOpacity={0.7}
+          {/* Hold-to-record area (responder wraps idle + recording so the
+              touch persists across the transition). */}
+          {!loadingChange && (
+            <View
+              style={styles.holdArea}
+              onStartShouldSetResponder={() => true}
+              onMoveShouldSetResponder={() => true}
+              onResponderGrant={(e) => onHoldStart(e.nativeEvent.pageX)}
+              onResponderMove={(e) => onHoldMove(e.nativeEvent.pageX)}
+              onResponderRelease={onHoldEnd}
+              onResponderTerminate={onHoldEnd}
             >
-              <View
-                style={[
-                  styles.micCircle,
-                  { backgroundColor: themeColors.muted },
-                ]}
-              >
-                <Mic size={22} color={themeColors.foreground} strokeWidth={2} />
+              {/* Timer + waveform sit ABOVE the mic. The top area keeps a fixed
+                  height so the mic never moves between idle and recording. */}
+              <View style={styles.topArea}>
+                {isRecording && (
+                  <>
+                    <View style={styles.recordingIndicator}>
+                      <Animated.View
+                        style={[
+                          styles.redDot,
+                          { transform: [{ scale: pulseAnim }] },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.recordingDuration,
+                          { color: themeColors.foreground },
+                        ]}
+                      >
+                        {formatDuration(recordingDuration)}
+                      </Text>
+                    </View>
+                    <RecordingWaveform
+                      color={
+                        slideCancel ? themeColors.destructive : themeColors.primary
+                      }
+                      height={40}
+                    />
+                  </>
+                )}
               </View>
-              <Text
-                style={[
-                  styles.startButtonText,
-                  { color: themeColors.foreground },
-                ]}
-              >
-                Tap to Start Recording
-              </Text>
-              <Text
-                style={[
-                  styles.startButtonSub,
-                  { color: themeColors.mutedForeground },
-                ]}
-              >
-                Speak clearly about your transaction
-              </Text>
-            </TouchableOpacity>
-          )}
 
-          {/* Recording */}
-          {isRecording && (
-            <View style={styles.recordingState}>
-              <View style={styles.recordingIndicator}>
-                <Animated.View
-                  style={[styles.redDot, { transform: [{ scale: pulseAnim }] }]}
-                />
-                <Text
-                  style={[
-                    styles.recordingText,
-                    { color: themeColors.foreground },
-                  ]}
-                >
-                  Recording
-                </Text>
-                <Text
-                  style={[
-                    styles.recordingDuration,
-                    { color: themeColors.mutedForeground },
-                  ]}
-                >
-                  {formatDuration(recordingDuration)}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={[
-                  styles.stopButton,
-                  { backgroundColor: themeColors.destructive },
-                ]}
-                onPress={stopRecording}
-                activeOpacity={0.8}
+              {/* Mic stays in the same place; it slides slightly left while
+                  dragging to cancel (WhatsApp-style). */}
+              <Animated.View
+                style={{ transform: [{ translateX: micTranslateX }] }}
               >
-                <Square size={15} color="#fff" fill="#fff" />
-                <Text style={styles.stopButtonText}>Stop Recording</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Preview */}
-          {recordedUri && !loadingChange && (
-            <View style={styles.previewContainer}>
-              <View
-                style={[
-                  styles.waveformBar,
-                  { backgroundColor: themeColors.muted },
-                ]}
-              >
-                <TouchableOpacity
+                <View
                   style={[
-                    styles.playPauseBtn,
+                    styles.micCircleLarge,
                     {
-                      backgroundColor: themeColors.background,
-                      borderColor: themeColors.border,
+                      backgroundColor:
+                        isRecording && slideCancel
+                          ? themeColors.destructive
+                          : themeColors.primary,
                     },
                   ]}
-                  onPress={isPlaying ? pauseAudio : playAudio}
-                  activeOpacity={0.7}
                 >
-                  {isPlaying ? (
-                    <Pause size={16} color={themeColors.foreground} />
-                  ) : (
-                    <Play size={16} color={themeColors.foreground} />
-                  )}
-                </TouchableOpacity>
-                <View style={styles.waveformFill}>
-                  <View
-                    style={[
-                      styles.waveformProgress,
-                      { backgroundColor: themeColors.border },
-                    ]}
+                  <Mic
+                    size={30}
+                    color={themeColors.primaryForeground}
+                    strokeWidth={2}
                   />
                 </View>
+              </Animated.View>
+
+              {isRecording ? (
                 <Text
                   style={[
-                    styles.durationText,
-                    { color: themeColors.mutedForeground },
+                    styles.slideHint,
+                    {
+                      color: slideCancel
+                        ? themeColors.destructive
+                        : themeColors.mutedForeground,
+                    },
                   ]}
                 >
-                  {formatDuration(recordingDuration)}
+                  {slideCancel
+                    ? "Release to cancel"
+                    : "‹  Slide left to cancel · release to send"}
                 </Text>
-              </View>
-              <View style={styles.previewActions}>
-                <TouchableOpacity
-                  style={[
-                    styles.clearButton,
-                    { borderColor: themeColors.border },
-                  ]}
-                  onPress={clearRecording}
-                  activeOpacity={0.7}
-                >
+              ) : (
+                <>
                   <Text
                     style={[
-                      styles.clearButtonText,
+                      styles.startButtonText,
+                      { color: themeColors.foreground },
+                    ]}
+                  >
+                    Hold to record
+                  </Text>
+                  <Text
+                    style={[
+                      styles.startButtonSub,
                       { color: themeColors.mutedForeground },
                     ]}
                   >
-                    Clear
+                    Hold the mic and speak · release to send
                   </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.processButton,
-                    { backgroundColor: themeColors.primary },
-                  ]}
-                  onPress={processVoiceRecording}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    style={[
-                      styles.processButtonText,
-                      { color: themeColors.primaryForeground },
-                    ]}
-                  >
-                    Process Recording
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                </>
+              )}
             </View>
           )}
 
@@ -808,9 +856,52 @@ const createStyles = (theme: typeof colors.light) =>
       fontSize: fontSize.xs,
       textAlign: "center",
     },
+    holdArea: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: spacing.xl,
+      paddingHorizontal: spacing.lg,
+      gap: spacing.md,
+      minHeight: 268,
+    },
+    topArea: {
+      height: 96,
+      width: "100%",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.sm,
+    },
+    idleState: {
+      alignItems: "center",
+      gap: spacing.xs,
+    },
+    micCircleLarge: {
+      width: 76,
+      height: 76,
+      borderRadius: 38,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: spacing.sm,
+      ...shadows.sm,
+    },
+    micCircleActive: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: spacing.sm,
+    },
+    slideHint: {
+      fontSize: fontSize.xs,
+      fontWeight: fontWeight.medium,
+      textAlign: "center",
+      marginTop: spacing.xs,
+    },
     recordingState: {
       gap: spacing.md,
       padding: spacing.lg,
+      alignItems: "center",
     },
     recordingIndicator: {
       flexDirection: "row",
