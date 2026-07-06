@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, TouchableOpacity, View, Text, Platform } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Text, Platform, Animated } from 'react-native';
 import {
   createBottomTabNavigator,
   type BottomTabHeaderProps,
@@ -52,34 +52,71 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const holdTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const recordingStartedRef = React.useRef(false);
   const fabStartX = React.useRef(0);
+  const fabLastX = React.useRef(0);
   const fabCancelRef = React.useRef(false);
   const [fabCancel, setFabCancel] = React.useState(false);
+  const fabTranslateX = React.useRef(new Animated.Value(0)).current;
   const formatDur = (s: number) =>
     `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
   // Require a deliberate press-and-hold before recording begins, so a quick tap
   // never starts a recording. Uses the responder system so we can also track
-  // the finger for slide-to-cancel.
+  // the finger for WhatsApp-style slide-to-cancel.
   const HOLD_DELAY = 450;
+  const MAX_SLIDE = 64; // how far the mic follows the finger
+  const ENTER_CANCEL = 50; // slide left past this → armed to cancel
+  const EXIT_CANCEL = 22; // slide back within this → un-armed (hysteresis)
 
-  const onFabGrant = (pageX: number) => {
-    fabStartX.current = pageX;
-    fabCancelRef.current = false;
-    setFabCancel(false);
-    recordingStartedRef.current = false;
-    holdTimerRef.current = setTimeout(() => {
-      recordingStartedRef.current = true;
-      holdStart();
-    }, HOLD_DELAY);
-  };
-
-  const onFabMove = (pageX: number) => {
-    if (!recordingStartedRef.current) return;
-    const cancel = pageX - fabStartX.current < -80;
+  // Re-evaluate the cancel state from the current finger offset. The two
+  // thresholds (hysteresis) stop finger jitter near the boundary from
+  // flickering between recording and cancel.
+  const updateCancel = (dx: number) => {
+    let cancel = fabCancelRef.current;
+    if (!cancel && dx < -ENTER_CANCEL) cancel = true;
+    else if (cancel && dx > -EXIT_CANCEL) cancel = false;
     if (cancel !== fabCancelRef.current) {
       fabCancelRef.current = cancel;
       setFabCancel(cancel);
     }
+  };
+
+  const slideMic = (dx: number) => {
+    fabTranslateX.setValue(Math.max(Math.min(dx, 0), -MAX_SLIDE));
+  };
+
+  const resetMic = () => {
+    Animated.timing(fabTranslateX, {
+      toValue: 0,
+      duration: 160,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const onFabGrant = (pageX: number) => {
+    fabStartX.current = pageX;
+    fabLastX.current = pageX;
+    fabCancelRef.current = false;
+    setFabCancel(false);
+    fabTranslateX.setValue(0);
+    recordingStartedRef.current = false;
+    holdTimerRef.current = setTimeout(() => {
+      recordingStartedRef.current = true;
+      holdStart();
+      // The finger may already have slid during the 450ms hold delay — sync the
+      // slide + cancel state to where it is NOW, so an early slide isn't ignored
+      // (which looked like it recorded for a moment and then cancelled).
+      const dx = fabLastX.current - fabStartX.current;
+      slideMic(dx);
+      updateCancel(dx);
+    }, HOLD_DELAY);
+  };
+
+  const onFabMove = (pageX: number) => {
+    fabLastX.current = pageX;
+    if (!recordingStartedRef.current) return;
+    const dx = pageX - fabStartX.current;
+    slideMic(dx);
+    updateCancel(dx);
   };
 
   const onFabRelease = async () => {
@@ -87,6 +124,7 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       clearTimeout(holdTimerRef.current);
       holdTimerRef.current = null;
     }
+    resetMic();
     if (recordingStartedRef.current) {
       recordingStartedRef.current = false;
       const wasCancel = fabCancelRef.current;
@@ -192,14 +230,15 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
 
         {/* Center FAB — hold to record, slide left to cancel, release to send */}
         <View style={styles.fabSlot}>
-          <View
+          <Animated.View
             style={[
               styles.voiceFab,
               {
                 backgroundColor: isRecording
                   ? themeColors.destructive
                   : themeColors.primary,
-                opacity: fabCancel ? 0.85 : 1,
+                opacity: fabCancel ? 0.9 : 1,
+                transform: [{ translateY: -18 }, { translateX: fabTranslateX }],
               },
             ]}
             onStartShouldSetResponder={() => true}
@@ -214,7 +253,7 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
               size={24}
               color={themeColors.primaryForeground}
             />
-          </View>
+          </Animated.View>
         </View>
 
         {rightTabs.map(renderTab)}
