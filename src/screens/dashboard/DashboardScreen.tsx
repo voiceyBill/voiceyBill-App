@@ -11,7 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFloatingTabBarSpace } from "../../navigation/tabBarLayout";
-import Spinner from "../../components/common/Spinner";
+import Skeleton from "../../components/common/Skeleton";
 import {
   useGetSummaryAnalyticsQuery,
   useGetChartAnalyticsQuery,
@@ -59,6 +59,26 @@ export default function DashboardScreen({ navigation }: any) {
   const chartQuery = useGetChartAnalyticsQuery({ preset });
   const pieQuery = useGetExpensePieChartBreakdownQuery({ preset });
 
+  // Only the very first load shows skeletons; after that we keep the previous
+  // numbers on screen while new ones fetch, so the dashboard never goes blank.
+  const summaryLoading = summaryQuery.isLoading;
+
+  // Pull-to-refresh should spin only on an actual user pull — never on the
+  // initial load (which is what made the balance appear to have a spinner).
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        summaryQuery.refetch(),
+        chartQuery.refetch(),
+        pieQuery.refetch(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const summary = summaryQuery.data?.data;
   
   // Calculate left for saving (available balance or income - expenses depending on context)
@@ -82,8 +102,8 @@ export default function DashboardScreen({ navigation }: any) {
         bounces={false}
         refreshControl={
           <RefreshControl
-            refreshing={summaryQuery.isFetching}
-            onRefresh={summaryQuery.refetch}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             tintColor={theme.primary}
             colors={[theme.primary]}
           />
@@ -92,15 +112,21 @@ export default function DashboardScreen({ navigation }: any) {
         {/* Hero Balance */}
         <View style={styles.heroSection}>
           <Text style={styles.heroLabel}>Available Balance</Text>
-          <View style={styles.heroAmountRow}>
-            <Text style={styles.heroCurrency}>{baseCurrency}</Text>
-            <Text style={styles.heroAmount} numberOfLines={1} adjustsFontSizeToFit>
-              {formatCurrency(summary?.availableBalance || 0, {
-                currency: baseCurrency,
-                showSign: false,
-              }).replace(/[^0-9.,]/g, "").trim()}
-            </Text>
-          </View>
+          {summaryLoading ? (
+            <View style={styles.heroSkeletonRow}>
+              <Skeleton width={180} height={44} radius={12} />
+            </View>
+          ) : (
+            <View style={styles.heroAmountRow}>
+              <Text style={styles.heroCurrency}>{baseCurrency}</Text>
+              <Text style={styles.heroAmount} numberOfLines={1} adjustsFontSizeToFit>
+                {formatCurrency(summary?.availableBalance || 0, {
+                  currency: baseCurrency,
+                  showSign: false,
+                }).replace(/[^0-9.,]/g, "").trim()}
+              </Text>
+            </View>
+          )}
           <View style={styles.heroPickerRow}>
             <DateRangePicker
               value={preset}
@@ -149,8 +175,10 @@ export default function DashboardScreen({ navigation }: any) {
             {/* Distinguish "still loading" (slow network) from "genuinely no
                 data" — otherwise the chart's empty state shows during loading. */}
             {chartQuery.isLoading ? (
-              <View style={styles.chartStateBox}>
-                <Spinner size={32} />
+              <View style={styles.chartSkeleton}>
+                {[64, 100, 48, 82, 56, 92, 40].map((h, i) => (
+                  <Skeleton key={i} width={14} height={`${h}%`} radius={6} />
+                ))}
               </View>
             ) : chartQuery.isError && !chartQuery.data ? (
               <View style={styles.chartStateBox}>
@@ -187,9 +215,13 @@ export default function DashboardScreen({ navigation }: any) {
                 <Text style={styles.summaryLabel}>Income</Text>
               </View>
               <View style={styles.summaryRowRight}>
-                <Text style={styles.summaryAmount}>
-                  {formatCurrency(income, { currency: baseCurrency, showSign: false })}
-                </Text>
+                {summaryLoading ? (
+                  <Skeleton width={70} height={14} radius={6} />
+                ) : (
+                  <Text style={styles.summaryAmount}>
+                    {formatCurrency(income, { currency: baseCurrency, showSign: false })}
+                  </Text>
+                )}
                 <Ionicons name="chevron-forward" size={16} color={theme.mutedForeground} />
               </View>
             </TouchableOpacity>
@@ -200,9 +232,13 @@ export default function DashboardScreen({ navigation }: any) {
                 <Text style={styles.summaryLabel}>Expense</Text>
               </View>
               <View style={styles.summaryRowRight}>
-                <Text style={styles.summaryAmount}>
-                  {formatCurrency(expenses, { currency: baseCurrency, showSign: false })}
-                </Text>
+                {summaryLoading ? (
+                  <Skeleton width={70} height={14} radius={6} />
+                ) : (
+                  <Text style={styles.summaryAmount}>
+                    {formatCurrency(expenses, { currency: baseCurrency, showSign: false })}
+                  </Text>
+                )}
                 <Ionicons name="chevron-forward" size={16} color={theme.mutedForeground} />
               </View>
             </TouchableOpacity>
@@ -213,9 +249,13 @@ export default function DashboardScreen({ navigation }: any) {
                 <Text style={styles.summaryLabel}>Left for Saving</Text>
               </View>
               <View style={styles.summaryRowRight}>
-                <Text style={styles.summaryAmount}>
-                  {formatCurrency(leftForSaving > 0 ? leftForSaving : 0, { currency: baseCurrency, showSign: false })}
-                </Text>
+                {summaryLoading ? (
+                  <Skeleton width={70} height={14} radius={6} />
+                ) : (
+                  <Text style={styles.summaryAmount}>
+                    {formatCurrency(leftForSaving > 0 ? leftForSaving : 0, { currency: baseCurrency, showSign: false })}
+                  </Text>
+                )}
                 <Ionicons name="chevron-forward" size={16} color={theme.mutedForeground} />
               </View>
             </View>
@@ -298,6 +338,12 @@ const createStyles = (theme: typeof colors.light, insets: any) =>
       color: theme.foreground,
       letterSpacing: -1.5,
     },
+    heroSkeletonRow: {
+      height: 52,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: spacing.md,
+    },
     heroPickerRow: {
       alignItems: "center",
     },
@@ -348,6 +394,14 @@ const createStyles = (theme: typeof colors.light, insets: any) =>
       alignItems: "center",
       justifyContent: "center",
       gap: spacing.md,
+    },
+    chartSkeleton: {
+      height: 180,
+      flexDirection: "row",
+      alignItems: "flex-end",
+      justifyContent: "space-between",
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.md,
     },
     chartErrorText: {
       fontFamily: fontFamily.medium,

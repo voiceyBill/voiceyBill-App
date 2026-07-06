@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, borderRadius, fontSize, fontWeight, fontFamily } from '../../theme/colors';
 import { useGetAllTransactionsQuery } from '../../features/transaction/transactionAPI';
+import Skeleton from '../common/Skeleton';
 import { useTypedSelector } from '../../store/hooks';
 import { formatCurrency } from '../../lib/formatCurrency';
 import { getCategoryVisual } from '../../lib/categoryVisuals';
@@ -118,25 +119,41 @@ export default function RecentTransactions() {
       </View>
 
       {/* Transactions List */}
-      <FlatList
-        data={transactions}
-        keyExtractor={(item) => item._id}
-        renderItem={renderTransactionCard}
-        ItemSeparatorComponent={() => (
-          <View style={[styles.separator, { backgroundColor: theme.border }]} />
-        )}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          !isLoading ? (
+      {isLoading ? (
+        <View>
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i}>
+              {i > 0 && <View style={[styles.separator, { backgroundColor: theme.border }]} />}
+              <View style={styles.skeletonRow}>
+                <Skeleton width={40} height={40} radius={20} />
+                <View style={styles.skeletonInfo}>
+                  <Skeleton width="55%" height={12} radius={6} />
+                  <Skeleton width="35%" height={10} radius={5} />
+                </View>
+                <Skeleton width={56} height={14} radius={6} />
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <FlatList
+          data={transactions}
+          keyExtractor={(item) => item._id}
+          renderItem={renderTransactionCard}
+          ItemSeparatorComponent={() => (
+            <View style={[styles.separator, { backgroundColor: theme.border }]} />
+          )}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={[styles.emptyText, { color: theme.mutedForeground }]}>
                 No recent transactions
               </Text>
             </View>
-          ) : null
-        }
-        scrollEnabled={false}
-      />
+          }
+          scrollEnabled={false}
+        />
+      )}
     </View>
   );
 }
@@ -243,10 +260,22 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.medium,
     fontSize: 9,
   },
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  skeletonInfo: {
+    flex: 1,
+    gap: 6,
+  },
   emptyState: {
     paddingVertical: spacing.xxl,
     alignItems: 'center',
   },
+
   emptyText: {
     fontFamily: fontFamily.regular,
     fontSize: 13,
