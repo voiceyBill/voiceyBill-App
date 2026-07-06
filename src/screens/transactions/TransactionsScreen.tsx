@@ -211,9 +211,10 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
       // user sees the deletion is in progress instead of nothing happening.
       onConfirm: async () => {
         try {
+          // The row is removed from the list optimistically (see transactionAPI),
+          // so it disappears instantly in sync with this success toast.
           await deleteTransaction(id).unwrap();
           showToast({ type: "success", title: "Deleted", message: "Transaction removed." });
-          refetch();
         } catch (error) {
           console.error("Failed to delete transaction:", error);
           showToast({ type: "error", title: "Error", message: getApiErrorMessage(error, "Failed to delete transaction.") });
@@ -290,7 +291,6 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
           await bulkDelete(Array.from(selectedIds)).unwrap();
           setSelectedIds(new Set());
           showToast({ type: "success", title: "Deleted", message: "Selected transactions removed." });
-          refetch();
         } catch (error) {
           showToast({ type: "error", title: "Error", message: getApiErrorMessage(error, "Failed to delete selected transactions.") });
         }
