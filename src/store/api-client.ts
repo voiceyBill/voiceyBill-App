@@ -132,7 +132,12 @@ const baseQueryWithReauth: BaseQueryFn<
 export const apiClient = createApi({
   reducerPath: "api",
   baseQuery: baseQueryWithReauth,
-  refetchOnMountOrArgChange: true,
+  // PERF: refetch on mount only if the cached data is older than 30s, instead of
+  // on *every* screen mount. Navigating back to a screen within the window is
+  // now instant (no spinner/skeleton flash) while still refreshing stale data.
+  // Mutations invalidate tags, so create/edit/delete still force a refresh
+  // regardless of this threshold — behaviour is preserved.
+  refetchOnMountOrArgChange: 30,
   refetchOnFocus: true,
   refetchOnReconnect: true,
   tagTypes: [

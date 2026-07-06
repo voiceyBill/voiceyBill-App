@@ -727,6 +727,12 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
         renderItem={renderTransactionCard}
         style={styles.list}
         contentContainerStyle={styles.listContent}
+        // PERF: render a screenful first and mount the rest in small batches so a
+        // large page doesn't block the JS thread on mount; reclaim offscreen rows.
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        removeClippedSubviews
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
