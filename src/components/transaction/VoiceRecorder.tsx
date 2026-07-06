@@ -79,6 +79,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   const recordStartTime = useRef(0);
   const slideCancelRef = useRef(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const micTranslateX = useRef(new Animated.Value(0)).current;
 
   const [processVoice] = useProcessVoiceMutation();
 
@@ -382,12 +383,16 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     holdingRef.current = true;
     slideCancelRef.current = false;
     setSlideCancel(false);
+    micTranslateX.setValue(0);
     startRecording();
   };
 
   const onHoldMove = (pageX: number) => {
     if (!holdingRef.current) return;
-    const cancel = pageX - holdStartX.current < -70;
+    const dx = pageX - holdStartX.current;
+    // Slide the mic left with the finger (clamped), WhatsApp-style.
+    micTranslateX.setValue(Math.max(Math.min(dx, 0), -70));
+    const cancel = dx < -70;
     if (cancel !== slideCancelRef.current) {
       slideCancelRef.current = cancel;
       setSlideCancel(cancel);
@@ -400,6 +405,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     const cancel = slideCancelRef.current;
     slideCancelRef.current = false;
     setSlideCancel(false);
+    micTranslateX.setValue(0);
 
     const uri = await stopRecording();
     const elapsed = (Date.now() - recordStartTime.current) / 1000;
@@ -690,74 +696,78 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
               onResponderRelease={onHoldEnd}
               onResponderTerminate={onHoldEnd}
             >
-              {isRecording ? (
-                <View style={styles.recordingState}>
-                  <View style={styles.recordingIndicator}>
-                    <Animated.View
-                      style={[
-                        styles.redDot,
-                        { transform: [{ scale: pulseAnim }] },
-                      ]}
+              {/* Timer + waveform sit ABOVE the mic. The top area keeps a fixed
+                  height so the mic never moves between idle and recording. */}
+              <View style={styles.topArea}>
+                {isRecording && (
+                  <>
+                    <View style={styles.recordingIndicator}>
+                      <Animated.View
+                        style={[
+                          styles.redDot,
+                          { transform: [{ scale: pulseAnim }] },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.recordingDuration,
+                          { color: themeColors.foreground },
+                        ]}
+                      >
+                        {formatDuration(recordingDuration)}
+                      </Text>
+                    </View>
+                    <RecordingWaveform
+                      color={
+                        slideCancel ? themeColors.destructive : themeColors.primary
+                      }
+                      height={40}
                     />
-                    <Text
-                      style={[
-                        styles.recordingDuration,
-                        { color: themeColors.foreground },
-                      ]}
-                    >
-                      {formatDuration(recordingDuration)}
-                    </Text>
-                  </View>
-                  <RecordingWaveform
-                    color={
-                      slideCancel ? themeColors.destructive : themeColors.primary
-                    }
-                  />
-                  <View
-                    style={[
-                      styles.micCircleActive,
-                      {
-                        backgroundColor: slideCancel
+                  </>
+                )}
+              </View>
+
+              {/* Mic stays in the same place; it slides slightly left while
+                  dragging to cancel (WhatsApp-style). */}
+              <Animated.View
+                style={{ transform: [{ translateX: micTranslateX }] }}
+              >
+                <View
+                  style={[
+                    styles.micCircleLarge,
+                    {
+                      backgroundColor:
+                        isRecording && slideCancel
                           ? themeColors.destructive
                           : themeColors.primary,
-                      },
-                    ]}
-                  >
-                    <Mic
-                      size={26}
-                      color={themeColors.primaryForeground}
-                      strokeWidth={2}
-                    />
-                  </View>
-                  <Text
-                    style={[
-                      styles.slideHint,
-                      {
-                        color: slideCancel
-                          ? themeColors.destructive
-                          : themeColors.mutedForeground,
-                      },
-                    ]}
-                  >
-                    {slideCancel
-                      ? "Release to cancel"
-                      : "‹  Slide left to cancel · release to send"}
-                  </Text>
+                    },
+                  ]}
+                >
+                  <Mic
+                    size={30}
+                    color={themeColors.primaryForeground}
+                    strokeWidth={2}
+                  />
                 </View>
+              </Animated.View>
+
+              {isRecording ? (
+                <Text
+                  style={[
+                    styles.slideHint,
+                    {
+                      color: slideCancel
+                        ? themeColors.destructive
+                        : themeColors.mutedForeground,
+                    },
+                  ]}
+                >
+                  {slideCancel
+                    ? "Release to cancel"
+                    : "‹  Slide left to cancel · release to send"}
+                </Text>
               ) : (
-                <View style={styles.idleState}>
-                  <View
-                    style={[
-                      styles.micCircleLarge,
-                      { backgroundColor: themeColors.primary },
-                    ]}
-                  >
-                    <Mic
-                      size={30}
-                      color={themeColors.primaryForeground}
-                      strokeWidth={2}
-                    />
-                  </View>
+                <>
                   <Text
                     style={[
                       styles.startButtonText,
@@ -774,7 +784,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
                   >
                     Hold the mic and speak · release to send
                   </Text>
-                </View>
+                </>
               )}
             </View>
           )}
@@ -851,8 +861,15 @@ const createStyles = (theme: typeof colors.light) =>
       justifyContent: "center",
       paddingVertical: spacing.xl,
       paddingHorizontal: spacing.lg,
+      gap: spacing.md,
+      minHeight: 268,
+    },
+    topArea: {
+      height: 96,
+      width: "100%",
+      alignItems: "center",
+      justifyContent: "center",
       gap: spacing.sm,
-      minHeight: 210,
     },
     idleState: {
       alignItems: "center",
