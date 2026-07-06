@@ -110,6 +110,9 @@ export default function Button({
       onPress={onPress}
       disabled={!isInteractive}
       activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !isInteractive, busy: loading }}
       style={[
         styles.base,
         {

@@ -92,6 +92,9 @@ const VoiceRecordingModal: React.FC = () => {
             onPress={closePopup}
             style={styles.closeButton}
             activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
           >
             <X size={24} color={themeColors.foreground} />
           </TouchableOpacity>

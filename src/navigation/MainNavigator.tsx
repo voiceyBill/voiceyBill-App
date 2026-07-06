@@ -178,6 +178,9 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
         style={styles.tabItem}
         onPress={onPress}
         activeOpacity={0.7}
+        accessibilityRole="tab"
+        accessibilityLabel={name === 'Overview' ? 'Overview' : name}
+        accessibilityState={{ selected: isFocused }}
       >
         <Ionicons
           name={isFocused ? icon.active : icon.inactive}
@@ -247,6 +250,9 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
             onResponderMove={(e) => onFabMove(e.nativeEvent.pageX)}
             onResponderRelease={onFabRelease}
             onResponderTerminate={onFabRelease}
+            accessibilityRole="button"
+            accessibilityLabel={isRecording ? 'Recording voice transaction' : 'Record a voice transaction'}
+            accessibilityHint="Press and hold to record, release to send, slide left to cancel"
           >
             <Ionicons
               name={isRecording ? (fabCancel ? 'trash' : 'stop') : 'mic'}
@@ -291,24 +297,37 @@ function MainTopBar({ navigation, route }: BottomTabHeaderProps) {
       }
     ]}>
       <View style={styles.headerLeftGroup}>
-        <TouchableOpacity 
-          activeOpacity={0.7} 
+        <TouchableOpacity
+          activeOpacity={0.7}
           onPress={() => navigation.navigate('Transactions', { openVoiceMode: Date.now() })}
           style={styles.headerIconButton}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="Add transaction"
         >
           <Ionicons name="add-circle-outline" size={28} color={themeColors.foreground} />
         </TouchableOpacity>
       </View>
 
-      <Text style={[styles.headerTitle, { color: themeColors.foreground }]}>
+      <Text
+        style={[styles.headerTitle, { color: themeColors.foreground }]}
+        accessibilityRole="header"
+      >
         {getTitle(route.name)}
       </Text>
 
       <View style={styles.headerRightGroup}>
-        <TouchableOpacity 
-          activeOpacity={0.7} 
+        <TouchableOpacity
+          activeOpacity={0.7}
           onPress={() => navigation.navigate('Notifications')}
           style={styles.headerIconButton}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={
+            unreadCount > 0
+              ? `Notifications, ${unreadCount} unread`
+              : 'Notifications'
+          }
         >
           <Ionicons name="notifications-outline" size={24} color={themeColors.foreground} />
           {unreadCount > 0 && (
@@ -317,10 +336,13 @@ function MainTopBar({ navigation, route }: BottomTabHeaderProps) {
             </View>
           )}
         </TouchableOpacity>
-        <TouchableOpacity 
-          activeOpacity={0.7} 
+        <TouchableOpacity
+          activeOpacity={0.7}
           onPress={() => navigation.navigate('Settings')}
           style={styles.headerIconButton}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="Account and settings"
         >
           <Ionicons name="person-circle-outline" size={28} color={themeColors.foreground} />
         </TouchableOpacity>

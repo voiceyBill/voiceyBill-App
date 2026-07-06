@@ -387,6 +387,10 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
         activeOpacity={0.7}
         onPress={() => handleOpenDetails(item._id)}
         onLongPress={() => showActionMenu(item)}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.title}, ${isIncome ? "income" : "expense"}, ${formatLabel(item.category)}`}
+        accessibilityHint="Opens transaction details. Long press for more actions."
+        accessibilityState={{ selected }}
         style={[
           styles.transactionCard,
           {
