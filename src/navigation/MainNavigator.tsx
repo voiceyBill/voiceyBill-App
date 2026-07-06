@@ -46,18 +46,26 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const insets = useSafeAreaInsets();
-  const { holdStart, holdEnd, isRecording, duration } = useVoiceRecording();
+  const { holdStart, holdEnd, holdCancel, isRecording, duration } =
+    useVoiceRecording();
   const { showToast } = useToast();
   const holdTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const recordingStartedRef = React.useRef(false);
+  const fabStartX = React.useRef(0);
+  const fabCancelRef = React.useRef(false);
+  const [fabCancel, setFabCancel] = React.useState(false);
   const formatDur = (s: number) =>
     `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
   // Require a deliberate press-and-hold before recording begins, so a quick tap
-  // never starts a recording.
+  // never starts a recording. Uses the responder system so we can also track
+  // the finger for slide-to-cancel.
   const HOLD_DELAY = 450;
 
-  const onFabPressIn = () => {
+  const onFabGrant = (pageX: number) => {
+    fabStartX.current = pageX;
+    fabCancelRef.current = false;
+    setFabCancel(false);
     recordingStartedRef.current = false;
     holdTimerRef.current = setTimeout(() => {
       recordingStartedRef.current = true;
@@ -65,20 +73,36 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
     }, HOLD_DELAY);
   };
 
-  const onFabPressOut = async () => {
+  const onFabMove = (pageX: number) => {
+    if (!recordingStartedRef.current) return;
+    const cancel = pageX - fabStartX.current < -80;
+    if (cancel !== fabCancelRef.current) {
+      fabCancelRef.current = cancel;
+      setFabCancel(cancel);
+    }
+  };
+
+  const onFabRelease = async () => {
     if (holdTimerRef.current) {
       clearTimeout(holdTimerRef.current);
       holdTimerRef.current = null;
     }
     if (recordingStartedRef.current) {
       recordingStartedRef.current = false;
-      const r = await holdEnd();
-      if (r === 'tooShort') {
-        showToast({
-          type: 'info',
-          title: 'Hold to record',
-          message: 'Hold a moment and speak, then release to send.',
-        });
+      const wasCancel = fabCancelRef.current;
+      fabCancelRef.current = false;
+      setFabCancel(false);
+      if (wasCancel) {
+        await holdCancel();
+      } else {
+        const r = await holdEnd();
+        if (r === 'tooShort') {
+          showToast({
+            type: 'info',
+            title: 'Hold to record',
+            message: 'Hold a moment and speak, then release to send.',
+          });
+        }
       }
     } else {
       // Released before the hold threshold — it was just a tap.
@@ -129,14 +153,30 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   return (
     <View style={[styles.floatingWrapper, { paddingBottom: insets.bottom || spacing.md }]} pointerEvents="box-none">
       {isRecording && (
-        <View style={[styles.recordingBar, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-          <View style={styles.recordingDot} />
-          <View style={styles.recordingWaveWrap}>
-            <RecordingWaveform color={themeColors.primary} barCount={28} height={26} />
-          </View>
-          <Text style={[styles.recordingTime, { color: themeColors.foreground }]}>
-            {formatDur(duration)}
-          </Text>
+        <View
+          style={[
+            styles.recordingBar,
+            {
+              backgroundColor: themeColors.card,
+              borderColor: fabCancel ? themeColors.destructive : themeColors.border,
+            },
+          ]}
+        >
+          {fabCancel ? (
+            <Text style={[styles.recordingCancelText, { color: themeColors.destructive }]}>
+              ‹  Release to cancel
+            </Text>
+          ) : (
+            <>
+              <View style={styles.recordingDot} />
+              <View style={styles.recordingWaveWrap}>
+                <RecordingWaveform color={themeColors.primary} barCount={28} height={26} />
+              </View>
+              <Text style={[styles.recordingTime, { color: themeColors.foreground }]}>
+                {formatDur(duration)}
+              </Text>
+            </>
+          )}
         </View>
       )}
       <View
@@ -150,27 +190,31 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       >
         {leftTabs.map(renderTab)}
 
-        {/* Center FAB — hold to record, release to send */}
+        {/* Center FAB — hold to record, slide left to cancel, release to send */}
         <View style={styles.fabSlot}>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPressIn={onFabPressIn}
-            onPressOut={onFabPressOut}
+          <View
             style={[
               styles.voiceFab,
               {
                 backgroundColor: isRecording
                   ? themeColors.destructive
                   : themeColors.primary,
+                opacity: fabCancel ? 0.85 : 1,
               },
             ]}
+            onStartShouldSetResponder={() => true}
+            onMoveShouldSetResponder={() => true}
+            onResponderGrant={(e) => onFabGrant(e.nativeEvent.pageX)}
+            onResponderMove={(e) => onFabMove(e.nativeEvent.pageX)}
+            onResponderRelease={onFabRelease}
+            onResponderTerminate={onFabRelease}
           >
             <Ionicons
-              name={isRecording ? 'stop' : 'mic'}
+              name={isRecording ? (fabCancel ? 'trash' : 'stop') : 'mic'}
               size={24}
               color={themeColors.primaryForeground}
             />
-          </TouchableOpacity>
+          </View>
         </View>
 
         {rightTabs.map(renderTab)}
@@ -409,5 +453,11 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'hidden',
     alignItems: 'center',
+  },
+  recordingCancelText: {
+    flex: 1,
+    textAlign: 'center',
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
   },
 });

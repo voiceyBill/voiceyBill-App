@@ -25,6 +25,7 @@ interface VoiceRecordingContextType {
   // Hold-to-record on the menu-bar mic.
   holdStart: () => void;
   holdEnd: () => Promise<'tooShort' | 'processing'>;
+  holdCancel: () => Promise<void>;
   applyResult: () => void;
   closePopup: () => void;
 
@@ -74,6 +75,11 @@ export const VoiceRecordingProvider: React.FC<{ children: ReactNode }> = ({ chil
     return 'processing';
   };
 
+  // Slid to cancel: stop and discard without processing or opening the popup.
+  const holdCancel = async () => {
+    await capture.cancel();
+  };
+
   const applyResult = () => {
     if (!capture.result) return;
     // Open the transaction form on top of the popup, then close the popup behind
@@ -107,6 +113,7 @@ export const VoiceRecordingProvider: React.FC<{ children: ReactNode }> = ({ chil
         isVisible,
         holdStart,
         holdEnd,
+        holdCancel,
         applyResult,
         closePopup,
         formVisible,
