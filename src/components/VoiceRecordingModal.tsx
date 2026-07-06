@@ -15,6 +15,7 @@ import {
   CreditCard,
   ArrowUpRight,
   ArrowDownRight,
+  MicOff,
 } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { useTheme } from '../context/ThemeContext';
@@ -109,19 +110,27 @@ const VoiceRecordingModal: React.FC = () => {
             </View>
           ) : error ? (
             <View style={styles.centered}>
-              <Text style={[styles.centeredTitle, { color: themeColors.destructive }]}>
+              <View
+                style={[
+                  styles.errorIconWrap,
+                  { backgroundColor: `${themeColors.destructive}1A` },
+                ]}
+              >
+                <MicOff size={30} color={themeColors.destructive} strokeWidth={2} />
+              </View>
+              <Text style={[styles.errorTitle, { color: themeColors.foreground }]}>
                 Couldn't process
               </Text>
-              <Text style={[styles.centeredSub, { color: themeColors.mutedForeground }]}>
+              <Text style={[styles.errorMessage, { color: themeColors.mutedForeground }]}>
                 {error}
               </Text>
               <TouchableOpacity
                 onPress={closePopup}
-                style={[styles.applyBtn, { backgroundColor: themeColors.muted, marginTop: spacing.lg }]}
+                style={[styles.errorBtn, { backgroundColor: themeColors.primary }]}
                 activeOpacity={0.85}
               >
-                <Text style={[styles.applyBtnText, { color: themeColors.foreground }]}>
-                  Close
+                <Text style={[styles.errorBtnText, { color: themeColors.primaryForeground }]}>
+                  Try again
                 </Text>
               </TouchableOpacity>
             </View>
@@ -235,6 +244,30 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   centeredSub: { fontSize: fontSize.sm, textAlign: 'center' },
+  errorIconWrap: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  errorTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold },
+  errorMessage: {
+    fontSize: fontSize.sm,
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: spacing.md,
+  },
+  errorBtn: {
+    marginTop: spacing.lg,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    minWidth: 200,
+    alignItems: 'center',
+  },
+  errorBtnText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
   resultWrap: { flex: 1, justifyContent: 'center', gap: spacing.lg },
   resultCard: {
     borderWidth: 1.5,

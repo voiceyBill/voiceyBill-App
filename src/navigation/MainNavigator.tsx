@@ -12,6 +12,7 @@ import { useNotification, useToast } from '../context/NotificationContext';
 import { useVoiceRecording } from '../context/VoiceRecordingContext';
 import { colors, spacing, fontFamily } from '../theme/colors';
 import { FLOATING_TAB_BAR_HEIGHT } from './tabBarLayout';
+import RecordingWaveform from '../components/common/RecordingWaveform';
 
 // Screens
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
@@ -47,8 +48,47 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { holdStart, holdEnd, isRecording, duration } = useVoiceRecording();
   const { showToast } = useToast();
+  const holdTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordingStartedRef = React.useRef(false);
   const formatDur = (s: number) =>
     `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+
+  // Require a deliberate press-and-hold before recording begins, so a quick tap
+  // never starts a recording.
+  const HOLD_DELAY = 450;
+
+  const onFabPressIn = () => {
+    recordingStartedRef.current = false;
+    holdTimerRef.current = setTimeout(() => {
+      recordingStartedRef.current = true;
+      holdStart();
+    }, HOLD_DELAY);
+  };
+
+  const onFabPressOut = async () => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    if (recordingStartedRef.current) {
+      recordingStartedRef.current = false;
+      const r = await holdEnd();
+      if (r === 'tooShort') {
+        showToast({
+          type: 'info',
+          title: 'Hold to record',
+          message: 'Hold a moment and speak, then release to send.',
+        });
+      }
+    } else {
+      // Released before the hold threshold — it was just a tap.
+      showToast({
+        type: 'info',
+        title: 'Hold to record',
+        message: 'Press and hold the mic to record · release to send.',
+      });
+    }
+  };
 
   // Tabs shown in the bar (left side, then FAB, then right side)
   const leftTabs = ['Overview', 'Transactions'];
@@ -89,11 +129,14 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   return (
     <View style={[styles.floatingWrapper, { paddingBottom: insets.bottom || spacing.md }]} pointerEvents="box-none">
       {isRecording && (
-        <View style={[styles.recordingPill, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+        <View style={[styles.recordingBar, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
           <View style={styles.recordingDot} />
-          <Text style={[styles.recordingPillText, { color: themeColors.foreground }]}>
-            Recording  {formatDur(duration)}
+          <Text style={[styles.recordingTime, { color: themeColors.foreground }]}>
+            {formatDur(duration)}
           </Text>
+          <View style={styles.recordingWaveWrap}>
+            <RecordingWaveform color={themeColors.primary} barCount={22} height={24} />
+          </View>
         </View>
       )}
       <View
@@ -111,17 +154,8 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
         <View style={styles.fabSlot}>
           <TouchableOpacity
             activeOpacity={0.85}
-            onPressIn={() => holdStart()}
-            onPressOut={async () => {
-              const r = await holdEnd();
-              if (r === 'tooShort') {
-                showToast({
-                  type: 'info',
-                  title: 'Hold to record',
-                  message: 'Hold the mic and speak, then release to send.',
-                });
-              }
-            }}
+            onPressIn={onFabPressIn}
+            onPressOut={onFabPressOut}
             style={[
               styles.voiceFab,
               {
@@ -342,15 +376,17 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
-  recordingPill: {
+  recordingBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.sm + 2,
     borderRadius: 999,
     borderWidth: StyleSheet.hairlineWidth,
     marginBottom: spacing.sm,
+    width: '90%',
+    maxWidth: 420,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
@@ -363,8 +399,15 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: '#ef4444',
   },
-  recordingPillText: {
+  recordingTime: {
     fontFamily: fontFamily.semibold,
     fontSize: 13,
+    fontVariant: ['tabular-nums'],
+    minWidth: 34,
+  },
+  recordingWaveWrap: {
+    flex: 1,
+    overflow: 'hidden',
+    alignItems: 'center',
   },
 });
