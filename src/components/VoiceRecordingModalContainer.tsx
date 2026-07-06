@@ -16,7 +16,9 @@ const VoiceRecordingModalContainer: React.FC = () => {
         }, 100);
       }
     };
-    setOnVoiceComplete(handleVoiceComplete);
+    // Wrap in a function: passing the handler directly would make useState treat
+    // it as an updater and run it immediately with undefined.
+    setOnVoiceComplete(() => handleVoiceComplete);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigationRef]);
 

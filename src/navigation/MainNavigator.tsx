@@ -131,12 +131,12 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       {isRecording && (
         <View style={[styles.recordingBar, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
           <View style={styles.recordingDot} />
+          <View style={styles.recordingWaveWrap}>
+            <RecordingWaveform color={themeColors.primary} barCount={28} height={26} />
+          </View>
           <Text style={[styles.recordingTime, { color: themeColors.foreground }]}>
             {formatDur(duration)}
           </Text>
-          <View style={styles.recordingWaveWrap}>
-            <RecordingWaveform color={themeColors.primary} barCount={22} height={24} />
-          </View>
         </View>
       )}
       <View
