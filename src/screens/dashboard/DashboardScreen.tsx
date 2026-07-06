@@ -31,6 +31,7 @@ import DateRangePicker, {
   DateRangePreset,
 } from "../../components/overview/DateRangePicker";
 import TransactionOverviewChart from "../../components/overview/TransactionOverviewChart";
+import ExpenseBreakdownPie from "../../components/overview/ExpenseBreakdownPie";
 import RecentTransactions from "../../components/overview/RecentTransactions";
 import TransactionFormSheet from "../../components/transaction/TransactionFormSheet";
 import { formatCurrency } from "../../lib/formatCurrency";
@@ -204,6 +205,17 @@ export default function DashboardScreen({ navigation }: any) {
               />
             )}
           </View>
+        </View>
+
+        {/* Expenses Breakdown (donut) */}
+        <View style={styles.section}>
+          <ExpenseBreakdownPie
+            breakdown={pieQuery.data?.data?.breakdown || []}
+            total={pieQuery.data?.data?.totalSpent || 0}
+            periodLabel={summary?.preset?.label || "Past 30 Days"}
+            baseCurrency={baseCurrency}
+            isLoading={pieQuery.isLoading}
+          />
         </View>
 
         {/* Summary List Card */}

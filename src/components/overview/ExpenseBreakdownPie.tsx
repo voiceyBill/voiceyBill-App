@@ -6,17 +6,22 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '../../theme/colors';
 import { ExpenseBreakdown } from '../../features/analytics/analyticsAPI';
 import { formatCurrency } from '../../lib/formatCurrency';
+import Skeleton from '../common/Skeleton';
 
 const { width } = Dimensions.get('window');
 
-// Vibrant premium color palette matching the web client donut chart
+// Donut palette — kept identical to the web dashboard pie so the same slice
+// gets the same colour across platforms.
 const COLORS = [
-  '#6366f1', // Indigo
-  '#10b981', // Emerald
-  '#f59e0b', // Amber
-  '#f43f5e', // Rose
   '#8b5cf6', // Violet
+  '#ec4899', // Pink
+  '#3b82f6', // Blue
+  '#10b981', // Emerald
+  '#a855f7', // Purple
+  '#f59e0b', // Amber
+  '#ef4444', // Red
   '#06b6d4', // Cyan
+  '#64748b', // Slate
 ];
 
 export default function ExpenseBreakdownPie({
@@ -24,11 +29,13 @@ export default function ExpenseBreakdownPie({
   total,
   periodLabel,
   baseCurrency = 'USD',
+  isLoading = false,
 }: {
   breakdown: ExpenseBreakdown[];
   total: number;
   periodLabel?: string;
   baseCurrency?: string;
+  isLoading?: boolean;
 }) {
   const { activeTheme } = useTheme();
   const theme = colors[activeTheme];
@@ -89,9 +96,29 @@ export default function ExpenseBreakdownPie({
         </Text>
       </View>
 
-      {/* Donut or Empty */}
+      {/* Loading / Donut / Empty */}
       <View style={{ padding: spacing.lg }}>
-      {showEmpty ? (
+      {isLoading ? (
+        <View>
+          <View style={{ alignItems: 'center', paddingVertical: spacing.md }}>
+            <Skeleton width={170} height={170} radius={85} />
+          </View>
+          <View style={{ marginTop: spacing.md, gap: spacing.md }}>
+            {[0, 1, 2].map((i) => (
+              <View
+                key={`pie-sk-${i}`}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
+                  <Skeleton width={10} height={10} radius={5} />
+                  <Skeleton width={100} height={12} radius={6} />
+                </View>
+                <Skeleton width={64} height={12} radius={6} />
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : showEmpty ? (
         <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xl }}>
           <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: activeTheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', alignItems: 'center', justifyContent: 'center' }}>
             <FileX size={28} color={theme.mutedForeground} strokeWidth={1.5} />
