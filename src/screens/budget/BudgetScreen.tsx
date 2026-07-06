@@ -58,6 +58,7 @@ import {
   useUpsertBudgetMutation,
 } from '../../features/budget/budgetAPI';
 import BudgetCategoryPie from '../../components/budget/BudgetCategoryPie';
+import Skeleton from '../../components/common/Skeleton';
 import VoiceRecorder from '../../components/transaction/VoiceRecorder';
 import { useIsFocused } from '@react-navigation/native';
 import type {
@@ -513,25 +514,25 @@ const BudgetScreen = () => {
   };
 
   const handleDeleteBudget = async () => {
-    const confirmed = await confirm({
+    await confirm({
       title: 'Delete budget',
       message: 'Are you sure you want to delete this monthly budget?',
       confirmText: 'Delete',
       destructive: true,
+      onConfirm: async () => {
+        try {
+          await deleteBudget({ month, year }).unwrap();
+          showToast({ type: 'success', title: 'Budget deleted', message: 'Your monthly budget was removed.' });
+          refetch();
+        } catch (error: any) {
+          showToast({
+            type: 'error',
+            title: 'Delete failed',
+            message: getApiErrorMessage(error, 'Unable to delete budget.'),
+          });
+        }
+      },
     });
-    if (!confirmed) return;
-
-    try {
-      await deleteBudget({ month, year }).unwrap();
-      showToast({ type: 'success', title: 'Budget deleted', message: 'Your monthly budget was removed.' });
-      refetch();
-    } catch (error: any) {
-      showToast({
-        type: 'error',
-        title: 'Delete failed',
-        message: getApiErrorMessage(error, 'Unable to delete budget.'),
-      });
-    }
   };
 
   return (
@@ -562,9 +563,27 @@ const BudgetScreen = () => {
         </View>
 
         {isLoading && (
-          <View style={[styles.infoCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-            <Text style={[styles.loadingText, { color: themeColors.mutedForeground }]}>Loading budget...</Text>
-          </View>
+          <>
+            <View style={styles.summaryGrid}>
+              {[0, 1].map((i) => (
+                <View
+                  key={i}
+                  style={[styles.summaryCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+                >
+                  <Skeleton width={72} height={11} radius={5} />
+                  <Skeleton width={104} height={22} radius={7} style={{ marginTop: 10, marginBottom: 12 }} />
+                  <Skeleton width="100%" height={6} radius={3} />
+                </View>
+              ))}
+            </View>
+            <View style={[styles.categorySummarySection, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+              <Skeleton width={150} height={14} radius={6} />
+              <Skeleton width="70%" height={10} radius={5} style={{ marginTop: 10 }} />
+              <View style={{ alignItems: 'center', marginTop: 24 }}>
+                <Skeleton width={160} height={160} radius={80} />
+              </View>
+            </View>
+          </>
         )}
 
         {isError && (

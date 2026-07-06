@@ -60,6 +60,64 @@ export function SkeletonGroup({ style, children }: { style?: ViewStyle; children
   return <View style={[styles.group, style]}>{children}</View>;
 }
 
+/**
+ * A single list-row placeholder: circular avatar + two text lines + a trailing
+ * amount block. Matches the shape of a transaction / list card.
+ */
+export function RowSkeleton() {
+  return (
+    <View style={styles.row}>
+      <Skeleton width={40} height={40} radius={20} />
+      <View style={styles.rowInfo}>
+        <Skeleton width="55%" height={12} radius={6} />
+        <Skeleton width="35%" height={10} radius={5} />
+      </View>
+      <Skeleton width={56} height={14} radius={6} />
+    </View>
+  );
+}
+
+/**
+ * A list of row placeholders with hairline separators between them — a drop-in
+ * loading state for any list of cards/rows.
+ */
+export function ListSkeleton({
+  count = 6,
+  separatorColor,
+}: {
+  count?: number;
+  separatorColor?: string;
+}) {
+  const { activeTheme } = useTheme();
+  const theme = colors[activeTheme];
+  const sep = separatorColor ?? theme.border;
+  return (
+    <View>
+      {Array.from({ length: count }).map((_, i) => (
+        <View key={i}>
+          {i > 0 && <View style={[styles.separator, { backgroundColor: sep }]} />}
+          <RowSkeleton />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   group: { gap: 8 },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 14,
+  },
+  rowInfo: {
+    flex: 1,
+    gap: 6,
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 16 + 40 + 14,
+  },
 });

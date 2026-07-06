@@ -139,17 +139,17 @@ export default function SettingsScreen() {
   const user = useTypedSelector((s) => s.auth.user);
 
   const handleLogout = async () => {
-    const confirmed = await confirm({
+    await confirm({
       title: "Log out",
       message: "Are you sure you want to log out?",
       confirmText: "Log out",
       destructive: true,
+      onConfirm: async () => {
+        await deleteRefreshToken();
+        dispatch(logout());
+        dispatch(apiClient.util.resetApiState());
+      },
     });
-    if (!confirmed) return;
-
-    await deleteRefreshToken();
-    dispatch(logout());
-    dispatch(apiClient.util.resetApiState());
   };
 
   const [sendDeleteAccountOtp] = useSendDeleteAccountOtpMutation();

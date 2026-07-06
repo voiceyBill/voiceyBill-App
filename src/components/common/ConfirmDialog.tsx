@@ -2,6 +2,7 @@ import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Pressable } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, borderRadius, fontFamily, shadows, cardRadius } from '../../theme/colors';
+import Spinner from './Spinner';
 
 type ConfirmDialogProps = {
   visible: boolean;
@@ -10,6 +11,8 @@ type ConfirmDialogProps = {
   confirmText?: string;
   cancelText?: string;
   destructive?: boolean;
+  /** When true, the confirm button shows a spinner and both actions lock. */
+  loading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -21,11 +24,14 @@ export default function ConfirmDialog({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   destructive = false,
+  loading = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
   const { activeTheme } = useTheme();
   const theme = colors[activeTheme];
+
+  const confirmFg = destructive ? theme.destructiveForeground : theme.primaryForeground;
 
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onCancel}>
@@ -38,9 +44,10 @@ export default function ConfirmDialog({
           <Text style={[styles.message, { color: theme.mutedForeground }]}>{message}</Text>
           <View style={styles.actions}>
             <TouchableOpacity
-              style={[styles.cancelBtn, { borderColor: theme.border }]}
+              style={[styles.cancelBtn, { borderColor: theme.border }, loading && styles.disabled]}
               onPress={onCancel}
               activeOpacity={0.7}
+              disabled={loading}
             >
               <Text style={[styles.cancelText, { color: theme.foreground }]}>{cancelText}</Text>
             </TouchableOpacity>
@@ -51,15 +58,13 @@ export default function ConfirmDialog({
               ]}
               onPress={onConfirm}
               activeOpacity={0.85}
+              disabled={loading}
             >
-              <Text
-                style={[
-                  styles.confirmText,
-                  { color: destructive ? theme.destructiveForeground : theme.primaryForeground },
-                ]}
-              >
-                {confirmText}
-              </Text>
+              {loading ? (
+                <Spinner size={18} color={confirmFg} trackColor="rgba(255,255,255,0.35)" />
+              ) : (
+                <Text style={[styles.confirmText, { color: confirmFg }]}>{confirmText}</Text>
+              )}
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -115,9 +120,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm + 4,
     borderRadius: borderRadius.full,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
   },
   confirmText: {
     fontFamily: fontFamily.semibold,
     fontSize: 14,
+  },
+  disabled: {
+    opacity: 0.5,
   },
 });

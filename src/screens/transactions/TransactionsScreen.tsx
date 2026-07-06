@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Spinner from "../../components/common/Spinner";
+import { ListSkeleton } from "../../components/common/Skeleton";
 import { getApiErrorMessage } from "../../lib/getApiErrorMessage";
 import { useFloatingTabBarSpace } from "../../navigation/tabBarLayout";
 import { RouteProp } from "@react-navigation/native";
@@ -161,6 +162,18 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
         : undefined,
   });
 
+  // Pull-to-refresh spins only on an actual user pull — not on the first load
+  // (that's what the skeleton is for).
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const [deleteTransaction] = useDeleteTransactionMutation();
   const [duplicateTransaction] = useDuplicateTransactionMutation();
   const [bulkDelete, { isLoading: isBulkDeleting }] =
@@ -189,22 +202,24 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
   }, [showDetailsSheet, detailsTransactionId, refetchDetails]);
 
   const handleDelete = async (id: string) => {
-    const confirmed = await confirm({
+    await confirm({
       title: "Delete transaction",
       message: "Are you sure you want to delete this transaction?",
       confirmText: "Delete",
       destructive: true,
+      // Runs while the dialog shows a spinner on the Delete button, so the
+      // user sees the deletion is in progress instead of nothing happening.
+      onConfirm: async () => {
+        try {
+          await deleteTransaction(id).unwrap();
+          showToast({ type: "success", title: "Deleted", message: "Transaction removed." });
+          refetch();
+        } catch (error) {
+          console.error("Failed to delete transaction:", error);
+          showToast({ type: "error", title: "Error", message: getApiErrorMessage(error, "Failed to delete transaction.") });
+        }
+      },
     });
-    if (!confirmed) return;
-
-    try {
-      await deleteTransaction(id).unwrap();
-      showToast({ type: "success", title: "Deleted", message: "Transaction removed." });
-      refetch();
-    } catch (error) {
-      console.error("Failed to delete transaction:", error);
-      showToast({ type: "error", title: "Error", message: getApiErrorMessage(error, "Failed to delete transaction.") });
-    }
   };
 
   const handleEdit = (id: string) => {
@@ -265,22 +280,22 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0 || isBulkDeleting) return;
-    const confirmed = await confirm({
+    await confirm({
       title: "Delete selected",
       message: `Delete ${selectedIds.size} selected transaction(s)?`,
       confirmText: "Delete",
       destructive: true,
+      onConfirm: async () => {
+        try {
+          await bulkDelete(Array.from(selectedIds)).unwrap();
+          setSelectedIds(new Set());
+          showToast({ type: "success", title: "Deleted", message: "Selected transactions removed." });
+          refetch();
+        } catch (error) {
+          showToast({ type: "error", title: "Error", message: getApiErrorMessage(error, "Failed to delete selected transactions.") });
+        }
+      },
     });
-    if (!confirmed) return;
-
-    try {
-      await bulkDelete(Array.from(selectedIds)).unwrap();
-      setSelectedIds(new Set());
-      showToast({ type: "success", title: "Deleted", message: "Selected transactions removed." });
-      refetch();
-    } catch (error) {
-      showToast({ type: "error", title: "Error", message: getApiErrorMessage(error, "Failed to delete selected transactions.") });
-    }
   };
 
   const handleBulkImport = async () => {
@@ -713,21 +728,30 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
         style={styles.list}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={refetch} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={themeColors.primary}
+            colors={[themeColors.primary]}
+          />
         }
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <CircleDot
-              size={48}
-              color={themeColors.mutedForeground}
-              opacity={0.5}
-            />
-            <Text
-              style={[styles.emptyText, { color: themeColors.mutedForeground }]}
-            >
-              No transactions found
-            </Text>
-          </View>
+          isLoading ? (
+            <ListSkeleton count={8} separatorColor={themeColors.border} />
+          ) : (
+            <View style={styles.emptyState}>
+              <CircleDot
+                size={48}
+                color={themeColors.mutedForeground}
+                opacity={0.5}
+              />
+              <Text
+                style={[styles.emptyText, { color: themeColors.mutedForeground }]}
+              >
+                No transactions found
+              </Text>
+            </View>
+          )
         }
       />
 
