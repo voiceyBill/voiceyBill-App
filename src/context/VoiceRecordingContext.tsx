@@ -28,6 +28,12 @@ interface VoiceRecordingContextType {
   applyResult: () => void;
   closePopup: () => void;
 
+  // Global transaction form opened after applying a voice result — avoids a tab
+  // switch / home-screen flash.
+  formVisible: boolean;
+  voicePrefill: VoiceRecordingData | null;
+  closeVoiceForm: () => void;
+
   // Navigation + prefill wiring consumed by TransactionsScreen.
   voiceData: VoiceRecordingData | null;
   setVoiceData: (data: VoiceRecordingData | null) => void;
@@ -42,6 +48,8 @@ const VoiceRecordingContext = createContext<VoiceRecordingContextType | undefine
 export const VoiceRecordingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const capture = useVoiceCapture();
   const [isVisible, setIsVisible] = useState(false);
+  const [formVisible, setFormVisible] = useState(false);
+  const [voicePrefill, setVoicePrefill] = useState<VoiceRecordingData | null>(null);
   const [voiceData, setVoiceData] = useState<VoiceRecordingData | null>(null);
   const [onVoiceComplete, setOnVoiceComplete] = useState<
     ((data: VoiceRecordingData) => void) | undefined
@@ -67,16 +75,25 @@ export const VoiceRecordingProvider: React.FC<{ children: ReactNode }> = ({ chil
   };
 
   const applyResult = () => {
-    if (capture.result && onVoiceComplete) {
-      onVoiceComplete(capture.result);
-    }
-    capture.reset();
-    setIsVisible(false);
+    if (!capture.result) return;
+    // Open the transaction form on top of the popup, then close the popup behind
+    // it — so we never flash the tab underneath or switch tabs.
+    setVoicePrefill(capture.result);
+    setFormVisible(true);
+    setTimeout(() => {
+      setIsVisible(false);
+      capture.reset();
+    }, 350);
   };
 
   const closePopup = () => {
     capture.cancel();
     setIsVisible(false);
+  };
+
+  const closeVoiceForm = () => {
+    setFormVisible(false);
+    setVoicePrefill(null);
   };
 
   return (
@@ -92,6 +109,9 @@ export const VoiceRecordingProvider: React.FC<{ children: ReactNode }> = ({ chil
         holdEnd,
         applyResult,
         closePopup,
+        formVisible,
+        voicePrefill,
+        closeVoiceForm,
         voiceData,
         setVoiceData,
         onVoiceComplete,
