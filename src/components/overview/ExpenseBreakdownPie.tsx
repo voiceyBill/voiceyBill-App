@@ -24,6 +24,38 @@ const COLORS = [
   '#64748b', // Slate
 ];
 
+// React Native's Hermes engine has unreliable Intl compact-notation support
+// (it can render real values as "0.0"), so format the donut centre with a small
+// manual compact formatter instead of `formatCurrency({ compact: true })`.
+const compactAmount = (value: number, currency: string): string => {
+  const abs = Math.abs(value);
+  if (abs < 1000) {
+    return formatCurrency(value, {
+      currency,
+      decimalPlaces: Number.isInteger(value) ? 0 : 2,
+    });
+  }
+  const symbol = formatCurrency(0, { currency, decimalPlaces: 0 }).replace(
+    /[\d.,\s ]/g,
+    '',
+  );
+  const sep = symbol.length > 1 ? ' ' : '';
+  const sign = value < 0 ? '-' : '';
+  const units: Array<[number, string]> = [
+    [1e9, 'B'],
+    [1e6, 'M'],
+    [1e3, 'K'],
+  ];
+  for (const [unit, suffix] of units) {
+    if (abs >= unit) {
+      const scaled = abs / unit;
+      const num = scaled >= 100 ? scaled.toFixed(0) : scaled.toFixed(1);
+      return `${sign}${symbol}${sep}${num}${suffix}`;
+    }
+  }
+  return formatCurrency(value, { currency, decimalPlaces: 0 });
+};
+
 export default function ExpenseBreakdownPie({
   breakdown,
   total,
@@ -40,16 +72,15 @@ export default function ExpenseBreakdownPie({
   const { activeTheme } = useTheme();
   const theme = colors[activeTheme];
 
-  // Sizing - match web: innerRadius 60, outerRadius 80, so strokeWidth = 20
-  const chartMaxWidth = width - spacing.lg * 2;
-  const innerRadius = 60;
-  const outerRadius = 80;
-  const strokeWidth = outerRadius - innerRadius; // 20
-  const radius = innerRadius + strokeWidth / 2; // 70 (center of stroke)
-  const center = outerRadius + 10; // Add padding
-  const svgSize = center * 2;
-  const size = Math.min(svgSize, Math.max(180, Math.min(260, chartMaxWidth)));
-  const scale = size / svgSize;
+  // Sizing — larger, responsive donut that fills the card width on phones.
+  const innerRadius = 80;
+  const outerRadius = 108;
+  const strokeWidth = outerRadius - innerRadius; // 28
+  const radius = innerRadius + strokeWidth / 2; // 94 (centre of the stroke)
+  const center = outerRadius + 12; // padding around the ring
+  const svgSize = center * 2; // 240
+  // Fit within the card's inner width (screen minus section + card padding).
+  const size = Math.min(svgSize, width - spacing.lg * 4);
 
   // Build arcs - filter out zero values to show ALL non-zero categories
   const segments = useMemo(() => {
@@ -101,7 +132,7 @@ export default function ExpenseBreakdownPie({
       {isLoading ? (
         <View>
           <View style={{ alignItems: 'center', paddingVertical: spacing.md }}>
-            <Skeleton width={170} height={170} radius={85} />
+            <Skeleton width={size} height={size} radius={size / 2} />
           </View>
           <View style={{ marginTop: spacing.md, gap: spacing.md }}>
             {[0, 1, 2].map((i) => (
@@ -170,8 +201,12 @@ export default function ExpenseBreakdownPie({
                 ]} 
                 pointerEvents="none"
               >
-                <Text style={[styles.centerValue, { color: theme.foreground }]}>
-                  {formatCurrency(total, { compact: true, currency: baseCurrency })}
+                <Text
+                  style={[styles.centerValue, { color: theme.foreground }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  {compactAmount(total, baseCurrency)}
                 </Text>
                 <Text style={[styles.centerLabel, { color: theme.mutedForeground }]}>Spent</Text>
               </View>
@@ -243,9 +278,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   centerValue: {
-    fontSize: fontSize.xl,
+    fontSize: 26,
     fontWeight: fontWeight.bold,
     textAlign: 'center',
+    paddingHorizontal: spacing.sm,
   },
   centerLabel: {
     fontSize: 10,
