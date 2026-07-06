@@ -8,7 +8,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
-import { useNotification } from '../context/NotificationContext';
+import { useNotification, useToast } from '../context/NotificationContext';
 import { useVoiceRecording } from '../context/VoiceRecordingContext';
 import { colors, spacing, fontFamily } from '../theme/colors';
 import { FLOATING_TAB_BAR_HEIGHT } from './tabBarLayout';
@@ -45,7 +45,10 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const { activeTheme } = useTheme();
   const themeColors = colors[activeTheme];
   const insets = useSafeAreaInsets();
-  const { openVoiceRecording } = useVoiceRecording();
+  const { holdStart, holdEnd, isRecording, duration } = useVoiceRecording();
+  const { showToast } = useToast();
+  const formatDur = (s: number) =>
+    `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
   // Tabs shown in the bar (left side, then FAB, then right side)
   const leftTabs = ['Overview', 'Transactions'];
@@ -85,6 +88,14 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
 
   return (
     <View style={[styles.floatingWrapper, { paddingBottom: insets.bottom || spacing.md }]} pointerEvents="box-none">
+      {isRecording && (
+        <View style={[styles.recordingPill, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+          <View style={styles.recordingDot} />
+          <Text style={[styles.recordingPillText, { color: themeColors.foreground }]}>
+            Recording  {formatDur(duration)}
+          </Text>
+        </View>
+      )}
       <View
         style={[
           styles.floatingBar,
@@ -96,14 +107,35 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       >
         {leftTabs.map(renderTab)}
 
-        {/* Center FAB */}
+        {/* Center FAB — hold to record, release to send */}
         <View style={styles.fabSlot}>
           <TouchableOpacity
             activeOpacity={0.85}
-            onPress={() => openVoiceRecording()}
-            style={[styles.voiceFab, { backgroundColor: themeColors.primary }]}
+            onPressIn={() => holdStart()}
+            onPressOut={async () => {
+              const r = await holdEnd();
+              if (r === 'tooShort') {
+                showToast({
+                  type: 'info',
+                  title: 'Hold to record',
+                  message: 'Hold the mic and speak, then release to send.',
+                });
+              }
+            }}
+            style={[
+              styles.voiceFab,
+              {
+                backgroundColor: isRecording
+                  ? themeColors.destructive
+                  : themeColors.primary,
+              },
+            ]}
           >
-            <Ionicons name="mic" size={24} color={themeColors.primaryForeground} />
+            <Ionicons
+              name={isRecording ? 'stop' : 'mic'}
+              size={24}
+              color={themeColors.primaryForeground}
+            />
           </TouchableOpacity>
         </View>
 
@@ -309,5 +341,30 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 8,
+  },
+  recordingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  recordingDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: '#ef4444',
+  },
+  recordingPillText: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
   },
 });
