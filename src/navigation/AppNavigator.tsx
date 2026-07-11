@@ -6,7 +6,7 @@ import {
   DarkTheme,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Platform } from "react-native";
+import { InteractionManager, Platform } from "react-native";
 import { useTypedSelector } from "../store/hooks";
 import { useTheme } from "../context/ThemeContext";
 import { colors } from "../theme/colors";
@@ -57,10 +57,16 @@ function AppContent() {
       });
     };
 
-    register();
+    // PERF: push registration isn't needed for first paint — defer it until
+    // the initial render/animations settle so permission checks and the
+    // register-token request don't compete with startup on the JS thread.
+    const task = InteractionManager.runAfterInteractions(() => {
+      register();
+    });
 
     return () => {
       isMounted = false;
+      task.cancel();
     };
   }, [isAuthenticated, registerPushToken]);
 
