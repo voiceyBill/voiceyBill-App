@@ -1,3 +1,5 @@
+import type { TextStyle } from "react-native";
+
 // Theme colors matching web client design system
 // Aligned with web index.css — green/dark premium slate-green palette
 export const colors = {
@@ -63,6 +65,13 @@ export const colors = {
     incomeBg: "rgba(22, 97, 20, 0.08)",
     expenseBg: "rgba(168, 44, 44, 0.08)",
 
+    // Status & overlay
+    overlay: "rgba(15, 31, 18, 0.45)",
+    success: "#166114",
+    successBg: "rgba(22, 97, 20, 0.08)",
+    warning: "#b7791f",
+    warningBg: "rgba(183, 121, 31, 0.10)",
+
     // Brand greens
     brandGreen: "#166114",
     brandGreenLight: "#9fff59",
@@ -70,8 +79,9 @@ export const colors = {
 
   // ── Dark theme ──────────────────────────────────────────
   dark: {
-    // Primary — Neon Green (matching web)
-    primary: "#9fff59",
+    // Primary — brand green, calmed from the previous neon #9fff59 for a more
+    // premium, less "acid" dark UI while staying unmistakably VoiceyBill green.
+    primary: "#8ef05a",
     primaryForeground: "#0a100c",
 
     // Backgrounds
@@ -84,7 +94,7 @@ export const colors = {
 
     // Secondary
     secondary: "#18271c",
-    secondaryForeground: "#9fff59",
+    secondaryForeground: "#8ef05a",
 
     // Muted
     muted: "#18271c",
@@ -92,19 +102,19 @@ export const colors = {
 
     // Accent
     accent: "#203525",
-    accentForeground: "#9fff59",
+    accentForeground: "#8ef05a",
 
     // Borders & inputs
-    border: "rgba(159, 255, 89, 0.08)",
-    input: "rgba(159, 255, 89, 0.12)",
-    ring: "#9fff59",
+    border: "rgba(142, 240, 90, 0.08)",
+    input: "rgba(142, 240, 90, 0.12)",
+    ring: "#8ef05a",
 
     // Destructive
     destructive: "#ff4d4d",
     destructiveForeground: "#ffffff",
 
     // Chart
-    chart1: "#9fff59",
+    chart1: "#8ef05a",
     chart2: "#7ecb47",
     chart3: "#5e9935",
     chart4: "#3d6722",
@@ -113,25 +123,32 @@ export const colors = {
     // Sidebar
     sidebar: "#111a13",
     sidebarForeground: "#f9faf9",
-    sidebarPrimary: "#9fff59",
+    sidebarPrimary: "#8ef05a",
     sidebarPrimaryForeground: "#0a100c",
     sidebarAccent: "#18271c",
-    sidebarAccentForeground: "#9fff59",
-    sidebarBorder: "rgba(159, 255, 89, 0.08)",
+    sidebarAccentForeground: "#8ef05a",
+    sidebarBorder: "rgba(142, 240, 90, 0.08)",
 
     // Navbar — always dark
     navbar: "#0a100c",
     navbarForeground: "#ffffff",
 
     // Semantic transaction colors
-    incomeText: "#9fff59",
+    incomeText: "#8ef05a",
     expenseText: "#ff4d4d",
-    incomeBg: "rgba(159, 255, 89, 0.12)",
+    incomeBg: "rgba(142, 240, 90, 0.12)",
     expenseBg: "rgba(255, 77, 77, 0.12)",
 
+    // Status & overlay
+    overlay: "rgba(0, 0, 0, 0.6)",
+    success: "#8ef05a",
+    successBg: "rgba(142, 240, 90, 0.12)",
+    warning: "#f0c14b",
+    warningBg: "rgba(240, 193, 75, 0.12)",
+
     // Brand greens
-    brandGreen: "#9fff59",
-    brandGreenLight: "#9fff59",
+    brandGreen: "#8ef05a",
+    brandGreenLight: "#8ef05a",
   },
 };
 
@@ -146,7 +163,10 @@ export const spacing = {
   xxxl: 64,
 };
 
-// Border radius — base 8px matching web --radius: 0.5rem
+// Border radius.
+// Numeric rungs (none…2xl) are the legacy scale kept for backward compatibility.
+// Semantic rungs are the design-system radius language screens should migrate to:
+//   chip 8 · input 14 · button 12 · card 20 · sheet 28 · pill full
 export const borderRadius = {
   none: 0,
   sm: 4,
@@ -154,7 +174,16 @@ export const borderRadius = {
   lg: 8,
   xl: 12,
   "2xl": 16,
+  "3xl": 20,
+  "4xl": 28,
   full: 9999,
+  // Semantic aliases (preferred)
+  chip: 8,
+  input: 14,
+  button: 12,
+  card: 20,
+  sheet: 28,
+  pill: 9999,
 };
 
 // Typography
@@ -244,6 +273,131 @@ export const shadows = {
 
 // Shared radius for premium card surfaces
 export const cardRadius = 20;
+
+// ── Elevation ─────────────────────────────────────────────
+// Exactly three tiers so surfaces read as a consistent height system, instead
+// of the ~10 bespoke shadows currently scattered across screens.
+//   rest    resting cards / list surfaces
+//   raised  interactive / floating affordances (FAB, active card)
+//   overlay sheets, dialogs, menus
+export const elevation = {
+  rest: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  raised: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  overlay: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+};
+
+// ── Motion ────────────────────────────────────────────────
+// Durations in ms; easing as cubic-bezier control points to keep this token
+// file framework-agnostic (components apply Easing.bezier(...easing.standard)).
+export const motion = {
+  duration: {
+    fast: 150,
+    base: 250,
+    slow: 350,
+  },
+  easing: {
+    standard: [0.2, 0, 0, 1] as const,
+    entrance: [0.05, 0.7, 0.1, 1] as const,
+    exit: [0.3, 0, 0.8, 0.15] as const,
+  },
+};
+
+// ── Press feedback ────────────────────────────────────────
+// Standard activeOpacity values so touch feedback is consistent app-wide.
+export const press = {
+  row: 0.7,
+  card: 0.9,
+  button: 0.85,
+  icon: 0.6,
+};
+
+// ── Typography presets ────────────────────────────────────
+// Semantic text roles built on Inter. lineHeight is absolute px (RN convention).
+// Numeric variants add tabular figures so amounts/dates don't shift horizontally.
+export type TextVariant =
+  | "displayLg"
+  | "title"
+  | "heading"
+  | "body"
+  | "bodyMedium"
+  | "label"
+  | "caption"
+  | "amountLg"
+  | "amount";
+
+export const textStyles: Record<TextVariant, TextStyle> = {
+  displayLg: {
+    fontFamily: fontFamily.extrabold,
+    fontSize: 34,
+    lineHeight: 40,
+    letterSpacing: -0.5,
+  },
+  title: {
+    fontFamily: fontFamily.bold,
+    fontSize: 22,
+    lineHeight: 28,
+    letterSpacing: -0.3,
+  },
+  heading: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 17,
+    lineHeight: 24,
+    letterSpacing: -0.2,
+  },
+  body: {
+    fontFamily: fontFamily.regular,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  bodyMedium: {
+    fontFamily: fontFamily.medium,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  label: {
+    fontFamily: fontFamily.medium,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  caption: {
+    fontFamily: fontFamily.medium,
+    fontSize: 11,
+    lineHeight: 16,
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+  amountLg: {
+    fontFamily: fontFamily.extrabold,
+    fontSize: 34,
+    lineHeight: 40,
+    letterSpacing: -0.5,
+    fontVariant: ["tabular-nums"],
+  },
+  amount: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 15,
+    lineHeight: 22,
+    fontVariant: ["tabular-nums"],
+  },
+};
 
 export const maxWidth = {
   container: 1248,
