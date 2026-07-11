@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
 import lamejs from "lamejs";
@@ -82,6 +82,10 @@ export function useVoiceCapture() {
   const startTimeRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startingRef = useRef(false);
+  // In-flight upload handle + cancel flag, so closing the popup aborts the
+  // network request instead of letting it finish and discarding the result.
+  const uploadRef = useRef<{ abort: () => void } | null>(null);
+  const cancelledRef = useRef(false);
 
   const [isRecording, setIsRecording] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -89,7 +93,7 @@ export function useVoiceCapture() {
   const [result, setResult] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const start = async () => {
+  const start = useCallback(async () => {
     if (startingRef.current || isRecording) return;
     startingRef.current = true;
     setError(null);
@@ -132,9 +136,9 @@ export function useVoiceCapture() {
     } finally {
       startingRef.current = false;
     }
-  };
+  }, [isRecording]);
 
-  const stopInternal = async (): Promise<string | null> => {
+  const stopInternal = useCallback(async (): Promise<string | null> => {
     const rec = recordingRef.current;
     if (!rec) return null;
     try {
@@ -158,79 +162,116 @@ export function useVoiceCapture() {
       recordingRef.current = null;
       return null;
     }
-  };
+  }, []);
 
-  const processUri = async (uri: string) => {
-    setIsProcessing(true);
-    setError(null);
-    let uploadUri = uri;
-    try {
-      const fileExt = uri.split(".").pop()?.toLowerCase();
-      if (fileExt === "wav") {
-        try {
-          uploadUri = await convertWavToMp3(uri);
-        } catch {}
-      }
-      const form = new FormData();
-      const ext = uploadUri.split(".").pop()?.toLowerCase();
-      let name = "recording.mp3",
-        mime = "audio/mpeg";
-      if (ext === "wav" || ext === "m4a" || ext === "mp4" || ext === "aac") {
-        name = "recording.wav";
-        mime = "audio/wav";
-      }
-      // @ts-ignore React Native FormData file
-      form.append("file", { uri: uploadUri, name, type: mime });
-      const res = await processVoice(form as any).unwrap();
-      if (res?.success && res?.data && !res.data.error) {
-        setResult(res.data);
-        if (uploadUri !== uri) {
+  const processUri = useCallback(
+    async (uri: string) => {
+      setIsProcessing(true);
+      setError(null);
+      cancelledRef.current = false;
+      let uploadUri = uri;
+      try {
+        const fileExt = uri.split(".").pop()?.toLowerCase();
+        if (fileExt === "wav") {
           try {
-            await FileSystem.deleteAsync(uploadUri, { idempotent: true });
+            uploadUri = await convertWavToMp3(uri);
           } catch {}
         }
-      } else {
-        setError(res?.data?.error || "Couldn't understand the recording.");
+        const form = new FormData();
+        const ext = uploadUri.split(".").pop()?.toLowerCase();
+        let name = "recording.mp3",
+          mime = "audio/mpeg";
+        if (ext === "wav" || ext === "m4a" || ext === "mp4" || ext === "aac") {
+          name = "recording.wav";
+          mime = "audio/wav";
+        }
+        // @ts-ignore React Native FormData file
+        form.append("file", { uri: uploadUri, name, type: mime });
+        const request = processVoice(form as any);
+        uploadRef.current = request;
+        const res = await request.unwrap();
+        if (res?.success && res?.data && !res.data.error) {
+          setResult(res.data);
+          if (uploadUri !== uri) {
+            try {
+              await FileSystem.deleteAsync(uploadUri, { idempotent: true });
+            } catch {}
+          }
+        } else {
+          setError(res?.data?.error || "Couldn't understand the recording.");
+        }
+      } catch {
+        // A deliberate cancel aborts the upload — that rejection isn't an
+        // error the user should see.
+        if (!cancelledRef.current) {
+          setError("Failed to process the recording. Please try again.");
+        }
+      } finally {
+        uploadRef.current = null;
+        if (!cancelledRef.current) {
+          setIsProcessing(false);
+        }
       }
-    } catch {
-      setError("Failed to process the recording. Please try again.");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+    },
+    [processVoice],
+  );
 
   // Stop recording; report the uri and whether it was too short to keep.
-  const stop = async (): Promise<{ uri: string | null; tooShort: boolean }> => {
+  const stop = useCallback(async (): Promise<{
+    uri: string | null;
+    tooShort: boolean;
+  }> => {
     const uri = await stopInternal();
     const elapsed = (Date.now() - startTimeRef.current) / 1000;
     return { uri, tooShort: !uri || elapsed < MIN_RECORD_SECONDS };
-  };
+  }, [stopInternal]);
 
-  const cancel = async () => {
+  const cancel = useCallback(async () => {
+    // Abort any in-flight upload so cancelling doesn't waste bandwidth or
+    // battery finishing a request whose result will be discarded.
+    cancelledRef.current = true;
+    uploadRef.current?.abort();
+    uploadRef.current = null;
     await stopInternal();
     setResult(null);
     setIsProcessing(false);
     setError(null);
     setDuration(0);
-  };
+  }, [stopInternal]);
 
-  const reset = () => {
+  const reset = useCallback(() => {
     setResult(null);
     setIsProcessing(false);
     setError(null);
     setDuration(0);
-  };
+  }, []);
 
-  return {
-    isRecording,
-    duration,
-    isProcessing,
-    result,
-    error,
-    start,
-    stop,
-    process: processUri,
-    cancel,
-    reset,
-  };
+  // Stable object so the voice context (and its consumers) don't re-render
+  // from a new capture identity on every provider render.
+  return useMemo(
+    () => ({
+      isRecording,
+      duration,
+      isProcessing,
+      result,
+      error,
+      start,
+      stop,
+      process: processUri,
+      cancel,
+      reset,
+    }),
+    [
+      isRecording,
+      duration,
+      isProcessing,
+      result,
+      error,
+      start,
+      stop,
+      processUri,
+      cancel,
+      reset,
+    ],
+  );
 }
