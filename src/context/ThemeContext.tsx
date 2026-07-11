@@ -14,6 +14,14 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 const THEME_STORAGE_KEY = 'app-theme';
 
+// PERF: kick the read off at module evaluation so it resolves in parallel
+// with font loading and store rehydration, instead of serializing after the
+// provider mounts — which also closes the window where the first frames could
+// flash the wrong theme.
+const storedThemePromise = AsyncStorage.getItem(THEME_STORAGE_KEY).catch(
+  () => null,
+);
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemColorScheme = useColorScheme();
   const [theme, setThemeState] = useState<Theme>('system');
@@ -22,8 +30,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     theme === 'system' ? systemColorScheme || 'light' : theme;
 
   useEffect(() => {
-    // Load theme from storage
-    AsyncStorage.getItem(THEME_STORAGE_KEY).then((value) => {
+    // Consume the read started at module scope (usually already resolved).
+    storedThemePromise.then((value) => {
       if (value === 'light' || value === 'dark' || value === 'system') {
         setThemeState(value);
       }
