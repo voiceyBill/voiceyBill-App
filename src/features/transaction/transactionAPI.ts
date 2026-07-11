@@ -80,6 +80,95 @@ export interface BulkImportTransactionPayload {
   transactions: CreateTransactionBody[];
 }
 
+/**
+ * Optimistically insert a just-created transaction at the top of the cached
+ * lists it would appear in (first page, matching filters), so the row is
+ * already visible the moment the form closes instead of appearing only after
+ * the invalidation refetch lands. The refetch then replaces the placeholder
+ * with the server's canonical row (real id, converted currency amounts).
+ */
+const insertIntoTransactionCaches = (
+  dispatch: (action: any) => UndoPatch,
+  getState: () => any,
+  entity: Transaction,
+): UndoPatch[] => {
+  const patches: UndoPatch[] = [];
+  const entries = transactionApi.util.selectInvalidatedBy(getState(), [
+    'transactions',
+  ]);
+  for (const { endpointName, originalArgs } of entries) {
+    if (endpointName !== 'getAllTransactions') continue;
+    const args = (originalArgs ?? {}) as GetAllTransactionParams;
+    const page = args.pageNumber ?? args.page ?? 1;
+    // Only lists whose filters would actually include the new row.
+    if (page !== 1) continue;
+    if (args.keyword) continue;
+    if (args.type && args.type !== entity.type) continue;
+    if (args.recurringStatus === 'RECURRING' && !entity.isRecurring) continue;
+    if (args.recurringStatus === 'NON_RECURRING' && entity.isRecurring) continue;
+
+    patches.push(
+      dispatch(
+        transactionApi.util.updateQueryData(
+          'getAllTransactions',
+          originalArgs as GetAllTransactionParams,
+          (draft: GetAllTransactionResponse) => {
+            const list =
+              draft.transactions ??
+              draft.transcations ??
+              draft.data?.transactions ??
+              draft.data?.transations;
+            if (!list) return;
+            list.unshift(entity);
+            if (draft.pagination) {
+              draft.pagination.totalCount =
+                (draft.pagination.totalCount || 0) + 1;
+            }
+          },
+        ),
+      ),
+    );
+  }
+  return patches;
+};
+
+/** Optimistically apply field updates to a transaction in every cached list. */
+const patchTransactionInCaches = (
+  dispatch: (action: any) => UndoPatch,
+  getState: () => any,
+  id: string,
+  patch: Partial<Transaction>,
+): UndoPatch[] => {
+  const patches: UndoPatch[] = [];
+  const entries = transactionApi.util.selectInvalidatedBy(getState(), [
+    'transactions',
+  ]);
+  for (const { endpointName, originalArgs } of entries) {
+    if (endpointName !== 'getAllTransactions') continue;
+    patches.push(
+      dispatch(
+        transactionApi.util.updateQueryData(
+          'getAllTransactions',
+          originalArgs as GetAllTransactionParams,
+          (draft: GetAllTransactionResponse) => {
+            const lists = [
+              draft.transactions,
+              draft.transcations,
+              draft.data?.transactions,
+              draft.data?.transations,
+            ];
+            for (const list of lists) {
+              const row = list?.find((t) => t._id === id);
+              if (row) Object.assign(row, patch);
+            }
+          },
+        ),
+      ),
+    );
+  }
+  return patches;
+};
+
 export const transactionApi = apiClient.injectEndpoints({
   endpoints: (builder) => ({
     createTransaction: builder.mutation<void, CreateTransactionBody>({
@@ -88,6 +177,40 @@ export const transactionApi = apiClient.injectEndpoints({
         method: 'POST',
         body: body,
       }),
+      async onQueryStarted(body, { dispatch, getState, queryFulfilled }) {
+        // Placeholder row. Note: `amount` is the entered amount — for
+        // foreign-currency entries the server-converted amount replaces it
+        // when the invalidation refetch lands moments later.
+        const now = new Date().toISOString();
+        const optimistic: Transaction = {
+          _id: `optimistic-${Date.now()}`,
+          title: body.title,
+          amount: Number(body.amount),
+          originalCurrency: body.currency ?? null,
+          category: body.category,
+          description: body.description,
+          type: body.type,
+          paymentMethod: body.paymentMethod,
+          date: body.date,
+          status: body.status ?? 'COMPLETED',
+          isRecurring: body.isRecurring ?? false,
+          recurringFrequency: body.recurringFrequency,
+          userId: '',
+          createdAt: now,
+          updatedAt: now,
+        };
+        const patches = insertIntoTransactionCaches(
+          dispatch,
+          getState,
+          optimistic,
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          // Rejected (e.g. exceeds budget): remove the placeholder again.
+          patches.forEach((p) => p.undo());
+        }
+      },
       invalidatesTags: ['transactions', 'analytics', 'budget'],
     }),
 
@@ -155,6 +278,24 @@ export const transactionApi = apiClient.injectEndpoints({
         method: 'PUT',
         body: transaction,
       }),
+      async onQueryStarted(
+        { id, transaction },
+        { dispatch, getState, queryFulfilled },
+      ) {
+        // Apply the edited fields to cached rows immediately; the refetch
+        // reconciles server-computed values (currency conversion) after.
+        const { currency: _currency, ...fields } = transaction;
+        const patches = patchTransactionInCaches(dispatch, getState, id, {
+          ...fields,
+          ...(fields.amount !== undefined && { amount: Number(fields.amount) }),
+          updatedAt: new Date().toISOString(),
+        });
+        try {
+          await queryFulfilled;
+        } catch {
+          patches.forEach((p) => p.undo());
+        }
+      },
       invalidatesTags: ['transactions', 'analytics', 'budget'],
     }),
 
