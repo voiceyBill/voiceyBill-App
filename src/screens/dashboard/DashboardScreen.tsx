@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -87,7 +87,9 @@ export default function DashboardScreen({ navigation }: any) {
   const expenses = summary?.totalExpenses || 0;
   const leftForSaving = summary?.availableBalance || (income - expenses);
 
-  const styles = createStyles(theme, insets);
+  // PERF: rebuild the stylesheet only when the theme or insets change, not on
+  // every query/state update re-render.
+  const styles = useMemo(() => createStyles(theme, insets), [theme, insets]);
 
   const handleAddTransaction = (type: "INCOME" | "EXPENSE", mode: "VOICE" | "SCAN" | "MANUAL" = "VOICE") => {
     setInitialType(type);

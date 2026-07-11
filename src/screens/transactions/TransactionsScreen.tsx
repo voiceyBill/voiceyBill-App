@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -320,7 +320,9 @@ export default function TransactionsScreen({ route }: TransactionsScreenProps) {
     }
   };
 
-  const styles = createStyles(themeColors);
+  // PERF: this screen re-renders on every search keystroke — don't re-run
+  // StyleSheet.create each time; rebuild only when the theme changes.
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const totalPages = data?.pagination?.totalPages || 0;
   const totalCount = data?.pagination?.totalCount || 0;
