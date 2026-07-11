@@ -24,6 +24,11 @@ const API_URL =
 
 const baseQuery = fetchBaseQuery({
   baseUrl: API_URL,
+  // Mobile networks routinely produce hung sockets that never error; without a
+  // timeout those leave the user on an infinite spinner. 60s is generous
+  // enough for the voice/receipt AI calls (10–20s typical) while still
+  // guaranteeing every request eventually settles.
+  timeout: 60_000,
   prepareHeaders: (headers, { getState }) => {
     const auth = (getState() as RootState).auth;
     if (auth?.accessToken) {
@@ -44,14 +49,23 @@ type RefreshResponse = {
 // Single-flight guard for the refresh request. Multiple parallel 401s share
 // one refresh attempt instead of stampeding the endpoint (which would also
 // invalidate each other's freshly rotated tokens).
-let refreshInFlight: Promise<RefreshResponse | null> | null = null;
+let refreshInFlight: Promise<RefreshOutcome> | null = null;
+
+// Distinguishes "the server refused this refresh token" (end the session)
+// from "the refresh request itself failed" (keep the session; a flaky network
+// at the moment an access token expires must never log the user out).
+type RefreshOutcome =
+  | { status: "success" }
+  | { status: "rejected" }
+  | { status: "transient" };
 
 const performRefresh = async (
   api: Parameters<BaseQueryFn>[1],
   extraOptions: Parameters<BaseQueryFn>[2],
-): Promise<RefreshResponse | null> => {
+): Promise<RefreshOutcome> => {
   const storedRefreshToken = await getRefreshToken();
-  if (!storedRefreshToken) return null;
+  // No refresh token at all — nothing to retry with; the session is over.
+  if (!storedRefreshToken) return { status: "rejected" };
 
   const refreshResult = await baseQuery(
     {
@@ -63,20 +77,36 @@ const performRefresh = async (
     extraOptions,
   );
 
-  if (!refreshResult.data) return null;
+  if (refreshResult.data) {
+    const data = refreshResult.data as RefreshResponse;
+    // Persist the rotated refresh token *before* dispatching setCredentials so a
+    // racing 401 that arrives after this point can find the new token on disk.
+    await setRefreshToken(data.refreshToken);
+    api.dispatch(
+      setCredentials({
+        user: data.user,
+        accessToken: data.accessToken,
+        reportSetting: data.reportSetting ?? null,
+      }),
+    );
+    return { status: "success" };
+  }
 
-  const data = refreshResult.data as RefreshResponse;
-  // Persist the rotated refresh token *before* dispatching setCredentials so a
-  // racing 401 that arrives after this point can find the new token on disk.
-  await setRefreshToken(data.refreshToken);
-  api.dispatch(
-    setCredentials({
-      user: data.user,
-      accessToken: data.accessToken,
-      reportSetting: data.reportSetting ?? null,
-    }),
-  );
-  return data;
+  // The server returns 401 for expired/invalid/revoked refresh tokens (see
+  // refreshTokenService). Anything else — FETCH_ERROR, TIMEOUT_ERROR, 5xx,
+  // 429 from the rate limiter — is transient: fail this request but keep the
+  // session so the next request can retry the refresh.
+  const err = refreshResult.error;
+  const status = err?.status;
+  const originalStatus = (err as { originalStatus?: number } | undefined)
+    ?.originalStatus;
+  const rejected =
+    status === 401 ||
+    status === 403 ||
+    (status === "PARSING_ERROR" &&
+      (originalStatus === 401 || originalStatus === 403));
+
+  return rejected ? { status: "rejected" } : { status: "transient" };
 };
 
 const baseQueryWithReauth: BaseQueryFn<
@@ -119,14 +149,17 @@ const baseQueryWithReauth: BaseQueryFn<
 
   const refreshed = await refreshInFlight;
 
-  if (refreshed) {
+  if (refreshed.status === "success") {
     // Retry the original request with the new access token.
     result = await baseQuery(args, api, extraOptions);
-  } else {
+  } else if (refreshed.status === "rejected") {
+    // Definitive refusal (expired/invalid/revoked token): end the session.
     await deleteRefreshToken();
     api.dispatch(logout());
     api.dispatch(apiClient.util.resetApiState());
   }
+  // Transient refresh failure: return the original 401 result. The session
+  // and refresh token stay intact and the next request retries the refresh.
 
   return result;
 };
