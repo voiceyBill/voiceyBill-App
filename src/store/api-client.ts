@@ -4,6 +4,8 @@ import type {
   FetchArgs,
   FetchBaseQueryError,
 } from "@reduxjs/toolkit/query";
+import { REHYDRATE } from "redux-persist";
+import type { Action } from "@reduxjs/toolkit";
 import { RootState } from "./store";
 import {
   setCredentials,
@@ -129,9 +131,33 @@ const baseQueryWithReauth: BaseQueryFn<
   return result;
 };
 
+// Shape of the REHYDRATE action dispatched by the nested api persistReducer
+// (see store.ts): `key` is the slice's persist key, `payload` its stored state.
+type RehydrateAction = Action<typeof REHYDRATE> & {
+  key?: string;
+  payload?: Record<string, unknown> | null;
+};
+
 export const apiClient = createApi({
   reducerPath: "api",
   baseQuery: baseQueryWithReauth,
+  // PERF: ingest the persisted query cache on startup so screens render the
+  // last-known data instantly instead of skeletons. Combined with
+  // refetchOnMountOrArgChange below, anything stale still refreshes silently
+  // in the background — cached-first, network-second.
+  extractRehydrationInfo(action, { reducerPath }) {
+    const a = action as RehydrateAction;
+    if (a.type === REHYDRATE && a.key === reducerPath && a.payload) {
+      // The transform in store.ts persists only `queries` + `provided`;
+      // normalise the shape RTK Query's rehydration handler expects.
+      return {
+        queries: (a.payload.queries as any) ?? {},
+        provided: (a.payload.provided as any) ?? {},
+        mutations: {},
+      } as any;
+    }
+    return undefined;
+  },
   // PERF: refetch on mount only if the cached data is older than 30s, instead of
   // on *every* screen mount. Navigating back to a screen within the window is
   // now instant (no spinner/skeleton flash) while still refreshing stale data.
