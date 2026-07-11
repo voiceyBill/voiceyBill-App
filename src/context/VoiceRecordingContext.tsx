@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState, ReactNode } from 'react';
 import { NavigationProp } from '@react-navigation/native';
 import { useVoiceCapture } from '../features/voice/useVoiceCapture';
 
@@ -58,13 +58,13 @@ export const VoiceRecordingProvider: React.FC<{ children: ReactNode }> = ({ chil
   const [navigationRef, setNavigationRef] = useState<NavigationProp<any>>();
 
   // Hold the menu-bar mic to record (no popup while recording).
-  const holdStart = () => {
+  const holdStart = useCallback(() => {
     capture.start();
-  };
+  }, [capture.start]);
 
   // Release: if the hold was long enough, open the popup and process (so the
   // user sees the centered spinner, then the Apply-to-Form result).
-  const holdEnd = async (): Promise<'tooShort' | 'processing'> => {
+  const holdEnd = useCallback(async (): Promise<'tooShort' | 'processing'> => {
     const { uri, tooShort } = await capture.stop();
     if (tooShort || !uri) {
       capture.reset();
@@ -73,14 +73,14 @@ export const VoiceRecordingProvider: React.FC<{ children: ReactNode }> = ({ chil
     setIsVisible(true);
     capture.process(uri);
     return 'processing';
-  };
+  }, [capture.stop, capture.reset, capture.process]);
 
   // Slid to cancel: stop and discard without processing or opening the popup.
-  const holdCancel = async () => {
+  const holdCancel = useCallback(async () => {
     await capture.cancel();
-  };
+  }, [capture.cancel]);
 
-  const applyResult = () => {
+  const applyResult = useCallback(() => {
     if (!capture.result) return;
     // Open the transaction form on top of the popup, then close the popup behind
     // it — so we never flash the tab underneath or switch tabs.
@@ -90,43 +90,67 @@ export const VoiceRecordingProvider: React.FC<{ children: ReactNode }> = ({ chil
       setIsVisible(false);
       capture.reset();
     }, 350);
-  };
+  }, [capture.result, capture.reset]);
 
-  const closePopup = () => {
+  const closePopup = useCallback(() => {
     capture.cancel();
     setIsVisible(false);
-  };
+  }, [capture.cancel]);
 
-  const closeVoiceForm = () => {
+  const closeVoiceForm = useCallback(() => {
     setFormVisible(false);
     setVoicePrefill(null);
-  };
+  }, []);
+
+  // PERF: stable handlers + memoized value, so consumers re-render only when
+  // state they can observe actually changes — not because the provider handed
+  // out a fresh object with recreated functions.
+  const value = useMemo(
+    () => ({
+      isRecording: capture.isRecording,
+      duration: capture.duration,
+      isProcessing: capture.isProcessing,
+      result: capture.result,
+      error: capture.error,
+      isVisible,
+      holdStart,
+      holdEnd,
+      holdCancel,
+      applyResult,
+      closePopup,
+      formVisible,
+      voicePrefill,
+      closeVoiceForm,
+      voiceData,
+      setVoiceData,
+      onVoiceComplete,
+      setOnVoiceComplete,
+      navigationRef,
+      setNavigationRef,
+    }),
+    [
+      capture.isRecording,
+      capture.duration,
+      capture.isProcessing,
+      capture.result,
+      capture.error,
+      isVisible,
+      holdStart,
+      holdEnd,
+      holdCancel,
+      applyResult,
+      closePopup,
+      formVisible,
+      voicePrefill,
+      closeVoiceForm,
+      voiceData,
+      onVoiceComplete,
+      navigationRef,
+    ],
+  );
 
   return (
-    <VoiceRecordingContext.Provider
-      value={{
-        isRecording: capture.isRecording,
-        duration: capture.duration,
-        isProcessing: capture.isProcessing,
-        result: capture.result,
-        error: capture.error,
-        isVisible,
-        holdStart,
-        holdEnd,
-        holdCancel,
-        applyResult,
-        closePopup,
-        formVisible,
-        voicePrefill,
-        closeVoiceForm,
-        voiceData,
-        setVoiceData,
-        onVoiceComplete,
-        setOnVoiceComplete,
-        navigationRef,
-        setNavigationRef,
-      }}
-    >
+    <VoiceRecordingContext.Provider value={value}>
       {children}
     </VoiceRecordingContext.Provider>
   );

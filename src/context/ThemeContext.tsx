@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -14,6 +14,14 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 const THEME_STORAGE_KEY = 'app-theme';
 
+// PERF: kick the read off at module evaluation so it resolves in parallel
+// with font loading and store rehydration, instead of serializing after the
+// provider mounts — which also closes the window where the first frames could
+// flash the wrong theme.
+const storedThemePromise = AsyncStorage.getItem(THEME_STORAGE_KEY).catch(
+  () => null,
+);
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemColorScheme = useColorScheme();
   const [theme, setThemeState] = useState<Theme>('system');
@@ -22,21 +30,27 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     theme === 'system' ? systemColorScheme || 'light' : theme;
 
   useEffect(() => {
-    // Load theme from storage
-    AsyncStorage.getItem(THEME_STORAGE_KEY).then((value) => {
+    // Consume the read started at module scope (usually already resolved).
+    storedThemePromise.then((value) => {
       if (value === 'light' || value === 'dark' || value === 'system') {
         setThemeState(value);
       }
     });
   }, []);
 
-  const setTheme = async (newTheme: Theme) => {
+  const setTheme = useCallback(async (newTheme: Theme) => {
     setThemeState(newTheme);
     await AsyncStorage.setItem(THEME_STORAGE_KEY, newTheme);
-  };
+  }, []);
+
+  // Stable value so theme consumers only re-render on actual theme changes.
+  const value = useMemo(
+    () => ({ theme, activeTheme, setTheme }),
+    [theme, activeTheme, setTheme],
+  );
 
   return (
-    <ThemeContext.Provider value={{ theme, activeTheme, setTheme }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

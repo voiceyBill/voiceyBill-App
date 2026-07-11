@@ -33,7 +33,7 @@ import {
 } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useTypedSelector } from '../../store/hooks';
-import { useNotification, useToast } from '../../context/NotificationContext';
+import { useToast } from '../../context/NotificationContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFloatingTabBarSpace } from '../../navigation/tabBarLayout';
@@ -186,8 +186,9 @@ const BudgetScreen = () => {
     value: number,
     options: Parameters<typeof formatCurrency>[1] = {},
   ) => formatCurrency(Math.round(value), { ...options, decimalPlaces: 0, currency: userBaseCurrency });
-  const { showNotification } = useNotification();
-  const { showToast } = useToast();
+  // Actions-only hook: this screen doesn't read notification state, so it
+  // shouldn't re-render when toasts/notifications change.
+  const { showNotification, showToast } = useToast();
   const { confirm } = useConfirm();
   const insets = useSafeAreaInsets();
   const tabBarSpace = useFloatingTabBarSpace();

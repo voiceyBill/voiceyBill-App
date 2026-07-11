@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -12,11 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFloatingTabBarSpace } from "../../navigation/tabBarLayout";
 import Skeleton from "../../components/common/Skeleton";
-import {
-  useGetSummaryAnalyticsQuery,
-  useGetChartAnalyticsQuery,
-  useGetExpensePieChartBreakdownQuery,
-} from "../../features/analytics/analyticsAPI";
+import { useGetDashboardAnalyticsQuery } from "../../features/analytics/analyticsAPI";
 import { useTheme } from "../../context/ThemeContext";
 import {
   colors,
@@ -56,13 +52,13 @@ export default function DashboardScreen({ navigation }: any) {
   const user = useTypedSelector((s) => s.auth.user);
   const baseCurrency = user?.baseCurrency || "USD";
 
-  const summaryQuery = useGetSummaryAnalyticsQuery({ preset });
-  const chartQuery = useGetChartAnalyticsQuery({ preset });
-  const pieQuery = useGetExpensePieChartBreakdownQuery({ preset });
+  // PERF: one combined request for summary + chart + pie instead of three
+  // separate serverless invocations.
+  const dashboardQuery = useGetDashboardAnalyticsQuery({ preset });
 
   // Only the very first load shows skeletons; after that we keep the previous
   // numbers on screen while new ones fetch, so the dashboard never goes blank.
-  const summaryLoading = summaryQuery.isLoading;
+  const summaryLoading = dashboardQuery.isLoading;
 
   // Pull-to-refresh should spin only on an actual user pull — never on the
   // initial load (which is what made the balance appear to have a spinner).
@@ -70,24 +66,27 @@ export default function DashboardScreen({ navigation }: any) {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([
-        summaryQuery.refetch(),
-        chartQuery.refetch(),
-        pieQuery.refetch(),
-      ]);
+      await dashboardQuery.refetch();
     } finally {
       setRefreshing(false);
     }
   };
 
-  const summary = summaryQuery.data?.data;
+  const summary = dashboardQuery.data?.data?.summary;
+  const chart = dashboardQuery.data?.data?.chart;
+  const pie = dashboardQuery.data?.data?.expenseBreakdown;
+  // Never render fake financial values: when loading fails and there's no
+  // cached data, show the error/retry state instead of a misleading $0.00.
+  const summaryError = dashboardQuery.isError && !summary;
   
   // Calculate left for saving (available balance or income - expenses depending on context)
   const income = summary?.totalIncome || 0;
   const expenses = summary?.totalExpenses || 0;
   const leftForSaving = summary?.availableBalance || (income - expenses);
 
-  const styles = createStyles(theme, insets);
+  // PERF: rebuild the stylesheet only when the theme or insets change, not on
+  // every query/state update re-render.
+  const styles = useMemo(() => createStyles(theme, insets), [theme, insets]);
 
   const handleAddTransaction = (type: "INCOME" | "EXPENSE", mode: "VOICE" | "SCAN" | "MANUAL" = "VOICE") => {
     setInitialType(type);
@@ -116,6 +115,17 @@ export default function DashboardScreen({ navigation }: any) {
           {summaryLoading ? (
             <View style={styles.heroSkeletonRow}>
               <Skeleton width={180} height={44} radius={12} />
+            </View>
+          ) : summaryError ? (
+            <View style={styles.heroSkeletonRow}>
+              <Text style={styles.chartErrorText}>Couldn't load your balance.</Text>
+              <TouchableOpacity
+                style={styles.retryBtn}
+                onPress={() => dashboardQuery.refetch()}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.retryText}>Retry</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.heroAmountRow}>
@@ -175,18 +185,18 @@ export default function DashboardScreen({ navigation }: any) {
             </View>
             {/* Distinguish "still loading" (slow network) from "genuinely no
                 data" — otherwise the chart's empty state shows during loading. */}
-            {chartQuery.isLoading ? (
+            {dashboardQuery.isLoading ? (
               <View style={styles.chartSkeleton}>
                 {[64, 100, 48, 82, 56, 92, 40].map((h, i) => (
                   <Skeleton key={i} width={14} height={`${h}%`} radius={6} />
                 ))}
               </View>
-            ) : chartQuery.isError && !chartQuery.data ? (
+            ) : dashboardQuery.isError && !chart ? (
               <View style={styles.chartStateBox}>
                 <Text style={styles.chartErrorText}>Couldn't load the chart.</Text>
                 <TouchableOpacity
                   style={styles.retryBtn}
-                  onPress={() => chartQuery.refetch()}
+                  onPress={() => dashboardQuery.refetch()}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.retryText}>Retry</Text>
@@ -194,9 +204,9 @@ export default function DashboardScreen({ navigation }: any) {
               </View>
             ) : (
               <TransactionOverviewChart
-                data={chartQuery.data?.data?.chartData || []}
-                totalIncomeCount={chartQuery.data?.data?.totalIncomeCount || 0}
-                totalExpenseCount={chartQuery.data?.data?.totalExpenseCount || 0}
+                data={chart?.chartData || []}
+                totalIncomeCount={chart?.totalIncomeCount || 0}
+                totalExpenseCount={chart?.totalExpenseCount || 0}
                 periodLabel={summary?.preset?.label || "Past 30 Days"}
                 baseCurrency={baseCurrency}
                 hideHeader={true}
@@ -210,11 +220,11 @@ export default function DashboardScreen({ navigation }: any) {
         {/* Expenses Breakdown (donut) */}
         <View style={styles.section}>
           <ExpenseBreakdownPie
-            breakdown={pieQuery.data?.data?.breakdown || []}
-            total={pieQuery.data?.data?.totalSpent || 0}
+            breakdown={pie?.breakdown || []}
+            total={pie?.totalSpent || 0}
             periodLabel={summary?.preset?.label || "Past 30 Days"}
             baseCurrency={baseCurrency}
-            isLoading={pieQuery.isLoading}
+            isLoading={dashboardQuery.isLoading}
           />
         </View>
 
@@ -231,7 +241,9 @@ export default function DashboardScreen({ navigation }: any) {
                   <Skeleton width={70} height={14} radius={6} />
                 ) : (
                   <Text style={styles.summaryAmount}>
-                    {formatCurrency(income, { currency: baseCurrency, showSign: false })}
+                    {summaryError
+                      ? "—"
+                      : formatCurrency(income, { currency: baseCurrency, showSign: false })}
                   </Text>
                 )}
                 <Ionicons name="chevron-forward" size={16} color={theme.mutedForeground} />
@@ -248,7 +260,9 @@ export default function DashboardScreen({ navigation }: any) {
                   <Skeleton width={70} height={14} radius={6} />
                 ) : (
                   <Text style={styles.summaryAmount}>
-                    {formatCurrency(expenses, { currency: baseCurrency, showSign: false })}
+                    {summaryError
+                      ? "—"
+                      : formatCurrency(expenses, { currency: baseCurrency, showSign: false })}
                   </Text>
                 )}
                 <Ionicons name="chevron-forward" size={16} color={theme.mutedForeground} />
@@ -265,7 +279,9 @@ export default function DashboardScreen({ navigation }: any) {
                   <Skeleton width={70} height={14} radius={6} />
                 ) : (
                   <Text style={styles.summaryAmount}>
-                    {formatCurrency(leftForSaving > 0 ? leftForSaving : 0, { currency: baseCurrency, showSign: false })}
+                    {summaryError
+                      ? "—"
+                      : formatCurrency(leftForSaving > 0 ? leftForSaving : 0, { currency: baseCurrency, showSign: false })}
                   </Text>
                 )}
                 <Ionicons name="chevron-forward" size={16} color={theme.mutedForeground} />
@@ -274,7 +290,8 @@ export default function DashboardScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* Insights Card */}
+        {/* Insights Card — hidden on error: it would be computed from fake zeros */}
+        {!summaryError && (
         <View style={styles.section}>
           <View style={styles.insightCard}>
             <View style={styles.insightIconWrapper}>
@@ -290,6 +307,7 @@ export default function DashboardScreen({ navigation }: any) {
             </View>
           </View>
         </View>
+        )}
 
         {/* Recent Transactions */}
         <View style={styles.section}>

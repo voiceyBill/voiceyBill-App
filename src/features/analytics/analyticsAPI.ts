@@ -102,6 +102,28 @@ export const analyticsApi = apiClient.injectEndpoints({
       }),
       providesTags: ['analytics'],
     }),
+
+    // PERF: the dashboard needs all three analytics blocks; fetching them in
+    // one request means one serverless invocation (one cold-start exposure)
+    // instead of three. The individual endpoints above remain for other uses.
+    getDashboardAnalytics: builder.query<
+      {
+        message: string;
+        data: {
+          summary: SummaryAnalytics;
+          chart: ChartAnalytics;
+          expenseBreakdown: ExpensePieChartBreakdown;
+        };
+      },
+      FilterParams
+    >({
+      query: ({ preset, from, to }) => ({
+        url: '/analytics/dashboard',
+        method: 'GET',
+        params: { preset, from, to },
+      }),
+      providesTags: ['analytics'],
+    }),
   }),
 });
 
@@ -109,4 +131,5 @@ export const {
   useGetSummaryAnalyticsQuery,
   useGetChartAnalyticsQuery,
   useGetExpensePieChartBreakdownQuery,
+  useGetDashboardAnalyticsQuery,
 } = analyticsApi;
