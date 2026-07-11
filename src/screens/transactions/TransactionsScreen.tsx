@@ -34,7 +34,6 @@ import {
   colors,
   spacing,
   fontSize,
-  fontWeight,
   borderRadius,
   shadows,
   fontFamily,
@@ -1553,11 +1552,11 @@ const createStyles = (theme: typeof colors.light) =>
     },
     paginationText: {
       fontSize: fontSize.sm,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
     },
     modalOverlay: {
       flex: 1,
-      backgroundColor: "rgba(0,0,0,0.5)",
+      backgroundColor: theme.overlay,
       alignItems: "center",
       justifyContent: "center",
       padding: spacing.lg,
@@ -1573,7 +1572,7 @@ const createStyles = (theme: typeof colors.light) =>
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.md,
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: "rgba(0,0,0,0.1)",
+      borderBottomColor: theme.border,
     },
     sheetOverlay: {
       flex: 1,
@@ -1610,7 +1609,7 @@ const createStyles = (theme: typeof colors.light) =>
     },
     sheetTitle: {
       fontSize: fontSize.xl,
-      fontWeight: fontWeight.bold,
+      fontFamily: fontFamily.bold,
     },
     sheetSubtitle: {
       fontSize: fontSize.sm,
@@ -1640,7 +1639,7 @@ const createStyles = (theme: typeof colors.light) =>
     },
     retryButtonText: {
       fontSize: fontSize.sm,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
     },
     sheetContent: {
       gap: 0,
@@ -1657,13 +1656,13 @@ const createStyles = (theme: typeof colors.light) =>
     },
     detailLabel: {
       fontSize: fontSize.sm,
-      fontWeight: fontWeight.bold,
+      fontFamily: fontFamily.bold,
       letterSpacing: 0.1,
       flex: 1,
     },
     detailValue: {
       fontSize: fontSize.sm,
-      fontWeight: "400",
+      fontFamily: fontFamily.regular,
       flex: 1.5,
       textAlign: "right",
     },
@@ -1679,6 +1678,6 @@ const createStyles = (theme: typeof colors.light) =>
     },
     actionButtonText: {
       fontSize: fontSize.sm,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
     },
   });
