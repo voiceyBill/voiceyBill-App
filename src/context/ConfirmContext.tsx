@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import ConfirmDialog from '../components/common/ConfirmDialog';
 
 export type ConfirmOptions = {
@@ -67,7 +67,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <ConfirmContext.Provider value={{ confirm }}>
+    <ConfirmContext.Provider value={useMemo(() => ({ confirm }), [confirm])}>
       {children}
       {options ? (
         <ConfirmDialog
