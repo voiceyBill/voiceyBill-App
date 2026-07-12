@@ -938,6 +938,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginBottom: spacing.sm,
     letterSpacing: -0.3,
+    fontVariant: ["tabular-nums"],
   },
   progressTrack: {
     width: '100%',

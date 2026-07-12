@@ -1497,6 +1497,7 @@ const createStyles = (theme: typeof colors.light) =>
     cardAmount: {
       fontFamily: fontFamily.bold,
       fontSize: 15,
+      fontVariant: ["tabular-nums"],
     },
     moreButton: {
       padding: spacing.xs,
