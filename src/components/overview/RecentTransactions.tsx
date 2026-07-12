@@ -1,9 +1,19 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, borderRadius, fontSize, fontWeight, fontFamily } from '../../theme/colors';
+import { colors,
+  spacing,
+  borderRadius,
+  fontSize,
+  fontFamily,
+} from '../../theme/colors';
 import { useGetAllTransactionsQuery } from '../../features/transaction/transactionAPI';
 import { ListSkeleton } from '../common/Skeleton';
 import { useTypedSelector } from '../../store/hooks';

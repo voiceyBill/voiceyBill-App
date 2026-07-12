@@ -1,6 +1,17 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, FlatList } from 'react-native';
-import { colors, spacing, fontSize, fontWeight, borderRadius, fontFamily } from '../../theme/colors';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Modal,
+  FlatList } from 'react-native';
+import { colors,
+  spacing,
+  fontSize,
+  borderRadius,
+  fontFamily,
+} from '../../theme/colors';
 import { useTheme } from '../../context/ThemeContext';
 
 export type DateRangePreset =

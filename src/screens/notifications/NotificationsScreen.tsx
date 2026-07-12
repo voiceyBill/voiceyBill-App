@@ -5,13 +5,22 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-} from 'react-native';
+  } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFloatingTabBarSpace } from '../../navigation/tabBarLayout';
-import { X, Trash2, CheckCheck, AlertTriangle, AlertCircle, CheckCircle, Info } from 'lucide-react-native';
+import { X,
+  Trash2,
+  CheckCheck,
+  AlertTriangle,
+  AlertCircle,
+  CheckCircle,
+  Info } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useNotification } from '../../context/NotificationContext';
-import { colors, spacing } from '../../theme/colors';
+import { colors,
+  spacing,
+  fontFamily,
+} from '../../theme/colors';
 import { Button } from '../../components/common';
 import type { MainTabParamList } from '../../navigation/MainNavigator';
 
@@ -239,7 +248,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: fontFamily.bold,
     marginBottom: 4,
   },
   headerSubtitle: {
@@ -275,7 +284,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fontFamily.semibold,
     marginBottom: 4,
   },
   message: {
@@ -302,7 +311,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: fontFamily.semibold,
     marginTop: spacing.md,
     marginBottom: spacing.sm,
   },

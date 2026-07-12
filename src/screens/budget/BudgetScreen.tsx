@@ -9,7 +9,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
+  } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   Car,
@@ -30,7 +30,7 @@ import {
   Wallet,
   Zap,
   X,
-} from 'lucide-react-native';
+  } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useTypedSelector } from '../../store/hooks';
 import { useToast } from '../../context/NotificationContext';
@@ -43,7 +43,6 @@ import {
   borderRadius,
   colors,
   fontSize,
-  fontWeight,
   spacing,
   fontFamily,
   shadows,

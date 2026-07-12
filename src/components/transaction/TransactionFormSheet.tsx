@@ -11,8 +11,9 @@ import {
   Modal,
   KeyboardAvoidingView,
   StatusBar,
-} from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+  } from "react-native";
+import { SafeAreaView,
+  useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../context/ThemeContext";
 import { useToast } from "../../context/NotificationContext";
 import { getApiErrorMessage } from "../../lib/getApiErrorMessage";
@@ -21,7 +22,6 @@ import {
   colors,
   spacing,
   fontSize,
-  fontWeight,
   borderRadius,
   fontFamily,
   shadows,

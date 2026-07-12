@@ -1,7 +1,15 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { TrendingUp, TrendingDown } from "lucide-react-native";
-import { colors, spacing, fontWeight, borderRadius, fontFamily } from "../../theme/colors";
+import {
+  View,
+  Text,
+  StyleSheet } from "react-native";
+import { TrendingUp,
+  TrendingDown } from "lucide-react-native";
+import { colors,
+  spacing,
+  borderRadius,
+  fontFamily,
+} from "../../theme/colors";
 import { formatCurrency } from "../../lib/formatCurrency";
 import { useTheme } from "../../context/ThemeContext";
 

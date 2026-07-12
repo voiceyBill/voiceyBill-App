@@ -1,9 +1,21 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import Svg, { G, Circle, Path } from 'react-native-svg';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions } from 'react-native';
+import Svg,
+  { G,
+  Circle,
+  Path } from 'react-native-svg';
 import { FileX } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, borderRadius, fontSize, fontWeight } from '../../theme/colors';
+import { colors,
+  spacing,
+  borderRadius,
+  fontSize,
+  fontFamily,
+} from '../../theme/colors';
 import { ExpenseBreakdown } from '../../features/analytics/analyticsAPI';
 import { formatCurrency } from '../../lib/formatCurrency';
 import Skeleton from '../common/Skeleton';
@@ -154,7 +166,7 @@ export default function ExpenseBreakdownPie({
           <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: activeTheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', alignItems: 'center', justifyContent: 'center' }}>
             <FileX size={28} color={theme.mutedForeground} strokeWidth={1.5} />
           </View>
-          <Text style={{ marginTop: spacing.md, color: theme.foreground, fontWeight: fontWeight.bold, fontSize: fontSize.base }}>No expenses found</Text>
+          <Text style={{ marginTop: spacing.md, color: theme.foreground, fontFamily: fontFamily.bold, fontSize: fontSize.base }}>No expenses found</Text>
           <Text style={{ marginTop: spacing.xs, color: theme.mutedForeground, fontSize: fontSize.sm, textAlign: 'center', paddingHorizontal: spacing.lg }}>
             There are no expenses recorded for this period.
           </Text>
@@ -225,16 +237,16 @@ export default function ExpenseBreakdownPie({
               > 
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
                   <View style={[styles.legendDot, { backgroundColor: COLORS[idx % COLORS.length] }]} />
-                  <Text style={{ color: theme.foreground, fontSize: fontSize.xs, fontWeight: fontWeight.medium, textTransform: 'capitalize' }}>
+                  <Text style={{ color: theme.foreground, fontSize: fontSize.xs, fontFamily: fontFamily.medium, textTransform: 'capitalize' }}>
                     {b.name}
                   </Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                  <Text style={{ color: theme.foreground, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }}>
+                  <Text style={{ color: theme.foreground, fontSize: fontSize.xs, fontFamily: fontFamily.semibold }}>
                     {formatCurrency(b.value, { currency: baseCurrency })}
                   </Text>
                   <View style={[styles.percentageBadge, { backgroundColor: activeTheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(23,23,23,0.04)' }]}>
-                    <Text style={{ color: theme.mutedForeground, fontSize: 10, fontWeight: fontWeight.semibold }}>
+                    <Text style={{ color: theme.mutedForeground, fontSize: 10, fontFamily: fontFamily.semibold }}>
                       {Math.round(b.percentage)}%
                     </Text>
                   </View>
@@ -267,7 +279,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.bold,
     marginBottom: 2,
   },
   cardSubtitle: {
@@ -279,7 +291,7 @@ const styles = StyleSheet.create({
   },
   centerValue: {
     fontSize: 26,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.bold,
     textAlign: 'center',
     paddingHorizontal: spacing.sm,
   },
@@ -288,7 +300,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textAlign: 'center',
     textTransform: 'uppercase',
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.bold,
     letterSpacing: 0.5,
   },
   legendRow: {

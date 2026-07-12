@@ -8,20 +8,22 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-} from "react-native";
+  } from "react-native";
 import Spinner from "../../components/common/Spinner";
 import { Button } from "../../components/common";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView,
+  useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFloatingTabBarSpace } from "../../navigation/tabBarLayout";
 import { useNavigation } from "@react-navigation/native";
-import { Eye, EyeOff, ChevronLeft } from "lucide-react-native";
+import { Eye,
+  EyeOff,
+  ChevronLeft } from "lucide-react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { useToast } from "../../context/NotificationContext";
 import {
   colors,
   spacing,
   fontSize,
-  fontWeight,
   borderRadius,
   fontFamily,
   shadows,
