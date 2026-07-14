@@ -6,22 +6,15 @@ import {
   StyleSheet,
   RefreshControl,
   TouchableOpacity,
-  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFloatingTabBarSpace } from "../../navigation/tabBarLayout";
 import Skeleton from "../../components/common/Skeleton";
+import { Card, Amount, IconTile } from "../../components/design";
 import { useGetDashboardAnalyticsQuery } from "../../features/analytics/analyticsAPI";
 import { useTheme } from "../../context/ThemeContext";
-import {
-  colors,
-  spacing,
-  fontSize,
-  fontWeight,
-  borderRadius,
-  fontFamily,
-} from "../../theme/colors";
+import { colors, spacing, fontFamily, press } from "../../theme/colors";
 import { useNotification } from "../../context/NotificationContext";
 import DateRangePicker, {
   DateRangePreset,
@@ -33,8 +26,6 @@ import TransactionFormSheet from "../../components/transaction/TransactionFormSh
 import { formatCurrency } from "../../lib/formatCurrency";
 import { useTypedSelector } from "../../store/hooks";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
 export default function DashboardScreen({ navigation }: any) {
   const { activeTheme } = useTheme();
   const theme = colors[activeTheme];
@@ -43,7 +34,7 @@ export default function DashboardScreen({ navigation }: any) {
   const { notifications } = useNotification();
   const unreadCount = notifications.length;
   const [preset, setPreset] = useState<DateRangePreset>("30days");
-  
+
   // Transaction form states
   const [showForm, setShowForm] = useState(false);
   const [initialType, setInitialType] = useState<"INCOME" | "EXPENSE">("EXPENSE");
@@ -78,7 +69,7 @@ export default function DashboardScreen({ navigation }: any) {
   // Never render fake financial values: when loading fails and there's no
   // cached data, show the error/retry state instead of a misleading $0.00.
   const summaryError = dashboardQuery.isError && !summary;
-  
+
   // Calculate left for saving (available balance or income - expenses depending on context)
   const income = summary?.totalIncome || 0;
   const expenses = summary?.totalExpenses || 0;
@@ -92,6 +83,42 @@ export default function DashboardScreen({ navigation }: any) {
     setInitialType(type);
     setInitialMode(mode);
     setShowForm(true);
+  };
+
+  // Summary list row — preserves the loading / error / value branches.
+  const renderSummaryRow = (
+    label: string,
+    value: number,
+    dotColor: string,
+    onPress?: () => void,
+    isLast?: boolean,
+  ) => {
+    const body = (
+      <>
+        <View style={styles.summaryRowLeft}>
+          <View style={[styles.summaryDot, { backgroundColor: dotColor }]} />
+          <Text style={styles.summaryLabel}>{label}</Text>
+        </View>
+        <View style={styles.summaryRowRight}>
+          {summaryLoading ? (
+            <Skeleton width={70} height={14} radius={6} />
+          ) : summaryError ? (
+            <Text style={styles.summaryAmount}>—</Text>
+          ) : (
+            <Amount value={value} currency={baseCurrency} size="md" />
+          )}
+          <Ionicons name="chevron-forward" size={16} color={theme.mutedForeground} />
+        </View>
+      </>
+    );
+    const rowStyle = [styles.summaryRow, isLast && styles.summaryRowLast];
+    return onPress ? (
+      <TouchableOpacity style={rowStyle} activeOpacity={press.row} onPress={onPress}>
+        {body}
+      </TouchableOpacity>
+    ) : (
+      <View style={rowStyle}>{body}</View>
+    );
   };
 
   return (
@@ -118,7 +145,7 @@ export default function DashboardScreen({ navigation }: any) {
             </View>
           ) : summaryError ? (
             <View style={styles.heroSkeletonRow}>
-              <Text style={styles.chartErrorText}>Couldn't load your balance.</Text>
+              <Text style={styles.stateText}>Couldn't load your balance.</Text>
               <TouchableOpacity
                 style={styles.retryBtn}
                 onPress={() => dashboardQuery.refetch()}
@@ -151,7 +178,7 @@ export default function DashboardScreen({ navigation }: any) {
         <View style={styles.actionsRow}>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: theme.primary }]}
-            activeOpacity={0.85}
+            activeOpacity={press.button}
             onPress={() => handleAddTransaction("INCOME")}
           >
             <Ionicons name="arrow-down" size={18} color={theme.primaryForeground} />
@@ -159,7 +186,7 @@ export default function DashboardScreen({ navigation }: any) {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: theme.secondary }]}
-            activeOpacity={0.85}
+            activeOpacity={press.button}
             onPress={() => handleAddTransaction("EXPENSE")}
           >
             <Ionicons name="arrow-up" size={18} color={theme.secondaryForeground} />
@@ -169,7 +196,7 @@ export default function DashboardScreen({ navigation }: any) {
 
         {/* Chart Card */}
         <View style={styles.section}>
-          <View style={styles.chartCard}>
+          <Card padding="none" style={styles.chartCard}>
             <View style={styles.chartHeader}>
               <Text style={styles.cardTitle}>Cash Flow</Text>
               <View style={styles.legend}>
@@ -193,7 +220,7 @@ export default function DashboardScreen({ navigation }: any) {
               </View>
             ) : dashboardQuery.isError && !chart ? (
               <View style={styles.chartStateBox}>
-                <Text style={styles.chartErrorText}>Couldn't load the chart.</Text>
+                <Text style={styles.stateText}>Couldn't load the chart.</Text>
                 <TouchableOpacity
                   style={styles.retryBtn}
                   onPress={() => dashboardQuery.refetch()}
@@ -214,7 +241,7 @@ export default function DashboardScreen({ navigation }: any) {
                 height={180}
               />
             )}
-          </View>
+          </Card>
         </View>
 
         {/* Expenses Breakdown (donut) */}
@@ -230,83 +257,40 @@ export default function DashboardScreen({ navigation }: any) {
 
         {/* Summary List Card */}
         <View style={styles.section}>
-          <View style={styles.summaryListCard}>
-            <TouchableOpacity style={styles.summaryRow} activeOpacity={0.7} onPress={() => handleAddTransaction("INCOME")}>
-              <View style={styles.summaryRowLeft}>
-                <View style={[styles.summaryDot, { backgroundColor: theme.primary }]} />
-                <Text style={styles.summaryLabel}>Income</Text>
-              </View>
-              <View style={styles.summaryRowRight}>
-                {summaryLoading ? (
-                  <Skeleton width={70} height={14} radius={6} />
-                ) : (
-                  <Text style={styles.summaryAmount}>
-                    {summaryError
-                      ? "—"
-                      : formatCurrency(income, { currency: baseCurrency, showSign: false })}
-                  </Text>
-                )}
-                <Ionicons name="chevron-forward" size={16} color={theme.mutedForeground} />
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.summaryRow} activeOpacity={0.7} onPress={() => handleAddTransaction("EXPENSE")}>
-              <View style={styles.summaryRowLeft}>
-                <View style={[styles.summaryDot, { backgroundColor: theme.destructive }]} />
-                <Text style={styles.summaryLabel}>Expense</Text>
-              </View>
-              <View style={styles.summaryRowRight}>
-                {summaryLoading ? (
-                  <Skeleton width={70} height={14} radius={6} />
-                ) : (
-                  <Text style={styles.summaryAmount}>
-                    {summaryError
-                      ? "—"
-                      : formatCurrency(expenses, { currency: baseCurrency, showSign: false })}
-                  </Text>
-                )}
-                <Ionicons name="chevron-forward" size={16} color={theme.mutedForeground} />
-              </View>
-            </TouchableOpacity>
-
-            <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}>
-              <View style={styles.summaryRowLeft}>
-                <View style={[styles.summaryDot, { backgroundColor: theme.foreground }]} />
-                <Text style={styles.summaryLabel}>Left for Saving</Text>
-              </View>
-              <View style={styles.summaryRowRight}>
-                {summaryLoading ? (
-                  <Skeleton width={70} height={14} radius={6} />
-                ) : (
-                  <Text style={styles.summaryAmount}>
-                    {summaryError
-                      ? "—"
-                      : formatCurrency(leftForSaving > 0 ? leftForSaving : 0, { currency: baseCurrency, showSign: false })}
-                  </Text>
-                )}
-                <Ionicons name="chevron-forward" size={16} color={theme.mutedForeground} />
-              </View>
-            </View>
-          </View>
+          <Card padding="sm">
+            {renderSummaryRow("Income", income, theme.primary, () =>
+              handleAddTransaction("INCOME"),
+            )}
+            {renderSummaryRow("Expense", expenses, theme.destructive, () =>
+              handleAddTransaction("EXPENSE"),
+            )}
+            {renderSummaryRow(
+              "Left for Saving",
+              leftForSaving > 0 ? leftForSaving : 0,
+              theme.foreground,
+              undefined,
+              true,
+            )}
+          </Card>
         </View>
 
         {/* Insights Card — hidden on error: it would be computed from fake zeros */}
         {!summaryError && (
-        <View style={styles.section}>
-          <View style={styles.insightCard}>
-            <View style={styles.insightIconWrapper}>
-              <Ionicons name="bulb-outline" size={20} color={theme.foreground} />
-            </View>
-            <View style={styles.insightTextWrapper}>
-              <Text style={styles.insightTitle}>Insight</Text>
-              <Text style={styles.insightDesc}>
-                {leftForSaving > 0
-                  ? `You saved ${formatCurrency(leftForSaving, { currency: baseCurrency, showSign: false })} this period`
-                  : `You spent more than you earned this period`}
-              </Text>
-            </View>
+          <View style={styles.section}>
+            <Card padding="sm" style={styles.insightCard}>
+              <IconTile size="md" color={theme.primary}>
+                <Ionicons name="bulb-outline" size={20} color={theme.primary} />
+              </IconTile>
+              <View style={styles.insightTextWrapper}>
+                <Text style={styles.insightTitle}>Insight</Text>
+                <Text style={styles.insightDesc}>
+                  {leftForSaving > 0
+                    ? `You saved ${formatCurrency(leftForSaving, { currency: baseCurrency, showSign: false })} this period`
+                    : `You spent more than you earned this period`}
+                </Text>
+              </View>
+            </Card>
           </View>
-        </View>
         )}
 
         {/* Recent Transactions */}
@@ -367,6 +351,7 @@ const createStyles = (theme: typeof colors.light, insets: any) =>
       fontSize: 52,
       color: theme.foreground,
       letterSpacing: -1.5,
+      fontVariant: ["tabular-nums"],
     },
     heroSkeletonRow: {
       height: 52,
@@ -397,19 +382,10 @@ const createStyles = (theme: typeof colors.light, insets: any) =>
       fontFamily: fontFamily.semibold,
       fontSize: 14,
     },
-    // Chart card
+    // Chart card — surface handled by <Card>; this adds vertical padding + clip
     chartCard: {
-      backgroundColor: theme.card,
-      borderRadius: 20,
       paddingTop: spacing.md,
       paddingBottom: spacing.sm,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.border,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.04,
-      shadowRadius: 20,
-      elevation: 3,
       overflow: "hidden",
     },
     chartHeader: {
@@ -433,7 +409,7 @@ const createStyles = (theme: typeof colors.light, insets: any) =>
       paddingHorizontal: spacing.lg,
       paddingBottom: spacing.md,
     },
-    chartErrorText: {
+    stateText: {
       fontFamily: fontFamily.medium,
       fontSize: 13,
       color: theme.mutedForeground,
@@ -476,25 +452,17 @@ const createStyles = (theme: typeof colors.light, insets: any) =>
       fontSize: 11,
       color: theme.mutedForeground,
     },
-    summaryListCard: {
-      backgroundColor: theme.card,
-      borderRadius: 20,
-      padding: spacing.md,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.border,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.04,
-      shadowRadius: 20,
-      elevation: 3,
-    },
+    // Summary list rows (surface is <Card>)
     summaryRow: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
       paddingVertical: spacing.md,
-      borderBottomWidth: 1,
+      borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: theme.border,
+    },
+    summaryRowLast: {
+      borderBottomWidth: 0,
     },
     summaryRowLeft: {
       flexDirection: "row",
@@ -518,29 +486,14 @@ const createStyles = (theme: typeof colors.light, insets: any) =>
     },
     summaryAmount: {
       fontFamily: fontFamily.bold,
-      fontSize: 14,
+      fontSize: 15,
       color: theme.foreground,
     },
+    // Insight (surface is <Card>)
     insightCard: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: theme.muted,
-      padding: spacing.md,
-      borderRadius: 16,
       gap: spacing.md,
-    },
-    insightIconWrapper: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: theme.card,
-      alignItems: "center",
-      justifyContent: "center",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-      elevation: 1,
     },
     insightTextWrapper: {
       flex: 1,

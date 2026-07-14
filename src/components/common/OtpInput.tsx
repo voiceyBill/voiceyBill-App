@@ -1,7 +1,16 @@
 import React, { useRef } from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
+import {
+  View,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, borderRadius, fontSize, spacing } from '../../theme/colors';
+import { colors,
+  borderRadius,
+  fontSize,
+  spacing,
+  fontFamily,
+} from '../../theme/colors';
 
 interface OtpInputProps {
   value: string;
@@ -106,7 +115,7 @@ const styles = StyleSheet.create({
   },
   input: {
     fontSize: fontSize.xl,
-    fontWeight: '600',
+    fontFamily: fontFamily.semibold,
     textAlign: 'center',
     width: '100%',
     height: '100%',

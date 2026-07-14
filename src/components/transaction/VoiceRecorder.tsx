@@ -6,7 +6,7 @@ import {
   StyleSheet,
   Animated,
   ScrollView,
-} from "react-native";
+  } from "react-native";
 import Spinner from "../common/Spinner";
 import RecordingWaveform from "../common/RecordingWaveform";
 import { getApiErrorMessage } from "../../lib/getApiErrorMessage";
@@ -25,16 +25,16 @@ import {
   CreditCard,
   RefreshCw,
   CheckCircle2,
-} from "lucide-react-native";
+  } from "lucide-react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { useToast } from "../../context/NotificationContext";
 import {
   colors,
   spacing,
   fontSize,
-  fontWeight,
   borderRadius,
   shadows,
+  fontFamily,
 } from "../../theme/colors";
 import { useProcessVoiceMutation } from "../../features/voice/voiceAPI";
 import { useTypedSelector } from "../../store/hooks";
@@ -850,7 +850,7 @@ const createStyles = (theme: typeof colors.light) =>
     },
     startButtonText: {
       fontSize: fontSize.sm,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
     },
     startButtonSub: {
       fontSize: fontSize.xs,
@@ -894,7 +894,7 @@ const createStyles = (theme: typeof colors.light) =>
     },
     slideHint: {
       fontSize: fontSize.xs,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
       textAlign: "center",
       marginTop: spacing.xs,
     },
@@ -918,11 +918,11 @@ const createStyles = (theme: typeof colors.light) =>
     },
     recordingText: {
       fontSize: fontSize.sm,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
     },
     recordingDuration: {
       fontSize: fontSize.sm,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
     },
     stopButton: {
       flexDirection: "row",
@@ -936,7 +936,7 @@ const createStyles = (theme: typeof colors.light) =>
     stopButtonText: {
       color: "#ffffff",
       fontSize: fontSize.sm,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
     },
     previewContainer: {
       gap: spacing.sm,
@@ -970,7 +970,7 @@ const createStyles = (theme: typeof colors.light) =>
     },
     durationText: {
       fontSize: fontSize.xs,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
       flexShrink: 0,
     },
     previewActions: {
@@ -987,7 +987,7 @@ const createStyles = (theme: typeof colors.light) =>
     },
     clearButtonText: {
       fontSize: fontSize.sm,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
     },
     processButton: {
       flex: 2,
@@ -998,7 +998,7 @@ const createStyles = (theme: typeof colors.light) =>
     },
     processButtonText: {
       fontSize: fontSize.sm,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
     },
     loadingContainer: {
       alignItems: "center",
@@ -1007,7 +1007,7 @@ const createStyles = (theme: typeof colors.light) =>
     },
     loadingTitle: {
       fontSize: fontSize.base,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
     },
     loadingText: {
       fontSize: fontSize.sm,
@@ -1033,7 +1033,7 @@ const createStyles = (theme: typeof colors.light) =>
     },
     resultType: {
       fontSize: fontSize.sm,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
     },
     successBadge: {
       flexDirection: "row",
@@ -1042,7 +1042,7 @@ const createStyles = (theme: typeof colors.light) =>
     },
     successText: {
       fontSize: 10,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
     },
     resultBody: {
       padding: spacing.md,
@@ -1057,12 +1057,12 @@ const createStyles = (theme: typeof colors.light) =>
     resultTitle: {
       flex: 1,
       fontSize: fontSize.base,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
       lineHeight: 22,
     },
     resultAmount: {
       fontSize: fontSize.xl,
-      fontWeight: fontWeight.bold,
+      fontFamily: fontFamily.bold,
       flexShrink: 0,
     },
     resultMeta: {
@@ -1080,7 +1080,7 @@ const createStyles = (theme: typeof colors.light) =>
     },
     metaPillText: {
       fontSize: 11,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
       textTransform: "capitalize",
     },
     resultDescription: {
@@ -1105,7 +1105,7 @@ const createStyles = (theme: typeof colors.light) =>
     },
     reRecordText: {
       fontSize: fontSize.sm,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
     },
     applyBtn: {
       flex: 2,
@@ -1116,7 +1116,7 @@ const createStyles = (theme: typeof colors.light) =>
     },
     applyBtnText: {
       fontSize: fontSize.sm,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
     },
     helpText: {
       fontSize: fontSize.xs,

@@ -1,9 +1,27 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import Svg, { Defs, LinearGradient, Stop, Path, Line, Text as SvgText, G } from 'react-native-svg';
-import { TrendingUp, TrendingDown, FileX } from 'lucide-react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions } from 'react-native';
+import Svg,
+  { Defs,
+  LinearGradient,
+  Stop,
+  Path,
+  Line,
+  Text as SvgText,
+  G } from 'react-native-svg';
+import { TrendingUp,
+  TrendingDown,
+  FileX } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, borderRadius, fontSize, fontWeight, fontFamily } from '../../theme/colors';
+import { colors,
+  spacing,
+  borderRadius,
+  fontSize,
+  fontFamily,
+} from '../../theme/colors';
 import { ChartDataPoint } from '../../features/analytics/analyticsAPI';
 import { formatCurrency } from '../../lib/formatCurrency';
 import { format } from 'date-fns';
@@ -333,7 +351,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 15,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.bold,
     letterSpacing: -0.3,
   },
   subtitle: {
@@ -353,7 +371,7 @@ const styles = StyleSheet.create({
   },
   countLabel: {
     fontSize: 10,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.bold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 4,
@@ -365,7 +383,7 @@ const styles = StyleSheet.create({
   },
   countValue: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.bold,
     fontVariant: ['tabular-nums'],
   },
   chartWrap: {
@@ -391,7 +409,7 @@ const styles = StyleSheet.create({
   },
   legendLabel: {
     fontSize: 11,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.bold,
   },
   emptyState: {
     alignItems: 'center',
@@ -408,7 +426,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.semibold,
   },
   emptyDesc: {
     fontSize: fontSize.sm,

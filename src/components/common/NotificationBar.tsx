@@ -6,10 +6,16 @@ import {
   Text,
   TouchableOpacity,
   Platform,
-} from 'react-native';
-import { AlertTriangle, AlertCircle, CheckCircle, Info, X } from 'lucide-react-native';
+  } from 'react-native';
+import { AlertTriangle,
+  AlertCircle,
+  CheckCircle,
+  Info,
+  X } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { colors } from '../../theme/colors';
+import { colors,
+  fontFamily,
+} from '../../theme/colors';
 import { useNotification, type Notification } from '../../context/NotificationContext';
 
 const NotificationBar: React.FC = () => {
@@ -155,7 +161,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fontFamily.semibold,
     color: '#fff',
   },
   message: {

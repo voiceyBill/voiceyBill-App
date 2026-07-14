@@ -8,7 +8,7 @@ import {
   RefreshControl,
   Modal,
   Switch,
-} from 'react-native';
+  } from 'react-native';
 import Spinner from '../../components/common/Spinner';
 import { ListSkeleton } from '../../components/common/Skeleton';
 import { Button } from '../../components/common';
@@ -16,10 +16,25 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFloatingTabBarSpace } from '../../navigation/tabBarLayout';
 import { getApiErrorMessage } from '../../lib/getApiErrorMessage';
 import { Ionicons } from '@expo/vector-icons';
-import { Calendar, FileText, Mail, Send, X, CheckCircle, Clock, AlertCircle, MinusCircle } from 'lucide-react-native';
+import { Calendar,
+  FileText,
+  Mail,
+  Send,
+  X,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  MinusCircle } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/NotificationContext';
-import { colors, spacing, fontSize, fontWeight, borderRadius, fontFamily, shadows, cardRadius } from '../../theme/colors';
+import { colors,
+  spacing,
+  fontSize,
+  borderRadius,
+  fontFamily,
+  shadows,
+  cardRadius,
+} from '../../theme/colors';
 import {
   useGetAllReportsQuery,
   useUpdateReportSettingMutation,

@@ -5,14 +5,22 @@ import {
   Text,
   useWindowDimensions,
   View,
-} from 'react-native';
-import Svg, { Circle, G, Path } from 'react-native-svg';
+  } from 'react-native';
+import Svg,
+  { Circle,
+  G,
+  Path } from 'react-native-svg';
 import { FileX } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useTypedSelector } from '../../store/hooks';
 import type { BudgetCategorySummary } from '../../features/budget/budgetType';
 import { formatCurrency } from '../../lib/formatCurrency';
-import { borderRadius, colors, fontSize, fontWeight, spacing } from '../../theme/colors';
+import { borderRadius,
+  colors,
+  fontSize,
+  spacing,
+  fontFamily,
+} from '../../theme/colors';
 
 type CategoryIconProps = {
   size?: number;
@@ -325,13 +333,13 @@ const styles = StyleSheet.create({
   },
   centerValue: {
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.bold,
     fontVariant: ['tabular-nums'],
   },
   centerCaption: {
     marginTop: 2,
     fontSize: 10,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.bold,
     textTransform: 'uppercase',
   },
   tooltip: {
@@ -355,7 +363,7 @@ const styles = StyleSheet.create({
   tooltipTitle: {
     flex: 1,
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.semibold,
   },
   tooltipMeta: {
     fontSize: fontSize.xs,
@@ -388,11 +396,11 @@ const styles = StyleSheet.create({
   legendText: {
     maxWidth: 132,
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.medium,
   },
   legendPercent: {
     fontSize: 11,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.bold,
     fontVariant: ['tabular-nums'],
   },
   listPane: {
@@ -437,7 +445,7 @@ const styles = StyleSheet.create({
   },
   categoryTitle: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.semibold,
   },
   categoryMeta: {
     marginTop: spacing.xs,
@@ -463,7 +471,7 @@ const styles = StyleSheet.create({
   },
   categoryPercent: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.bold,
     fontVariant: ['tabular-nums'],
   },
   emptyState: {
@@ -481,7 +489,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.semibold,
   },
   emptyDescription: {
     marginTop: spacing.xs,

@@ -1,6 +1,13 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
-import { spacing, fontSize, fontWeight } from '../../theme/colors';
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet } from 'react-native';
+import { spacing,
+  fontSize,
+  fontFamily,
+} from '../../theme/colors';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../theme/colors';
 
@@ -30,6 +37,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   brand: {
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.semibold,
   },
 });

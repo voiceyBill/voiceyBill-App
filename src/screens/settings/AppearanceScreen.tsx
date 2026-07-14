@@ -1,11 +1,24 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView } from 'react-native';
+import { SafeAreaView,
+  useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFloatingTabBarSpace } from '../../navigation/tabBarLayout';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, fontSize, fontWeight, borderRadius, fontFamily, shadows, cardRadius } from '../../theme/colors';
+import { colors,
+  spacing,
+  fontSize,
+  borderRadius,
+  fontFamily,
+  shadows,
+  cardRadius,
+} from '../../theme/colors';
 
 export default function AppearanceScreen() {
   const navigation = useNavigation();
@@ -345,7 +358,7 @@ const createStyles = (theme: typeof colors.light) =>
       overflow: 'hidden',
       height: 100,
       borderWidth: 1,
-      borderColor: 'rgba(0, 0, 0, 0.1)',
+      borderColor: theme.border,
     },
     systemPreviewLeft: {
       flex: 1,
@@ -363,14 +376,14 @@ const createStyles = (theme: typeof colors.light) =>
     },
     themeLabel: {
       fontSize: fontSize.sm,
-      fontWeight: fontWeight.medium,
+      fontFamily: fontFamily.medium,
       color: theme.foreground,
       textAlign: 'center',
       paddingVertical: spacing.sm,
     },
     themeLabelActive: {
       color: theme.primary,
-      fontWeight: fontWeight.semibold,
+      fontFamily: fontFamily.semibold,
     },
     updateButton: {
       paddingVertical: spacing.md,

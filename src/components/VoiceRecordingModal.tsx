@@ -6,8 +6,9 @@ import {
   StyleSheet,
   Modal,
   StatusBar,
-} from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+  } from 'react-native';
+import { SafeAreaView,
+  useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   X,
   Tag,
@@ -16,10 +17,16 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   MicOff,
-} from 'lucide-react-native';
+  } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { useTheme } from '../context/ThemeContext';
-import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '../theme/colors';
+import { colors,
+  spacing,
+  fontSize,
+  borderRadius,
+  shadows,
+  fontFamily,
+} from '../theme/colors';
 import { useVoiceRecording } from '../context/VoiceRecordingContext';
 import { useTypedSelector } from '../store/hooks';
 import { formatCurrency } from '../lib/formatCurrency';
@@ -232,7 +239,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
   },
-  headerTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold },
+  headerTitle: { fontSize: fontSize.lg, fontFamily: fontFamily.semibold },
   closeButton: { padding: spacing.xs },
   body: { flex: 1, paddingHorizontal: spacing.lg },
   centered: {
@@ -243,7 +250,7 @@ const styles = StyleSheet.create({
   },
   centeredTitle: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.semibold,
     marginTop: spacing.md,
   },
   centeredSub: { fontSize: fontSize.sm, textAlign: 'center' },
@@ -255,7 +262,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: spacing.sm,
   },
-  errorTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold },
+  errorTitle: { fontSize: fontSize.lg, fontFamily: fontFamily.semibold },
   errorMessage: {
     fontSize: fontSize.sm,
     textAlign: 'center',
@@ -270,7 +277,7 @@ const styles = StyleSheet.create({
     minWidth: 200,
     alignItems: 'center',
   },
-  errorBtnText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  errorBtnText: { fontSize: fontSize.sm, fontFamily: fontFamily.semibold },
   resultWrap: { flex: 1, justifyContent: 'center', gap: spacing.lg },
   resultCard: {
     borderWidth: 1.5,
@@ -286,9 +293,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   resultTypeRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  resultType: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  resultAmount: { fontSize: fontSize.xl, fontWeight: fontWeight.bold },
-  resultName: { fontSize: fontSize.base, fontWeight: fontWeight.semibold },
+  resultType: { fontSize: fontSize.sm, fontFamily: fontFamily.semibold },
+  resultAmount: { fontSize: fontSize.xl, fontFamily: fontFamily.bold },
+  resultName: { fontSize: fontSize.base, fontFamily: fontFamily.semibold },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   metaPill: {
     flexDirection: 'row',
@@ -300,7 +307,7 @@ const styles = StyleSheet.create({
   },
   metaPillText: {
     fontSize: 11,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.medium,
     textTransform: 'capitalize',
   },
   resultDesc: { fontSize: fontSize.xs, lineHeight: 18 },
@@ -310,7 +317,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  applyBtnText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  applyBtnText: { fontSize: fontSize.sm, fontFamily: fontFamily.semibold },
 });
 
 export default VoiceRecordingModal;

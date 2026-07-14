@@ -9,11 +9,18 @@ import {
   StyleSheet,
   Image,
   Platform,
-} from "react-native";
+  } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Search, X, Check } from "lucide-react-native";
+import { Search,
+  X,
+  Check } from "lucide-react-native";
 import { useTheme } from "../../context/ThemeContext";
-import { colors, spacing, fontSize, fontWeight, borderRadius, fontFamily } from "../../theme/colors";
+import { colors,
+  spacing,
+  fontSize,
+  borderRadius,
+  fontFamily,
+} from "../../theme/colors";
 import { getFlagUrl } from "../../lib/currency-flag";
 
 interface SupportedCurrency {
@@ -89,7 +96,7 @@ export default function CurrencyPicker({
             />
           ) : (
             <View style={[styles.flagPlaceholder, { backgroundColor: themeColors.muted }]}>
-              <Text style={{ fontSize: 10, color: themeColors.mutedForeground, fontWeight: fontWeight.bold }}>
+              <Text style={{ fontSize: 10, color: themeColors.mutedForeground, fontFamily: fontFamily.bold }}>
                 {item.code.substring(0, 2)}
               </Text>
             </View>

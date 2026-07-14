@@ -12,11 +12,12 @@ import {
   KeyboardAvoidingView,
   Keyboard,
   Platform,
-} from "react-native";
+  } from "react-native";
 import Spinner from "../../components/common/Spinner";
 import { Button } from "../../components/common";
 import { getApiErrorMessage } from "../../lib/getApiErrorMessage";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView,
+  useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFloatingTabBarSpace } from "../../navigation/tabBarLayout";
 import { useNavigation } from "@react-navigation/native";
 import {
@@ -28,23 +29,23 @@ import {
   LogOut,
   Trash2,
   Tag,
-} from "lucide-react-native";
+  } from "lucide-react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { useToast } from "../../context/NotificationContext";
 import { useConfirm } from "../../context/ConfirmContext";
-import { useTypedSelector, useAppDispatch } from "../../store/hooks";
+import { useTypedSelector,
+  useAppDispatch } from "../../store/hooks";
 import { logout } from "../../features/auth/authSlice";
 import {
   useDeleteUserMutation,
   useSendDeleteAccountOtpMutation,
-} from "../../features/user/userAPI";
+  } from "../../features/user/userAPI";
 import { apiClient } from "../../store/api-client";
 import { deleteRefreshToken } from "../../lib/tokenStorage";
 import {
   colors,
   spacing,
   fontSize,
-  fontWeight,
   borderRadius,
   fontFamily,
   shadows,
