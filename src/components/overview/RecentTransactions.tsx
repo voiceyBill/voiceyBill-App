@@ -4,11 +4,13 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity } from 'react-native';
+  TouchableOpacity
+} from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
-import { colors,
+import {
+  colors,
   spacing,
   borderRadius,
   fontSize,
@@ -36,7 +38,12 @@ export default function RecentTransactions() {
     pageNumber: 1,
     pageSize: 10,
   });
-  const transactions = data?.transactions || [];
+  const transactions =
+    data?.transactions ??
+    data?.transcations ??
+    data?.data?.transactions ??
+    data?.data?.transations ??
+    [];
 
   const formatPaymentMethod = (method: string) =>
     method.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
